@@ -1,9 +1,9 @@
 import ContinuousIntegration
-import Institute_Continuous_Integration
+import Foundation
 import GitHub_Continuous_Integration
 import GitHub_Continuous_Integration_Workflow
 import GitHub_Standard
-import Foundation
+import Institute_Continuous_Integration
 
 extension Institute.ContinuousIntegration.Inventory {
     /// The trust anchor: the sources a workflow revision is entitled to

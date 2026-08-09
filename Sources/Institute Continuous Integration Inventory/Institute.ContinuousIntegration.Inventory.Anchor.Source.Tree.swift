@@ -1,8 +1,8 @@
 import ContinuousIntegration
-import Institute_Continuous_Integration
 import GitHub_Continuous_Integration
 import GitHub_Continuous_Integration_Workflow
 import GitHub_Standard
+import Institute_Continuous_Integration
 
 extension Institute.ContinuousIntegration.Inventory.Anchor.Source {
     /// The content identity of a pinned source: which subtree is

@@ -1,10 +1,10 @@
+import Foundation
 import GitHub_Continuous_Integration
 import GitHub_Continuous_Integration_Validation
 import GitHub_Continuous_Integration_Workflow
 import GitHub_Standard
 import Institute_Continuous_Integration
 import Institute_Continuous_Integration_Inventory
-import Foundation
 
 extension Institute.ContinuousIntegration.Validation {
     /// `[CI-ANCHOR-001]` — the trust anchor's shipped block equals what
@@ -153,12 +153,14 @@ extension Institute.ContinuousIntegration.Validation.Anchor {
                         + "`\(identityName)`). Regenerate the trust-anchor block; do not "
                         + "author it.")
                 continue
+
             case (nil, .some):
                 problems.append(
                     "\(workflow) carries the identity check for `\(source.repository)` "
                         + "but not its pinned checkout `\(checkoutName)` -- the check would "
                         + "read whatever else is in the workspace.")
                 continue
+
             case (.some, nil):
                 problems.append(
                     "\(workflow) checks out `\(source.repository)` at a pin but carries no "
@@ -166,6 +168,7 @@ extension Institute.ContinuousIntegration.Validation.Anchor {
                         + "never verified, and the pin is trusted on the fetcher's word "
                         + "alone.")
                 continue
+
             case (.some(let checkout), .some(let identity)):
                 if checkout.job != identity.job {
                     problems.append(

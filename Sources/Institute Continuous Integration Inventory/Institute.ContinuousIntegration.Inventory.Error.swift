@@ -46,15 +46,20 @@ extension Institute.ContinuousIntegration.Inventory {
 
             case .missingJob(let job):
                 "the universal workflow declares no '\(job)' job"
+
             case .malformedRevision(let text):
                 "'\(text)' is not a canonical 40-hex object name, so it pins nothing"
+
             case .unpinnedAction(let reference):
                 "the trust anchor's checkout action '\(reference)' is not pinned to a "
                     + "full commit SHA"
+
             case .noSources:
                 "the trust anchor pins no source repositories"
+
             case .duplicateSource(let repository):
                 "the trust anchor pins '\(repository)' more than once"
+
             case .unreadableAnchor(let message):
                 "the trust-anchor manifest could not be read: \(message)"
             }
