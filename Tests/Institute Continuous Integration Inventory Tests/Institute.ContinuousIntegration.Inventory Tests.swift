@@ -1,9 +1,9 @@
 import ContinuousIntegration
-import Institute_Continuous_Integration
+import Foundation
 import GitHub_Continuous_Integration
 import GitHub_Continuous_Integration_Workflow
 import GitHub_Standard
-import Foundation
+import Institute_Continuous_Integration
 import Testing
 
 @testable import Institute_Continuous_Integration_Inventory

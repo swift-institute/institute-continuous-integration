@@ -1,9 +1,9 @@
+import Foundation
 import GitHub_Continuous_Integration
 import GitHub_Continuous_Integration_Validation
+import GitHub_Continuous_Integration_Workflow
 import GitHub_Standard
 import Institute_Continuous_Integration
-import GitHub_Continuous_Integration_Workflow
-import Foundation
 import Testing
 
 @testable import Institute_Continuous_Integration_Validation
@@ -35,7 +35,8 @@ struct CIValidationManifestBindingTests {
 
             func stubs(under path: String) -> [String] {
                 let root = url.appendingPathComponent(path)
-                return (FileManager.default
+                return
+                    (FileManager.default
                     .enumerator(atPath: root.path)?
                     .compactMap { $0 as? String }
                     .filter { $0.hasSuffix(".py") } ?? [])

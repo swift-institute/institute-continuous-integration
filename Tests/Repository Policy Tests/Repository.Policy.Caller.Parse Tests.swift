@@ -49,9 +49,10 @@ struct RepositoryPolicyCallerParseTests {
             """
         let spec = try Repository.Policy.Caller.Parse.caller(
             text, repository: "swift-standards/swift-demo-standard")
-        #expect(spec.inputs.map(\.key) == [
-            "platform-support", "docs-umbrella-module", "docs-exclude-modules",
-        ])
+        #expect(
+            spec.inputs.map(\.key) == [
+                "platform-support", "docs-umbrella-module", "docs-exclude-modules",
+            ])
         #expect(spec.inputs.first { $0.key == "docs-umbrella-module" }?.value == "Demo")
     }
 
@@ -71,8 +72,10 @@ struct RepositoryPolicyCallerParseTests {
                 steps:
                   - uses: actions/checkout@v6
             """
-        #expect(throws: Repository.Policy.Caller.Error.unknownCustomization(
-            "`ci` job carries inline steps/runs-on, not a thin caller")) {
+        #expect(
+            throws: Repository.Policy.Caller.Error.unknownCustomization(
+                "`ci` job carries inline steps/runs-on, not a thin caller")
+        ) {
             try Repository.Policy.Caller.Parse.caller(text, repository: "swift-iso/swift-x")
         }
     }
@@ -86,8 +89,10 @@ struct RepositoryPolicyCallerParseTests {
                 with:
                   bespoke-knob: yes
             """
-        #expect(throws: Repository.Policy.Caller.Error.unknownCustomization(
-            "unapproved with: key bespoke-knob")) {
+        #expect(
+            throws: Repository.Policy.Caller.Error.unknownCustomization(
+                "unapproved with: key bespoke-knob")
+        ) {
             try Repository.Policy.Caller.Parse.caller(text, repository: "swift-iso/swift-x")
         }
     }
@@ -166,8 +171,10 @@ struct RepositoryPolicyCallerParseTests {
                   integrated-docs: false
                 secrets: inherit
             """
-        #expect(throws: Repository.Policy.Caller.Error.unknownCustomization(
-            "integrated-docs is present but not true")) {
+        #expect(
+            throws: Repository.Policy.Caller.Error.unknownCustomization(
+                "integrated-docs is present but not true")
+        ) {
             try Repository.Policy.Caller.Parse.caller(text, repository: "swift-iso/swift-x")
         }
     }
