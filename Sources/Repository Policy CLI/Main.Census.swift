@@ -22,8 +22,10 @@ extension Main {
                     throw RepositoryPolicy.ConfigurationError("--repo needs <name>=<root>=<headSha>")
                 }
                 repos.append(.init(name: parts[0], root: parts[1], headSha: parts[2]))
+
             case "--output":
                 output = iterator.next()
+
             default:
                 throw RepositoryPolicy.ConfigurationError("unknown census argument \(argument)")
             }

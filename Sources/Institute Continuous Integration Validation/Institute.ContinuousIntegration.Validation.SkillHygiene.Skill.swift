@@ -63,8 +63,10 @@ extension Institute.ContinuousIntegration.Validation.SkillHygiene {
                 switch mapping[field] {
                 case nil, .some(.null):
                     findings.append(finding(Rules.identity, "frontmatter has no `\(field)` field"))
+
                 case .some(.text(let value)) where !value.trimmed.isEmpty:
                     continue
+
                 default:
                     // Present but not a non-empty string — a number, a
                     // boolean, a mapping, or whitespace. All of them

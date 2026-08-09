@@ -356,6 +356,7 @@ extension Institute.ContinuousIntegration.Validation.SchemaCorrespondence {
                     case "t": value.append("\t")
                     case "r": value.append("\r")
                     case "\\", "'", "\"": value.append(escapedCharacter)
+
                     default:
                         // Python keeps an unrecognised escape verbatim.
                         value.append("\\")

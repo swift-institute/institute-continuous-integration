@@ -169,12 +169,16 @@ extension Institute.ContinuousIntegration.Validation {
             switch family {
             case "E":
                 findings += Self.familyE(subject, name: name, content: content)
+
             case "C":
                 findings += Self.familyC(subject.repository, name: name, content: content)
+
             case "F":
                 findings += Self.familyF(subject.repository, name: name, content: content)
+
             case "G":
                 findings += Self.familyG(subject.repository, name: name, content: content)
+
             default:
                 break  // Family A has no per-family rules in v1.
             }

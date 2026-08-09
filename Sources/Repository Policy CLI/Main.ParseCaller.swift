@@ -22,6 +22,7 @@ extension Main {
             switch argument {
             case "--caller": caller = iterator.next()
             case "--repository": repository = iterator.next()
+
             default:
                 throw RepositoryPolicy.ConfigurationError(
                     "unknown parse-caller argument \(argument)")

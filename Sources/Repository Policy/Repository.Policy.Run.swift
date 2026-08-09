@@ -105,10 +105,12 @@ extension RepositoryPolicy {
             ) {
             case .excluded(let reason):
                 excluded[reason.rawValue, default: 0] += 1
+
             case .converged:
                 converged += 1
                 verified.append(repository.fullName)
                 try journal.append(repository: repository.fullName, phase: "verified-existing")
+
             case .enable:
                 if configuration.dryRun {
                     wouldEnable += 1

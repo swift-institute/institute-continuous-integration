@@ -17,6 +17,7 @@ extension Main {
         while let argument = iterator.next() {
             switch argument {
             case "--repository": repository = iterator.next()
+
             case "--layer":
                 guard let raw = iterator.next(),
                     let value = Repository.Policy.Caller.Layer(rawValue: raw)
@@ -24,6 +25,7 @@ extension Main {
                     throw RepositoryPolicy.ConfigurationError("--layer must be primitives|standards|institute")
                 }
                 layer = value
+
             case "--input":
                 guard let raw = iterator.next(),
                     let separator = raw.firstIndex(of: "=")
@@ -35,8 +37,10 @@ extension Main {
                     throw RepositoryPolicy.ConfigurationError("unapproved input key \(key)")
                 }
                 inputs.append((key: key, value: String(raw[raw.index(after: separator)...])))
+
             case "--form": form = iterator.next() ?? "current"
             case "--private-dependency-closure": privateClosure = true
+
             default:
                 throw RepositoryPolicy.ConfigurationError("unknown render-caller argument \(argument)")
             }
@@ -49,10 +53,12 @@ extension Main {
         switch form {
         case "current":
             print(Repository.Policy.Caller.Render.current(caller), terminator: "")
+
         case "direct":
             print(
                 Repository.Policy.Caller.Render.direct(
                     caller, privateDependencyClosure: privateClosure), terminator: "")
+
         default:
             throw RepositoryPolicy.ConfigurationError("--form must be current|direct")
         }

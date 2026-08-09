@@ -74,6 +74,7 @@ struct CIInventoryTests {
                 case .aggregate: #expect(["ci-ok", "advisory-summary"].contains(job.id))
                 case .gating: #expect(gating.contains(job.id))
                 case .advisory: #expect(advisory.contains(job.id))
+
                 case .eventGated:
                     #expect(!gating.contains(job.id))
                     #expect(!advisory.contains(job.id))

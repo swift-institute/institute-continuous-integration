@@ -24,8 +24,10 @@ extension Institute.ContinuousIntegration.Inventory {
             switch self {
             case .unreadableWorkflow(let message):
                 "the universal workflow could not be read: \(message)"
+
             case .noJobs:
                 "the universal workflow declares no jobs"
+
             case .missingJob(let job):
                 "the universal workflow declares no '\(job)' job"
             }

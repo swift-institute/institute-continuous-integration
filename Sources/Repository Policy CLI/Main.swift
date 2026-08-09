@@ -162,10 +162,13 @@ enum Main {
         switch (arguments.repositoryClass, arguments.visibility) {
         case (.package, .public):
             payload = try RepositoryPolicy.Ruleset.protectedMainPayload(from: url)
+
         case (.package, .private):
             payload = try RepositoryPolicy.Ruleset.protectedMainPrivatePayload(from: url)
+
         case (.controlPlane, _):
             payload = try RepositoryPolicy.Ruleset.protectedMainControlPayload(from: url)
+
         case (.tool, _):
             throw RepositoryPolicy.ConfigurationError(
                 "ruleset --class must be package or control-plane"
@@ -255,8 +258,10 @@ enum Main {
                 switch name {
                 case "--organization":
                     organization = value
+
                 case "--repository":
                     repository = value
+
                 case "--dry-run":
                     guard let parsed = Bool(value) else {
                         throw RepositoryPolicy.ConfigurationError(
@@ -264,14 +269,19 @@ enum Main {
                         )
                     }
                     dryRun = parsed
+
                 case "--journal":
                     journal = value
+
                 case "--receipt":
                     receipt = value
+
                 case "--surface-policy":
                     surfacePolicy = value
+
                 case "--surface-report":
                     surfaceReport = value
+
                 default:
                     throw RepositoryPolicy.ConfigurationError("unknown argument \(name)")
                 }
@@ -305,11 +315,13 @@ enum Main {
                 case "--issue": issue = Int(value)
                 case "--revision": revision = value
                 case "--digest": digest = value
+
                 case "--apply":
                     guard let parsed = Bool(value) else {
                         throw RepositoryPolicy.ConfigurationError("--apply must be true or false")
                     }
                     apply = parsed
+
                 default: throw RepositoryPolicy.ConfigurationError("unknown argument \(name)")
                 }
                 index += 2

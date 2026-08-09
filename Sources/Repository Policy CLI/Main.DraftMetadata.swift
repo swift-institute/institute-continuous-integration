@@ -23,6 +23,7 @@ extension Main {
             case "--spec-titles": specTitles = iterator.next()
             case "--package-description": packageDescription = iterator.next() ?? ""
             case "--date": date = iterator.next()
+
             default:
                 throw RepositoryPolicy.ConfigurationError(
                     "unknown draft-metadata argument \(argument)")

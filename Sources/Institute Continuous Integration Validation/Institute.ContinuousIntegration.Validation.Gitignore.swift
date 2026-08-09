@@ -132,11 +132,13 @@ extension Institute.ContinuousIntegration.Validation {
                     Finding(
                         repository: subject.repository, rule: conformance,
                         message: "no CANONICAL section; file predates the canonical whitelist"))
+
             case .some(let section) where section != canonical:
                 findings.append(
                     Finding(
                         repository: subject.repository, rule: conformance,
                         message: "CANONICAL section diverges from canon/gitignore-package.txt"))
+
             case .some:
                 break
             }

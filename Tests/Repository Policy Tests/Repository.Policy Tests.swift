@@ -557,7 +557,7 @@ struct RepositoryPolicyTests {
     // The originals remain in .github and transfer/rebind at TX-APP2Z.
 
     @Test
-    func surfacePolicyAcceptsWhitelistedThinCaller() throws {
+    func surfacePolicyAcceptsAllowlistedThinCaller() throws {
         let root = try repositoryFixture(
             files: [
                 ".github/workflows/ci.yml": """

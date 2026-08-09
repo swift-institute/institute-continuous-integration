@@ -170,9 +170,11 @@ extension Repository.Policy.Metadata.Draft {
         case "swift-primitives": "primitives"
         case "swift-standards": "standards"
         case "swift-foundations": "foundations"
+
         case "swift-ietf", "swift-iso", "swift-ieee", "swift-iec", "swift-w3c", "swift-whatwg",
             "swift-ecma", "swift-incits":
             "standards"
+
         default: ""
         }
     }
