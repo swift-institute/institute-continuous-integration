@@ -1,7 +1,8 @@
-#if canImport(FoundationNetworking)
-import FoundationNetworking
-#endif
 import Foundation
+
+#if canImport(FoundationNetworking)
+    import FoundationNetworking
+#endif
 
 extension RepositoryPolicy {
     public struct GitHubClient: Sendable {
@@ -229,9 +230,12 @@ extension RepositoryPolicy {
             guard let response = response as? HTTPURLResponse else {
                 throw URLError(.badServerResponse)
             }
-            return (data, response.statusCode, response.allHeaderFields.reduce(into: [:]) {
-                $0[String(describing: $1.key)] = String(describing: $1.value)
-            })
+            return (
+                data, response.statusCode,
+                response.allHeaderFields.reduce(into: [:]) {
+                    $0[String(describing: $1.key)] = String(describing: $1.value)
+                }
+            )
         }
 
         private func error(

@@ -93,7 +93,7 @@ extension Repository.Policy {
         /// withheld from the secrets context because it is not a secret)
         /// and is superseded by the vars profile below, not withdrawn.
         public static let terminalSecretNames: [String] = [
-            "SWIFT_INSTITUTE_BOT_APP_PRIVATE_KEY",
+            "SWIFT_INSTITUTE_BOT_APP_PRIVATE_KEY"
         ]
 
         /// The names delivered through the `vars` context rather than
@@ -108,7 +108,7 @@ extension Repository.Policy {
         /// org and callee-org resolution cannot be distinguished by
         /// outcome when both resolve to the same literal.
         public static let terminalVariableNames: [String] = [
-            "SWIFT_INSTITUTE_BOT_APP_ID",
+            "SWIFT_INSTITUTE_BOT_APP_ID"
         ]
 
         public let repository: String

@@ -1,9 +1,9 @@
+import Foundation
 import GitHub_Continuous_Integration
 import GitHub_Continuous_Integration_Validation
+import GitHub_Continuous_Integration_Workflow
 import GitHub_Standard
 import Institute_Continuous_Integration
-import GitHub_Continuous_Integration_Workflow
-import Foundation
 
 extension Institute.ContinuousIntegration.Validation {
     /// Publication hygiene for a public skill corpus — the seven
@@ -162,9 +162,9 @@ extension Institute.ContinuousIntegration.Validation {
             guard let supportRoot else { return [] }
             let path = supportRoot + "/.github/actions/read-orgs/orgs.yaml"
             guard let data = FileManager.default.contents(atPath: path),
-                  let text = String(data: data, encoding: .utf8),
-                  let node = try? GitHub.ContinuousIntegration.Workflow.YAML.Parser.parse(text),
-                  let entries = node.sequence
+                let text = String(data: data, encoding: .utf8),
+                let node = try? GitHub.ContinuousIntegration.Workflow.YAML.Parser.parse(text),
+                let entries = node.sequence
             else { return [] }
             return Set(
                 entries.compactMap { entry in

@@ -99,12 +99,14 @@ extension Repository.Policy.Caller {
             // spec-level only. (`parse_existing_caller`'s closing check,
             // generalized over the form.)
             if form != .legacy {
-                let rendered = form == .direct
+                let rendered =
+                    form == .direct
                     ? Repository.Policy.Caller.Render.direct(
                         caller, privateDependencyClosure: ci.declares("secrets:"))
                     : Repository.Policy.Caller.Render.current(caller)
-                guard try self.jobs(rendered).map(\.significantLines)
-                    == jobs.map(\.significantLines)
+                guard
+                    try self.jobs(rendered).map(\.significantLines)
+                        == jobs.map(\.significantLines)
                 else {
                     throw .unknownCustomization(
                         "single-job caller does not match the canonical \(form.rawValue) "
@@ -171,8 +173,9 @@ extension Repository.Policy.Caller.Parse {
             return layer
         }
         let organization = String(uses.prefix { $0 != "/" })
-        guard let layer = Repository.Policy.Caller.Layer.allCases
-            .first(where: { $0.wrapperOrganization == organization })
+        guard
+            let layer = Repository.Policy.Caller.Layer.allCases
+                .first(where: { $0.wrapperOrganization == organization })
         else {
             throw .unknownCustomization(
                 "could not infer a known layer from uses: \(uses)")

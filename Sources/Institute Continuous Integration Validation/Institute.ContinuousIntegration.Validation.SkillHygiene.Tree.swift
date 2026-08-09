@@ -1,8 +1,8 @@
+import Foundation
 import GitHub_Continuous_Integration
 import GitHub_Continuous_Integration_Validation
 import GitHub_Standard
 import Institute_Continuous_Integration
-import Foundation
 
 extension Institute.ContinuousIntegration.Validation.SkillHygiene {
     /// The scanned repository as a set of files.
@@ -26,7 +26,7 @@ extension Institute.ContinuousIntegration.Validation.SkillHygiene {
         init(root: String) throws(GitHub.ContinuousIntegration.Validation.EnvironmentDefect) {
             var isDirectory: ObjCBool = false
             guard FileManager.default.fileExists(atPath: root, isDirectory: &isDirectory),
-                  isDirectory.boolValue
+                isDirectory.boolValue
             else { throw .unreadableSubject(root: root) }
 
             self.root = root

@@ -1,9 +1,9 @@
-import Institute_Continuous_Integration_Canon
+import Foundation
 import GitHub_Continuous_Integration
 import GitHub_Continuous_Integration_Validation
 import GitHub_Standard
 import Institute_Continuous_Integration
-import Foundation
+import Institute_Continuous_Integration_Canon
 
 extension Institute.ContinuousIntegration.Validation {
     /// `[GH-IGNORE-001]` / `[GH-IGNORE-002]` — the canonical package

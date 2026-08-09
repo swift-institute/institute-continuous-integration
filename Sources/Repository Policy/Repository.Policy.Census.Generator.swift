@@ -93,7 +93,8 @@ extension Repository.Policy.Census {
                     if isDirectory.boolValue {
                         stack.append(full)
                     } else if entry.hasSuffix(".yml") || entry.hasSuffix(".yaml")
-                        || entry.hasSuffix(".py") || entry.hasSuffix(".sh") {
+                        || entry.hasSuffix(".py") || entry.hasSuffix(".sh")
+                    {
                         results.append(String(full.dropFirst(root.count + 1)))
                     }
                 }
@@ -126,7 +127,8 @@ extension Repository.Policy.Census {
                 _ kind: Kind, _ id: String, line: Int, engine: String,
                 digest: String, notes: String = ""
             ) -> Row {
-                Row(repository: repo.name, headSha: repo.headSha, path: rel,
+                Row(
+                    repository: repo.name, headSha: repo.headSha, path: rel,
                     coordinateKind: kind, coordinateId: id, line: line,
                     engine: engine, excerptSha256: digest, family: fam,
                     intendedOwner: owner, disposition: "reduce", notes: notes)
@@ -136,8 +138,10 @@ extension Repository.Policy.Census {
             // inout parameter (rejected by the Swift 6.3 Linux toolchain).
             var collected: [Row] = []
             defer { rows.append(contentsOf: collected) }
-            collected.append(row(.file, "file:\(rel)", line: 1, engine: engine,
-                                 digest: hasher.digest(raw)))
+            collected.append(
+                row(
+                    .file, "file:\(rel)", line: 1, engine: engine,
+                    digest: hasher.digest(raw)))
             guard engine == "actions-yaml" else { return }
 
             let ns = text as NSString
@@ -160,10 +164,12 @@ extension Repository.Policy.Census {
             ) { match, _, _ in
                 guard let match else { return }
                 let excerpt = ns.substring(with: match.range)
-                collected.append(row(.expression, "expr:\(rel):\(i)",
-                                line: lineNumber(at: match.range.location),
-                                engine: "actions-expression",
-                                digest: hasher.digest(Data(excerpt.utf8))))
+                collected.append(
+                    row(
+                        .expression, "expr:\(rel):\(i)",
+                        line: lineNumber(at: match.range.location),
+                        engine: "actions-expression",
+                        digest: hasher.digest(Data(excerpt.utf8))))
                 i += 1
             }
 
@@ -176,11 +182,13 @@ extension Repository.Policy.Census {
             ) { match, _, _ in
                 guard let match else { return }
                 let target = ns.substring(with: match.range(at: 1))
-                collected.append(row(.usesEdge, "uses:\(rel):\(i)",
-                                line: lineNumber(at: match.range.location),
-                                engine: "actions-yaml",
-                                digest: hasher.digest(Data(target.utf8)),
-                                notes: target))
+                collected.append(
+                    row(
+                        .usesEdge, "uses:\(rel):\(i)",
+                        line: lineNumber(at: match.range.location),
+                        engine: "actions-yaml",
+                        digest: hasher.digest(Data(target.utf8)),
+                        notes: target))
                 i += 1
             }
 
@@ -212,19 +220,23 @@ extension Repository.Policy.Census {
                     block = [String(rest.prefix { $0 != "\n" })]
                 }
                 let body = block.joined(separator: "\n")
-                collected.append(row(.runBlock, "run:\(rel):\(i)", line: startLine,
-                                engine: "shell",
-                                digest: hasher.digest(Data(body.utf8))))
+                collected.append(
+                    row(
+                        .runBlock, "run:\(rel):\(i)", line: startLine,
+                        engine: "shell",
+                        digest: hasher.digest(Data(body.utf8))))
                 for (k, blockLine) in block.enumerated() {
                     let blockRange = NSRange(location: 0, length: (blockLine as NSString).length)
                     guard let commandMatch = command.firstMatch(in: blockLine, range: blockRange) else { continue }
                     let token = (blockLine as NSString).substring(with: commandMatch.range(at: 1))
                     if skipCommands.contains(token) { continue }
                     if blockLine.trimmingCharacters(in: .whitespaces).hasPrefix("#") { continue }
-                    collected.append(row(.commandReference, "cmd:\(rel):\(i):\(k)",
-                                    line: startLine + 1 + k, engine: "shell",
-                                    digest: hasher.digest(Data(token.utf8)),
-                                    notes: token))
+                    collected.append(
+                        row(
+                            .commandReference, "cmd:\(rel):\(i):\(k)",
+                            line: startLine + 1 + k, engine: "shell",
+                            digest: hasher.digest(Data(token.utf8)),
+                            notes: token))
                 }
                 i += 1
             }
@@ -233,7 +245,8 @@ extension Repository.Policy.Census {
         // MARK: frozen family and sentinel rows
 
         static var leafCallerFamilyRow: Row {
-            Row(repository: "17-organization fleet",
+            Row(
+                repository: "17-organization fleet",
                 headSha: "per-repo (review-inputs/reclosure/v1-per-root.json)",
                 path: ".github/workflows/ci.yml", coordinateKind: .file,
                 coordinateId: "family:leaf-callers", line: 1,
@@ -246,24 +259,35 @@ extension Repository.Policy.Census {
 
         static var sentinelRows: [Row] {
             let sentinels: [(String, String, String)] = [
-                ("private-ordinary-repositories",
-                 "~182 private ordinary repositories: workflow bytes not enumerated in this public census",
-                 "R33 posture; private coordinates stay opaque in public artifacts"),
-                ("private-verification-private-side",
-                 "private verifier repository workflow/scripts not enumerated here",
-                 "split-credential boundary; owned by Private.Verification at F8"),
-                ("workspace-repo-automation",
-                 "swift-institute/Workspace repository automation not enumerated in this census pass",
-                 "Workspace owns its own package facts; F2 binds its API"),
-                ("skills-repo-automation",
-                 "swift-institute/Skills repository automation not enumerated in this census pass",
-                 "F17 owns Skills correspondence"),
-                ("swift-linter-repo-automation",
-                 "swift-foundations/swift-linter repository automation not enumerated in this census pass",
-                 "F9 owns linter parity"),
+                (
+                    "private-ordinary-repositories",
+                    "~182 private ordinary repositories: workflow bytes not enumerated in this public census",
+                    "R33 posture; private coordinates stay opaque in public artifacts"
+                ),
+                (
+                    "private-verification-private-side",
+                    "private verifier repository workflow/scripts not enumerated here",
+                    "split-credential boundary; owned by Private.Verification at F8"
+                ),
+                (
+                    "workspace-repo-automation",
+                    "swift-institute/Workspace repository automation not enumerated in this census pass",
+                    "Workspace owns its own package facts; F2 binds its API"
+                ),
+                (
+                    "skills-repo-automation",
+                    "swift-institute/Skills repository automation not enumerated in this census pass",
+                    "F17 owns Skills correspondence"
+                ),
+                (
+                    "swift-linter-repo-automation",
+                    "swift-foundations/swift-linter repository automation not enumerated in this census pass",
+                    "F9 owns linter parity"
+                ),
             ]
             return sentinels.map { name, detail, cause in
-                Row(repository: "sentinel", headSha: "", path: "",
+                Row(
+                    repository: "sentinel", headSha: "", path: "",
                     coordinateKind: .family, coordinateId: "sentinel:\(name)",
                     line: 0, engine: "", excerptSha256: "", family: name,
                     intendedOwner: "typed at owning transaction",

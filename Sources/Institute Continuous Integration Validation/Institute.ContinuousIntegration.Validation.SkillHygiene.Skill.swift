@@ -1,9 +1,9 @@
+import Foundation
 import GitHub_Continuous_Integration
 import GitHub_Continuous_Integration_Validation
+import GitHub_Continuous_Integration_Workflow
 import GitHub_Standard
 import Institute_Continuous_Integration
-import GitHub_Continuous_Integration_Workflow
-import Foundation
 
 extension Institute.ContinuousIntegration.Validation.SkillHygiene {
     /// One `SKILL.md`, asked the two questions that decide whether it

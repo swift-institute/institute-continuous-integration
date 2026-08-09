@@ -19,13 +19,15 @@ extension Main {
             case "--repository": repository = iterator.next()
             case "--layer":
                 guard let raw = iterator.next(),
-                      let value = Repository.Policy.Caller.Layer(rawValue: raw) else {
+                    let value = Repository.Policy.Caller.Layer(rawValue: raw)
+                else {
                     throw RepositoryPolicy.ConfigurationError("--layer must be primitives|standards|institute")
                 }
                 layer = value
             case "--input":
                 guard let raw = iterator.next(),
-                      let separator = raw.firstIndex(of: "=") else {
+                    let separator = raw.firstIndex(of: "=")
+                else {
                     throw RepositoryPolicy.ConfigurationError("--input needs <key>=<value>")
                 }
                 let key = String(raw[..<separator])
@@ -48,8 +50,9 @@ extension Main {
         case "current":
             print(Repository.Policy.Caller.Render.current(caller), terminator: "")
         case "direct":
-            print(Repository.Policy.Caller.Render.direct(
-                caller, privateDependencyClosure: privateClosure), terminator: "")
+            print(
+                Repository.Policy.Caller.Render.direct(
+                    caller, privateDependencyClosure: privateClosure), terminator: "")
         default:
             throw RepositoryPolicy.ConfigurationError("--form must be current|direct")
         }

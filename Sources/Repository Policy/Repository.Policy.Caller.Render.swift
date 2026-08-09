@@ -143,13 +143,14 @@ extension Repository.Policy.Caller {
         /// notify-linter-republish.yml itself moved to this profile in
         /// the same caller wave (F14), which is why the caller no longer
         /// has an id-shaped secret to forward even as a fallback.
-        static let notifyLinterRepublishJob: [String] = [
-            "",
-            "  notify-linter-republish:",
-            "    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && !github.event.repository.private }}",
-            "    uses: swift-institute/.github/.github/workflows/notify-linter-republish.yml@main",
-            "    secrets:",
-        ] + terminalSecretLines
+        static let notifyLinterRepublishJob: [String] =
+            [
+                "",
+                "  notify-linter-republish:",
+                "    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && !github.event.repository.private }}",
+                "    uses: swift-institute/.github/.github/workflows/notify-linter-republish.yml@main",
+                "    secrets:",
+            ] + terminalSecretLines
 
         /// The forwarded-secret lines, derived from the frozen terminal
         /// profile rather than restated. An id-shaped name cannot appear

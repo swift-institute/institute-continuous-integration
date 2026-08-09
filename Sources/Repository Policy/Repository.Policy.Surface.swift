@@ -467,8 +467,8 @@ private func isPlatformSupportHeading(_ line: Substring) -> Bool {
     return index == characters.count
 }
 
-private extension RepositoryPolicy.SurfacePolicy {
-    func exempts(
+extension RepositoryPolicy.SurfacePolicy {
+    fileprivate func exempts(
         surface: RepositoryPolicy.Surface,
         repository: String,
         path: String
@@ -479,8 +479,8 @@ private extension RepositoryPolicy.SurfacePolicy {
     }
 }
 
-private extension Array {
-    var only: Element? {
+extension Array {
+    fileprivate var only: Element? {
         count == 1 ? self[0] : nil
     }
 }

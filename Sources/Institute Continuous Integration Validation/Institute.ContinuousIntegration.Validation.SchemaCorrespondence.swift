@@ -1,8 +1,8 @@
+import Foundation
 import GitHub_Continuous_Integration
 import GitHub_Continuous_Integration_Validation
 import GitHub_Standard
 import Institute_Continuous_Integration
-import Foundation
 
 extension Institute.ContinuousIntegration.Validation {
     /// `[GH-REPO-063]` — `metadata-schema.json` ↔ consumer
@@ -271,7 +271,9 @@ extension Institute.ContinuousIntegration.Validation.SchemaCorrespondence {
         // different name.
         if let next = rest.first,
             next.isLetter || next.isNumber || next == "_"
-        { return false }
+        {
+            return false
+        }
         while rest.first == " " || rest.first == "\t" { rest = rest.dropFirst() }
         return rest.first == "=" && !rest.hasPrefix("==")
     }
@@ -283,9 +285,13 @@ extension Institute.ContinuousIntegration.Validation.SchemaCorrespondence {
         var escaped = false
         for character in text {
             if let active = quote {
-                if escaped { escaped = false } else if character == "\\" {
+                if escaped {
+                    escaped = false
+                } else if character == "\\" {
                     escaped = true
-                } else if character == active { quote = nil }
+                } else if character == active {
+                    quote = nil
+                }
                 continue
             }
             switch character {

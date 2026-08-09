@@ -35,8 +35,10 @@ extension Repository.Policy {
         }
 
         public static func quoted(_ field: String) -> String {
-            guard field.contains(",") || field.contains("\"")
-                || field.contains("\n") || field.contains("\r") else {
+            guard
+                field.contains(",") || field.contains("\"")
+                    || field.contains("\n") || field.contains("\r")
+            else {
                 return field
             }
             return "\"" + field.replacingOccurrences(of: "\"", with: "\"\"") + "\""
