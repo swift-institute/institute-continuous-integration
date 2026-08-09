@@ -1,8 +1,8 @@
+import Foundation
 import GitHub_Continuous_Integration
 import GitHub_Continuous_Integration_Validation
 import GitHub_Standard
 import Institute_Continuous_Integration
-import Foundation
 import Testing
 
 @testable import Institute_Continuous_Integration_Validation
@@ -44,7 +44,8 @@ struct CIValidationSchemaCorrespondenceTests {
     struct Corpus {
         /// The one pass scenario: zero findings.
         @Test func `pass slash consistent is clean`() throws {
-            let findings = try CIValidationSchemaCorrespondenceTests
+            let findings =
+                try CIValidationSchemaCorrespondenceTests
                 .scenario("pass", "consistent")
                 .findings(in: CIValidationSchemaCorrespondenceTests.subject)
             #expect(findings.isEmpty)
@@ -59,7 +60,8 @@ struct CIValidationSchemaCorrespondenceTests {
             "settings-key-unread",
         ])
         func `each fail scenario fires`(name: String) throws {
-            let findings = try CIValidationSchemaCorrespondenceTests
+            let findings =
+                try CIValidationSchemaCorrespondenceTests
                 .scenario("fail", name)
                 .findings(in: CIValidationSchemaCorrespondenceTests.subject)
             #expect(!findings.isEmpty)
@@ -70,7 +72,8 @@ struct CIValidationSchemaCorrespondenceTests {
         /// must be reported as such, not as agreement — the exact
         /// failure the retired script's earlier draft had.
         @Test func `a renamed constant reads as a finding, not agreement`() throws {
-            let findings = try CIValidationSchemaCorrespondenceTests
+            let findings =
+                try CIValidationSchemaCorrespondenceTests
                 .scenario("fail", "constant-renamed")
                 .findings(in: CIValidationSchemaCorrespondenceTests.subject)
             #expect(findings.contains { $0.message.contains("has no module-level `EXEMPTIONS`") })

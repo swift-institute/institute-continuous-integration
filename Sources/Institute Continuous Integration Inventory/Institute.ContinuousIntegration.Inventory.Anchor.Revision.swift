@@ -1,8 +1,8 @@
 import ContinuousIntegration
-import Institute_Continuous_Integration
 import GitHub_Continuous_Integration
 import GitHub_Continuous_Integration_Workflow
 import GitHub_Standard
+import Institute_Continuous_Integration
 
 extension Institute.ContinuousIntegration.Inventory.Anchor {
     /// One git object name, in its canonical 40-hex spelling.

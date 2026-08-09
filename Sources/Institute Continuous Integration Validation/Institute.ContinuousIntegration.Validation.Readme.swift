@@ -1,9 +1,9 @@
+import Foundation
 import GitHub_Continuous_Integration
 import GitHub_Continuous_Integration_Validation
+import GitHub_Continuous_Integration_Workflow
 import GitHub_Standard
 import Institute_Continuous_Integration
-import GitHub_Continuous_Integration_Workflow
-import Foundation
 
 extension Institute.ContinuousIntegration.Validation {
     /// `[README-*]` — README files conform to the readme skill family
@@ -169,12 +169,16 @@ extension Institute.ContinuousIntegration.Validation {
             switch family {
             case "E":
                 findings += Self.familyE(subject, name: name, content: content)
+
             case "C":
                 findings += Self.familyC(subject.repository, name: name, content: content)
+
             case "F":
                 findings += Self.familyF(subject.repository, name: name, content: content)
+
             case "G":
                 findings += Self.familyG(subject.repository, name: name, content: content)
+
             default:
                 break  // Family A has no per-family rules in v1.
             }
@@ -189,11 +193,17 @@ extension Institute.ContinuousIntegration.Validation.Readme {
     /// not-knowing (absent file, unreadable file, unparseable YAML, a
     /// non-mapping where a mapping belongs) is `None`, not an error.
     static func family(of subject: GitHub.ContinuousIntegration.Validation.Subject) -> String? {
-        guard let text = try? subject.text(at: ".github/metadata.yaml") else {
+        let document: GitHub.ContinuousIntegration.Workflow.YAML.Node
+        do {
+            guard let text = try subject.text(at: ".github/metadata.yaml") else { return nil }
+            document = try GitHub.ContinuousIntegration.Workflow.YAML.Parser.parse(text)
+        } catch {
+            // Every way of not-knowing (absent file, unreadable file,
+            // unparseable YAML) is `nil`, not an error — the retired
+            // `detect_family` posture.
             return nil
         }
-        guard let document = try? GitHub.ContinuousIntegration.Workflow.YAML.Parser.parse(text),
-            let top = document.mapping,
+        guard let top = document.mapping,
             let readme = top["readme"]?.mapping
         else { return nil }
         if let exempt = readme["exempt"]?.text, exemptions.contains(exempt) {

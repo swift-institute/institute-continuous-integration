@@ -1,9 +1,9 @@
+import Foundation
 import GitHub_Continuous_Integration
 import GitHub_Continuous_Integration_Validation
+import GitHub_Continuous_Integration_Workflow
 import GitHub_Standard
 import Institute_Continuous_Integration
-import GitHub_Continuous_Integration_Workflow
-import Foundation
 
 extension Institute.ContinuousIntegration.Validation {
     /// `[CI-MANIFEST-BINDING]` — `validators-manifest.yaml` is internally
@@ -255,10 +255,16 @@ extension Institute.ContinuousIntegration.Validation {
             guard FileManager.default.fileExists(atPath: directory, isDirectory: &isDirectory),
                 isDirectory.boolValue
             else { return [] }
-            guard let names = try? FileManager.default.contentsOfDirectory(atPath: directory) else {
+            // `FileManager.contentsOfDirectory` throws untyped; its
+            // failure here is exactly the defect raised in the catch.
+            let names: [String]
+            do {
+                names = try FileManager.default.contentsOfDirectory(atPath: directory)
+            } catch {
                 throw EnvironmentDefect.unreadableFile(path: directory)
             }
-            return names
+            return
+                names
                 .filter { $0.hasPrefix("validate-") && $0.hasSuffix(".py") }
                 .sorted()
                 .map { ".github/scripts/\($0)" }

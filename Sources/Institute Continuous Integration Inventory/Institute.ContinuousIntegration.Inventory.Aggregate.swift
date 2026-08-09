@@ -1,8 +1,8 @@
 import ContinuousIntegration
-import Institute_Continuous_Integration
 import GitHub_Continuous_Integration
 import GitHub_Continuous_Integration_Workflow
 import GitHub_Standard
+import Institute_Continuous_Integration
 
 /// The vendor-neutral contract type, aliased at file scope so the
 /// reference cannot rebind to the `Institute.ContinuousIntegration`

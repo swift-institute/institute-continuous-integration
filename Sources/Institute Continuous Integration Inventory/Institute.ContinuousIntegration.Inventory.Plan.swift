@@ -1,8 +1,8 @@
 import ContinuousIntegration
-import Institute_Continuous_Integration
 import GitHub_Continuous_Integration
 import GitHub_Continuous_Integration_Workflow
 import GitHub_Standard
+import Institute_Continuous_Integration
 
 /// The vendor-neutral contract type, aliased at file scope so the
 /// reference cannot rebind to the `Institute.ContinuousIntegration`
@@ -45,8 +45,9 @@ extension Institute.ContinuousIntegration.Inventory {
         public static var fullTierLegs: [String] {
             do throws(ContractPlan.Error) {
                 return try ContractPlan(
-                    forcedTier: "full", ref: "", event: "", lintBundle: "institute")
-                    .legs.map(\.id)
+                    forcedTier: "full", ref: "", event: "", lintBundle: "institute"
+                )
+                .legs.map(\.id)
             } catch {
                 // The owner refusing its own full tier under no platform
                 // filter would mean the vocabulary has no members, which

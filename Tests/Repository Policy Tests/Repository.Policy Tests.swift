@@ -168,7 +168,7 @@ struct RepositoryPolicyTests {
     @Test
     func everyPayloadClassRefusesAnyBypassActor() throws {
         let authorized = [
-            ["actor_id": 3543256, "actor_type": "Integration", "bypass_mode": "always"]
+            ["actor_id": 3_543_256, "actor_type": "Integration", "bypass_mode": "always"]
         ]
         for fixture in [
             "Policy/protected-main-ruleset.json",
@@ -557,7 +557,7 @@ struct RepositoryPolicyTests {
     // The originals remain in .github and transfer/rebind at TX-APP2Z.
 
     @Test
-    func surfacePolicyAcceptsWhitelistedThinCaller() throws {
+    func surfacePolicyAcceptsAllowlistedThinCaller() throws {
         let root = try repositoryFixture(
             files: [
                 ".github/workflows/ci.yml": """

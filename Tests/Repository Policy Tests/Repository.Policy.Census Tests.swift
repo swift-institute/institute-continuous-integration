@@ -21,19 +21,19 @@ struct RepositoryPolicyCensusTests {
         try FileManager.default.createDirectory(
             atPath: workflows, withIntermediateDirectories: true)
         let yaml = """
-        on: push
-        jobs:
-          demo:
-            runs-on: ${{ matrix.os }}
-            steps:
-              - uses: actions/checkout@0000000000000000000000000000000000000000
-              - name: block
-                run: |
-                  python3 script.py
-                  echo done
-              - name: inline
-                run: gh api /rate_limit
-        """
+            on: push
+            jobs:
+              demo:
+                runs-on: ${{ matrix.os }}
+                steps:
+                  - uses: actions/checkout@0000000000000000000000000000000000000000
+                  - name: block
+                    run: |
+                      python3 script.py
+                      echo done
+                  - name: inline
+                    run: gh api /rate_limit
+            """
         try Data(yaml.utf8).write(
             to: URL(fileURLWithPath: workflows + "/demo.yml"))
         let census = try Repository.Policy.Census.Generator(

@@ -15,8 +15,9 @@ struct RepositoryPolicyEligibilityTests {
     @Test
     func rootManifestWithNoExceptionIsEligible() {
         let verdict = Repository.Policy.Eligibility.verdict(
-            .init(repository: "swift-primitives/swift-percent-primitives",
-                  rootManifest: .present))
+            .init(
+                repository: "swift-primitives/swift-percent-primitives",
+                rootManifest: .present))
         #expect(verdict == .eligible)
         #expect(verdict.isEligible)
     }
@@ -58,12 +59,14 @@ struct RepositoryPolicyEligibilityTests {
     func aRepositoryContainingAnExceptionNameIsStillEligible() {
         #expect(
             Repository.Policy.Eligibility.verdict(
-                .init(repository: "swift-institute/Issues-archive",
-                      rootManifest: .present)) == .eligible)
+                .init(
+                    repository: "swift-institute/Issues-archive",
+                    rootManifest: .present)) == .eligible)
         #expect(
             Repository.Policy.Eligibility.verdict(
-                .init(repository: "swift-foundations/Issues",
-                      rootManifest: .present)) == .eligible)
+                .init(
+                    repository: "swift-foundations/Issues",
+                    rootManifest: .present)) == .eligible)
     }
 
     // MARK: Negative control 2 — excluded by the manifest term
@@ -90,8 +93,9 @@ struct RepositoryPolicyEligibilityTests {
                 == .noManifest)
         #expect(
             !Repository.Policy.Eligibility.verdict(
-                .init(repository: "swift-institute/Skills", rootManifest: .present))
-                .isEligible)
+                .init(repository: "swift-institute/Skills", rootManifest: .present)
+            )
+            .isEligible)
     }
 
     /// The control repository for the manifest probe itself: this very
@@ -135,8 +139,9 @@ struct RepositoryPolicyEligibilityTests {
         #expect(!Repository.Policy.Eligibility.bespoke.isEmpty)
         for exception in Repository.Policy.Eligibility.bespoke {
             #expect(exception.repository.contains("/"), "\(exception.repository)")
-            #expect(exception.reason.contains("swift-institute/.github#"),
-                    "\(exception.repository) names no durable ruling coordinate")
+            #expect(
+                exception.reason.contains("swift-institute/.github#"),
+                "\(exception.repository) names no durable ruling coordinate")
         }
     }
 

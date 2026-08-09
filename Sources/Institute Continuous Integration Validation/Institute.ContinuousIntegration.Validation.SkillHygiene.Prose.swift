@@ -1,8 +1,8 @@
+import Foundation
 import GitHub_Continuous_Integration
 import GitHub_Continuous_Integration_Validation
 import GitHub_Standard
 import Institute_Continuous_Integration
-import Foundation
 
 extension Institute.ContinuousIntegration.Validation.SkillHygiene {
     /// One markdown file, asked the four questions that apply to
@@ -125,8 +125,9 @@ extension Institute.ContinuousIntegration.Validation.SkillHygiene {
                     guard let owner = match.groups[1], let captured = match.groups[2] else {
                         continue
                     }
-                    guard watched.contains(owner)
-                        || Pattern.instituteNamespace.firstMatch(in: owner) != nil
+                    guard
+                        watched.contains(owner)
+                            || Pattern.instituteNamespace.firstMatch(in: owner) != nil
                     else { continue }
                     let name = String(
                         captured.reversed()
@@ -162,8 +163,8 @@ extension Institute.ContinuousIntegration.Validation.SkillHygiene {
             var index = 0
             while index < characters.count {
                 if characters[index] == UInt8(ascii: "%"), index + 2 < characters.count,
-                   let high = Self.hex(characters[index + 1]),
-                   let low = Self.hex(characters[index + 2])
+                    let high = Self.hex(characters[index + 1]),
+                    let low = Self.hex(characters[index + 2])
                 {
                     bytes.append(high << 4 | low)
                     index += 3

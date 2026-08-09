@@ -1,8 +1,8 @@
+import Foundation
 import GitHub_Continuous_Integration
 import GitHub_Continuous_Integration_Validation
 import GitHub_Standard
 import Institute_Continuous_Integration
-import Foundation
 
 extension Institute.ContinuousIntegration.Validation.SkillHygiene {
     /// The regular expressions the seven rules are written in, and the
@@ -23,7 +23,11 @@ extension Institute.ContinuousIntegration.Validation.SkillHygiene {
             // A literal pattern that does not compile is a programming
             // error, not a runtime condition: there is no input that
             // makes it compile later.
-            expression = try! NSRegularExpression(pattern: pattern, options: options)
+            do {
+                expression = try NSRegularExpression(pattern: pattern, options: options)
+            } catch {
+                preconditionFailure("literal pattern does not compile: \(pattern): \(error)")
+            }
         }
 
         /// One match: the whole match, its capture groups, and where it
@@ -42,7 +46,8 @@ extension Institute.ContinuousIntegration.Validation.SkillHygiene {
         /// Every non-overlapping match, left to right — `finditer`.
         func matches(in text: String) -> [Match] {
             let string = text as NSString
-            return expression
+            return
+                expression
                 .matches(in: text, range: NSRange(location: 0, length: string.length))
                 .compactMap { result in
                     guard let range = Range(result.range, in: text) else { return nil }

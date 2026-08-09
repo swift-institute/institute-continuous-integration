@@ -5,7 +5,9 @@ extension RepositoryPolicy {
         public let organization: String?
         public let repository: String?
 
-        public init(organization: String?, repository: String?) throws {
+        public init(
+            organization: String?, repository: String?
+        ) throws(RepositoryPolicy.ConfigurationError) {
             let organization = organization.flatMap { $0.isEmpty ? nil : $0 }
             let repository = repository.flatMap { $0.isEmpty ? nil : $0 }
             guard (organization == nil) != (repository == nil) else {
@@ -59,18 +61,49 @@ extension RepositoryPolicy {
         }
     }
 
+    /// Every way a policy sweep refuses: a client operation failed, or a
+    /// local configuration or filesystem precondition did.
+    public enum Error: Swift.Error, CustomStringConvertible, Sendable {
+        case client(GitHubClient.Error)
+        case configuration(ConfigurationError)
+
+        public var description: String {
+            switch self {
+            case .client(let error): return String(describing: error)
+            case .configuration(let error): return error.description
+            }
+        }
+    }
+
+    /// Lifts one client operation's refusal into the sweep-level error.
+    private static func calling<T>(
+        _ body: () async throws(GitHubClient.Error) -> T
+    ) async throws(RepositoryPolicy.Error) -> T {
+        do {
+            return try await body()
+        } catch {
+            throw .client(error)
+        }
+    }
+
     public static func run(
         client: GitHubClient,
         configuration: Configuration
-    ) async throws -> Receipt {
+    ) async throws(RepositoryPolicy.Error) -> Receipt {
         let repositories: [Repository]
         let scopeDescription: String
         if let fullName = configuration.scope.repository {
-            repositories = [try await client.repository(fullName)]
+            repositories = [
+                try await calling { () async throws(GitHubClient.Error) in
+                    try await client.repository(fullName)
+                }
+            ]
             scopeDescription = fullName
         } else {
             let organization = configuration.scope.organization!
-            repositories = try await client.repositories(organization: organization)
+            repositories = try await calling { () async throws(GitHubClient.Error) in
+                try await client.repositories(organization: organization)
+            }
             scopeDescription = organization
         }
 
@@ -88,7 +121,9 @@ extension RepositoryPolicy {
                 continue
             }
 
-            let manifestKind = try await client.rootManifestKind(repository.fullName)
+            let manifestKind = try await calling { () async throws(GitHubClient.Error) in
+                try await client.rootManifestKind(repository.fullName)
+            }
             guard manifestKind == "file" else {
                 let reason: Exclusion =
                     manifestKind == nil ? .missingRootManifest : .rootManifestNotFile
@@ -97,7 +132,9 @@ extension RepositoryPolicy {
             }
 
             eligible += 1
-            let state = try await client.vulnerabilityReporting(repository.fullName)
+            let state = try await calling { () async throws(GitHubClient.Error) in
+                try await client.vulnerabilityReporting(repository.fullName)
+            }
             switch decision(
                 for: repository,
                 manifestKind: manifestKind,
@@ -105,10 +142,12 @@ extension RepositoryPolicy {
             ) {
             case .excluded(let reason):
                 excluded[reason.rawValue, default: 0] += 1
+
             case .converged:
                 converged += 1
                 verified.append(repository.fullName)
                 try journal.append(repository: repository.fullName, phase: "verified-existing")
+
             case .enable:
                 if configuration.dryRun {
                     wouldEnable += 1
@@ -116,7 +155,9 @@ extension RepositoryPolicy {
                     continue
                 }
                 try journal.append(repository: repository.fullName, phase: "prepared")
-                try await client.enableVulnerabilityReporting(repository.fullName)
+                try await calling { () async throws(GitHubClient.Error) in
+                    try await client.enableVulnerabilityReporting(repository.fullName)
+                }
                 try journal.append(repository: repository.fullName, phase: "accepted")
                 try await verifyEnabled(client: client, repository: repository.fullName)
                 try journal.append(repository: repository.fullName, phase: "verified-enabled")
@@ -152,34 +193,46 @@ extension RepositoryPolicy {
         client: GitHubClient,
         scope: Scope,
         policy: SurfacePolicy
-    ) async throws -> SurfaceSweepReport {
+    ) async throws(RepositoryPolicy.Error) -> SurfaceSweepReport {
         let repositories: [Repository]
         if let fullName = scope.repository {
-            repositories = [try await client.repository(fullName)]
+            repositories = [
+                try await calling { () async throws(GitHubClient.Error) in
+                    try await client.repository(fullName)
+                }
+            ]
         } else {
-            repositories = try await client.repositories(
-                organization: scope.organization!
-            )
+            repositories = try await calling { () async throws(GitHubClient.Error) in
+                try await client.repositories(organization: scope.organization!)
+            }
         }
 
         var reports = [SurfaceReport]()
         for repository in repositories.sorted(by: { $0.fullName < $1.fullName }) {
             guard staticExclusion(of: repository) == nil else { continue }
-            guard try await client.rootManifestKind(repository.fullName) == "file" else {
-                continue
+            let manifestKind = try await calling { () async throws(GitHubClient.Error) in
+                try await client.rootManifestKind(repository.fullName)
             }
+            guard manifestKind == "file" else { continue }
             let repositoryClass =
                 policy.actionGrants
                 .first { $0.repository == repository.fullName }?
                 .repositoryClass ?? .package
-            reports.append(
-                try validateSurface(
+            let files = try await calling { () async throws(GitHubClient.Error) in
+                try await client.surfaceFiles(repository.fullName)
+            }
+            let report: SurfaceReport
+            do throws(ConfigurationError) {
+                report = try validateSurface(
                     repository: repository.fullName,
                     repositoryClass: repositoryClass,
-                    files: try await client.surfaceFiles(repository.fullName),
+                    files: files,
                     policy: policy
                 )
-            )
+            } catch {
+                throw .configuration(error)
+            }
+            reports.append(report)
         }
         return SurfaceSweepReport(reports: reports)
     }
@@ -187,54 +240,87 @@ extension RepositoryPolicy {
     private static func verifyEnabled(
         client: GitHubClient,
         repository: String
-    ) async throws {
+    ) async throws(RepositoryPolicy.Error) {
         for attempt in 1...6 {
-            if try await client.vulnerabilityReporting(repository) == .enabled {
-                return
+            let state = try await calling { () async throws(GitHubClient.Error) in
+                try await client.vulnerabilityReporting(repository)
             }
+            if state == .enabled { return }
             guard attempt < 6 else {
-                throw ConfigurationError(
-                    "\(repository): PVR was not enabled after accepted PUT"
+                throw .configuration(
+                    ConfigurationError("\(repository): PVR was not enabled after accepted PUT")
                 )
             }
-            try await Task<Never, Never>.sleep(for: .seconds(1))
+            do {
+                try await Task<Never, Never>.sleep(for: .seconds(1))
+            } catch {
+                throw .configuration(ConfigurationError("\(repository): retry wait was cancelled"))
+            }
         }
     }
 
-    private static func write(_ receipt: Receipt, to url: URL) throws {
+    private static func write(
+        _ receipt: Receipt, to url: URL
+    ) throws(RepositoryPolicy.Error) {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        var data = try encoder.encode(receipt)
-        data.append(0x0A)
-        try data.write(to: url, options: .atomic)
+        do {
+            var data = try encoder.encode(receipt)
+            data.append(0x0A)
+            try data.write(to: url, options: .atomic)
+        } catch {
+            throw .configuration(
+                ConfigurationError("could not write receipt to \(url.path): \(error)")
+            )
+        }
     }
 
     private final class Journal {
         private let handle: FileHandle
 
-        init(url: URL) throws {
+        init(url: URL) throws(RepositoryPolicy.Error) {
             let manager = FileManager.default
             if !manager.fileExists(atPath: url.path) {
                 guard manager.createFile(atPath: url.path, contents: nil) else {
-                    throw ConfigurationError("could not create journal at \(url.path)")
+                    throw .configuration(
+                        ConfigurationError("could not create journal at \(url.path)")
+                    )
                 }
             }
-            handle = try FileHandle(forWritingTo: url)
-            try handle.seekToEnd()
+            do {
+                handle = try FileHandle(forWritingTo: url)
+                try handle.seekToEnd()
+            } catch {
+                throw .configuration(
+                    ConfigurationError("could not open journal at \(url.path): \(error)")
+                )
+            }
         }
 
         deinit {
-            try? handle.close()
+            do {
+                try handle.close()
+            } catch {
+                // A journal handle that cannot close during teardown has
+                // nothing left to report to; the records already written
+                // were synchronized per append.
+            }
         }
 
-        func append(repository: String, phase: String) throws {
+        func append(repository: String, phase: String) throws(RepositoryPolicy.Error) {
             let record = JournalRecord(repository: repository, phase: phase)
             let encoder = JSONEncoder()
             encoder.outputFormatting = [.sortedKeys]
-            var data = try encoder.encode(record)
-            data.append(0x0A)
-            try handle.write(contentsOf: data)
-            try handle.synchronize()
+            do {
+                var data = try encoder.encode(record)
+                data.append(0x0A)
+                try handle.write(contentsOf: data)
+                try handle.synchronize()
+            } catch {
+                throw .configuration(
+                    ConfigurationError("could not append to the journal: \(error)")
+                )
+            }
         }
     }
 

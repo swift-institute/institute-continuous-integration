@@ -77,7 +77,7 @@ extension Repository.Policy.Metadata.Draft {
                 metadata: .init(
                     description: title.map { "Swift implementation of BCP \(identifier): \($0)." }
                         ?? "Swift implementation of BCP \(identifier): "
-                            + "TODO add title to spec-titles.yaml.",
+                        + "TODO add title to spec-titles.yaml.",
                     topics: ["standards", "ietf", "bcp", "bcp-\(identifier)", placeholderTopic],
                     homepage: homepage))
         }
@@ -159,7 +159,7 @@ extension Repository.Policy.Metadata.Draft {
             metadata: .init(
                 description: title.map { "Swift implementation of \(name) \(identifier): \($0)." }
                     ?? "Swift implementation of \(name) \(identifier): "
-                        + "TODO add title to spec-titles.yaml.",
+                    + "TODO add title to spec-titles.yaml.",
                 topics: topics, homepage: homepage))
     }
 
@@ -170,9 +170,11 @@ extension Repository.Policy.Metadata.Draft {
         case "swift-primitives": "primitives"
         case "swift-standards": "standards"
         case "swift-foundations": "foundations"
+
         case "swift-ietf", "swift-iso", "swift-ieee", "swift-iec", "swift-w3c", "swift-whatwg",
             "swift-ecma", "swift-incits":
             "standards"
+
         default: ""
         }
     }

@@ -1,18 +1,40 @@
-#if canImport(FoundationNetworking)
-import FoundationNetworking
-#endif
 import Foundation
+
+#if canImport(FoundationNetworking)
+    import FoundationNetworking
+#endif
 
 extension RepositoryPolicy {
     public struct GitHubClient: Sendable {
-        public struct Error: Swift.Error, CustomStringConvertible, Sendable {
-            public let method: String
-            public let path: String
-            public let status: Int
-            public let response: String
+        /// Every way one client operation refuses: an HTTP status outside
+        /// the operation's contract, a transport failure underneath the
+        /// request, a response body that does not decode, a response that
+        /// violates the operation's preconditions, or a refusal raised by
+        /// the Issue grammar during a compaction.
+        public enum Error: Swift.Error, CustomStringConvertible, Sendable {
+            case http(method: String, path: String, status: Int, response: String)
+            case transport(path: String, message: String)
+            case decoding(path: String, message: String)
+            case precondition(String)
+            case issue(RepositoryPolicy.Issue.Error)
 
             public var description: String {
-                "\(method) \(path) returned HTTP \(status): \(response)"
+                switch self {
+                case .http(let method, let path, let status, let response):
+                    return "\(method) \(path) returned HTTP \(status): \(response)"
+
+                case .transport(let path, let message):
+                    return "\(path): transport failure: \(message)"
+
+                case .decoding(let path, let message):
+                    return "\(path): response did not decode: \(message)"
+
+                case .precondition(let message):
+                    return message
+
+                case .issue(let error):
+                    return "issue grammar refusal: \(error)"
+                }
             }
         }
 
@@ -24,7 +46,7 @@ extension RepositoryPolicy {
             self.baseURL = baseURL
         }
 
-        public func repositories(organization: String) async throws -> [Repository] {
+        public func repositories(organization: String) async throws(Error) -> [Repository] {
             var page = 1
             var result = [Repository]()
             while true {
@@ -33,44 +55,48 @@ extension RepositoryPolicy {
                 guard response.status == 200 else {
                     throw error(method: "GET", path: path, response: response)
                 }
-                let repositories = try JSONDecoder().decode([Repository].self, from: response.data)
+                let repositories = try decode([Repository].self, from: response.data, path: path)
                 result.append(contentsOf: repositories)
                 guard repositories.count == 100 else { return result }
                 page += 1
             }
         }
 
-        public func repository(_ fullName: String) async throws -> Repository {
+        public func repository(_ fullName: String) async throws(Error) -> Repository {
             let path = "/repos/\(fullName)"
             let response = try await request(method: "GET", path: path)
             guard response.status == 200 else {
                 throw error(method: "GET", path: path, response: response)
             }
-            return try JSONDecoder().decode(Repository.self, from: response.data)
+            return try decode(Repository.self, from: response.data, path: path)
         }
 
-        public func rootManifestKind(_ fullName: String) async throws -> String? {
+        public func rootManifestKind(_ fullName: String) async throws(Error) -> String? {
             let path = "/repos/\(fullName)/contents/Package.swift"
             let response = try await request(method: "GET", path: path)
             if response.status == 404 { return nil }
             guard response.status == 200 else {
                 throw error(method: "GET", path: path, response: response)
             }
-            return try JSONDecoder().decode(Content.self, from: response.data).type
+            return try decode(Content.self, from: response.data, path: path).type
         }
 
         /// Reads one current Issue body and its HTTP entity tag. The tag and
         /// body digest are both required before an apply operation can begin.
-        public func issueSnapshot(_ fullName: String, number: Int) async throws -> Issue.Snapshot {
+        public func issueSnapshot(
+            _ fullName: String, number: Int
+        ) async throws(Error) -> Issue.Snapshot {
             let path = "/repos/\(fullName)/issues/\(number)"
             let response = try await request(method: "GET", path: path)
             guard response.status == 200 else {
                 throw error(method: "GET", path: path, response: response)
             }
             guard let revision = response.headers["Etag"] ?? response.headers["ETag"] else {
-                throw ConfigurationError("\(fullName)#\(number): GitHub did not return an entity tag")
+                throw Error.precondition(
+                    "\(fullName)#\(number): GitHub did not return an entity tag"
+                )
             }
-            let issue = try JSONDecoder().decode(RemoteIssue.self, from: response.data)
+            let issue = try decode(RemoteIssue.self, from: response.data, path: path)
             let state: Issue.NativeState
             if issue.state == "open" {
                 state = .open
@@ -99,18 +125,22 @@ extension RepositoryPolicy {
             number: Int,
             guard expected: Issue.Guard,
             apply: Bool
-        ) async throws -> Issue.Compaction? {
+        ) async throws(Error) -> Issue.Compaction? {
             let snapshot = try await issueSnapshot(fullName, number: number)
-            guard let plan = try Issue.Compactor.plan(snapshot: snapshot, guard: expected) else {
-                return nil
+            let plan: Issue.Compaction?
+            do throws(Issue.Error) {
+                plan = try Issue.Compactor.plan(snapshot: snapshot, guard: expected)
+            } catch {
+                throw Error.issue(error)
             }
+            guard let plan else { return nil }
             guard apply else { return plan }
 
             let issuePath = "/repos/\(fullName)/issues/\(number)"
             let update = try await request(
                 method: "PATCH",
                 path: issuePath,
-                body: try JSONEncoder().encode(["body": plan.body])
+                body: encode(["body": plan.body])
             )
             guard update.status == 200 else {
                 throw error(method: "PATCH", path: issuePath, response: update)
@@ -119,7 +149,7 @@ extension RepositoryPolicy {
             let comment = try await request(
                 method: "POST",
                 path: commentPath,
-                body: try JSONEncoder().encode(["body": plan.checkpoint])
+                body: encode(["body": plan.checkpoint])
             )
             guard comment.status == 201 else {
                 throw error(method: "POST", path: commentPath, response: comment)
@@ -127,7 +157,7 @@ extension RepositoryPolicy {
             return plan
         }
 
-        public func surfaceFiles(_ fullName: String) async throws -> [String: String] {
+        public func surfaceFiles(_ fullName: String) async throws(Error) -> [String: String] {
             var pending = [
                 ".github/workflows",
                 ".github/actions",
@@ -150,7 +180,16 @@ extension RepositoryPolicy {
                     )
                 }
 
-                if let entries = try? JSONDecoder().decode([Content].self, from: response.data) {
+                // A directory listing decodes as an array; a file decodes
+                // as a single object. Probe the array shape first and fall
+                // through to the file shape when it does not apply.
+                let entries: [Content]?
+                do {
+                    entries = try JSONDecoder().decode([Content].self, from: response.data)
+                } catch {
+                    entries = nil
+                }
+                if let entries {
                     for entry in entries.sorted(by: { $0.path < $1.path }).reversed() {
                         if entry.type == "dir" {
                             pending.append(entry.path)
@@ -161,7 +200,11 @@ extension RepositoryPolicy {
                     continue
                 }
 
-                let content = try JSONDecoder().decode(Content.self, from: response.data)
+                let content = try decode(
+                    Content.self,
+                    from: response.data,
+                    path: "/repos/\(fullName)/contents/\(path)"
+                )
                 guard content.type == "file", isGovernedSurface(path: content.path) else {
                     continue
                 }
@@ -174,7 +217,7 @@ extension RepositoryPolicy {
                     ),
                     let source = String(data: data, encoding: .utf8)
                 else {
-                    throw ConfigurationError(
+                    throw Error.precondition(
                         "\(fullName): could not decode governed file \(content.path)"
                     )
                 }
@@ -185,18 +228,18 @@ extension RepositoryPolicy {
 
         public func vulnerabilityReporting(
             _ fullName: String
-        ) async throws -> VulnerabilityReporting {
+        ) async throws(Error) -> VulnerabilityReporting {
             let path = "/repos/\(fullName)/private-vulnerability-reporting"
             let response = try await request(method: "GET", path: path)
             if response.status == 404 { return .disabled }
             guard response.status == 200 else {
                 throw error(method: "GET", path: path, response: response)
             }
-            let state = try JSONDecoder().decode(PrivateVulnerabilityReporting.self, from: response.data)
+            let state = try decode(PrivateVulnerabilityReporting.self, from: response.data, path: path)
             return state.enabled ? .enabled : .disabled
         }
 
-        public func enableVulnerabilityReporting(_ fullName: String) async throws {
+        public func enableVulnerabilityReporting(_ fullName: String) async throws(Error) {
             let path = "/repos/\(fullName)/private-vulnerability-reporting"
             let response = try await request(method: "PUT", path: path)
             guard response.status == 204 else {
@@ -208,7 +251,7 @@ extension RepositoryPolicy {
             method: String,
             path: String,
             body: Data? = nil
-        ) async throws -> (data: Data, status: Int, headers: [String: String]) {
+        ) async throws(Error) -> (data: Data, status: Int, headers: [String: String]) {
             guard let url = URL(string: path, relativeTo: baseURL)?.absoluteURL else {
                 preconditionFailure("Invalid GitHub API path: \(path)")
             }
@@ -225,26 +268,58 @@ extension RepositoryPolicy {
                 request.httpBody = Data()
                 request.setValue("0", forHTTPHeaderField: "Content-Length")
             }
-            let (data, response) = try await URLSession.shared.data(for: request)
-            guard let response = response as? HTTPURLResponse else {
-                throw URLError(.badServerResponse)
+            let data: Data
+            let anyResponse: URLResponse
+            do {
+                (data, anyResponse) = try await URLSession.shared.data(for: request)
+            } catch {
+                throw Error.transport(path: path, message: String(describing: error))
             }
-            return (data, response.statusCode, response.allHeaderFields.reduce(into: [:]) {
-                $0[String(describing: $1.key)] = String(describing: $1.value)
-            })
+            guard let response = anyResponse as? HTTPURLResponse else {
+                throw Error.transport(path: path, message: "response is not HTTP")
+            }
+            return (
+                data, response.statusCode,
+                response.allHeaderFields.reduce(into: [:]) {
+                    $0[String(describing: $1.key)] = String(describing: $1.value)
+                }
+            )
         }
 
         private func error(
             method: String,
             path: String,
             response: (data: Data, status: Int, headers: [String: String])
-        ) -> Error {
-            Error(
+        ) -> GitHubClient.Error {
+            .http(
                 method: method,
                 path: path,
                 status: response.status,
                 response: String(decoding: response.data.prefix(2_000), as: UTF8.self)
             )
+        }
+
+        private func decode<T: Decodable>(
+            _ type: T.Type,
+            from data: Data,
+            path: String
+        ) throws(Error) -> T {
+            do {
+                return try JSONDecoder().decode(type, from: data)
+            } catch {
+                throw Error.decoding(path: path, message: String(describing: error))
+            }
+        }
+
+        /// Encodes a request body whose value is a string dictionary — a
+        /// shape `JSONEncoder` encodes totally, so a failure here is a
+        /// programming error, not a runtime condition.
+        private func encode(_ body: [String: String]) -> Data {
+            do {
+                return try JSONEncoder().encode(body)
+            } catch {
+                preconditionFailure("string dictionary failed to encode: \(error)")
+            }
         }
 
         private func isGovernedSurface(path: String) -> Bool {

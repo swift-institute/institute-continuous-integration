@@ -1,9 +1,9 @@
-import Institute_Continuous_Integration_Canon
+import Foundation
 import GitHub_Continuous_Integration
 import GitHub_Continuous_Integration_Validation
 import GitHub_Standard
 import Institute_Continuous_Integration
-import Foundation
+import Institute_Continuous_Integration_Canon
 
 extension Institute.ContinuousIntegration.Validation {
     /// `[GH-IGNORE-001]` / `[GH-IGNORE-002]` — the canonical package
@@ -132,11 +132,13 @@ extension Institute.ContinuousIntegration.Validation {
                     Finding(
                         repository: subject.repository, rule: conformance,
                         message: "no CANONICAL section; file predates the canonical whitelist"))
+
             case .some(let section) where section != canonical:
                 findings.append(
                     Finding(
                         repository: subject.repository, rule: conformance,
                         message: "CANONICAL section diverges from canon/gitignore-package.txt"))
+
             case .some:
                 break
             }
@@ -218,21 +220,27 @@ extension Institute.ContinuousIntegration.Validation.Gitignore {
     ) throws(GitHub.ContinuousIntegration.Validation.EnvironmentDefect) -> Set<String> {
         let root = FileManager.default.temporaryDirectory
             .appending(path: "ci-validation-gitignore-\(UUID().uuidString)")
-        // swift-linter:disable:next try optional
-        // REASON: `FileManager.removeItem(at:)` throws untyped, and a
-        // scratch tree that outlives the probe is not a verdict about
-        // anything.
-        defer { try? FileManager.default.removeItem(at: root) }
+        // `FileManager.removeItem(at:)` throws untyped, and a scratch
+        // tree that outlives the probe is not a verdict about anything.
+        defer {
+            do {
+                try FileManager.default.removeItem(at: root)
+            } catch {
+                // Nothing depends on the scratch tree after this probe.
+            }
+        }
 
         for probe in probes {
             let target = root.appending(path: probe.path)
             let directory = probe.isDirectory ? target : target.deletingLastPathComponent()
-            // swift-linter:disable:next try optional
-            // REASON: `FileManager.createDirectory` throws untyped; its
-            // failure here is the defect raised on the next line.
-            let made = try? FileManager.default.createDirectory(
-                at: directory, withIntermediateDirectories: true)
-            guard made != nil else { throw .unreadableSubject(root: root.path) }
+            // `FileManager.createDirectory` throws untyped; its failure
+            // here is exactly the defect raised in the catch.
+            do {
+                try FileManager.default.createDirectory(
+                    at: directory, withIntermediateDirectories: true)
+            } catch {
+                throw .unreadableSubject(root: root.path)
+            }
             if !probe.isDirectory {
                 FileManager.default.createFile(atPath: target.path, contents: Data())
             }
@@ -243,12 +251,14 @@ extension Institute.ContinuousIntegration.Validation.Gitignore {
         // test. Every verdict in the run would then reflect an empty
         // ignore file, so all junk reads as tracked and all work
         // reads as kept. The junk control caught exactly this.
-        // swift-linter:disable:next try optional
-        // REASON: `Data.write(to:options:)` throws untyped; its failure
-        // here is the defect raised on the next line.
-        let written = try? Data(gitignore.utf8).write(
-            to: root.appending(path: ".gitignore"), options: .atomic)
-        guard written != nil else { throw .unreadableSubject(root: root.path) }
+        // `Data.write(to:options:)` throws untyped; its failure here is
+        // exactly the defect raised in the catch.
+        do {
+            try Data(gitignore.utf8).write(
+                to: root.appending(path: ".gitignore"), options: .atomic)
+        } catch {
+            throw .unreadableSubject(root: root.path)
+        }
 
         guard try git(["init", "-q", "."], in: root) == 0 else {
             throw .missingSupportFile(path: "git init")
@@ -275,11 +285,12 @@ extension Institute.ContinuousIntegration.Validation.Gitignore {
         process.currentDirectoryURL = root
         process.standardOutput = FileHandle.nullDevice
         process.standardError = FileHandle.nullDevice
-        // swift-linter:disable:next try optional
-        // REASON: `Process.run()` is an untyped cross-module throw; there
-        // is no typed spelling of it, and its only failure here is "git
-        // is not on this machine", which is the defect below.
-        guard (try? process.run()) != nil else {
+        // `Process.run()` is an untyped cross-module throw; its only
+        // failure here is "git is not on this machine", which is the
+        // defect raised in the catch.
+        do {
+            try process.run()
+        } catch {
             throw .missingSupportFile(path: "git")
         }
         process.waitUntilExit()

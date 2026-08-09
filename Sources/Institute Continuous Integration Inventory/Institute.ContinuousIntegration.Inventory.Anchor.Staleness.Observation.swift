@@ -1,8 +1,8 @@
 import ContinuousIntegration
-import Institute_Continuous_Integration
 import GitHub_Continuous_Integration
 import GitHub_Continuous_Integration_Workflow
 import GitHub_Standard
+import Institute_Continuous_Integration
 
 extension Institute.ContinuousIntegration.Inventory.Anchor.Staleness {
     /// What a source repository's `main` was observed to be.

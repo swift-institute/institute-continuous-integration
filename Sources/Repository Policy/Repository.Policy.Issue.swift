@@ -54,7 +54,7 @@ extension RepositoryPolicy.Issue {
         public let status: Status
         public let grammarVersion: Int
 
-        public init(kind: Kind, owner: String, status: Status, grammarVersion: Int) throws {
+        public init(kind: Kind, owner: String, status: Status, grammarVersion: Int) throws(Error) {
             guard grammarVersion == 1 else {
                 throw Error.unsupportedVersion(grammarVersion)
             }
@@ -81,7 +81,7 @@ extension RepositoryPolicy.Issue {
         public let status: String
         public let supersededBy: String?
 
-        public init(grammarVersion: Int, status: String, supersededBy: String? = nil) throws {
+        public init(grammarVersion: Int, status: String, supersededBy: String? = nil) throws(Error) {
             guard grammarVersion == 1 else {
                 throw Error.unsupportedVersion(grammarVersion)
             }
@@ -102,7 +102,7 @@ extension RepositoryPolicy.Issue {
         public let source: String
         public let digest: String
 
-        public init(grammarVersion: Int, source: String, digest: String) throws {
+        public init(grammarVersion: Int, source: String, digest: String) throws(Error) {
             guard grammarVersion == 1 else {
                 throw Error.unsupportedVersion(grammarVersion)
             }
@@ -120,7 +120,7 @@ extension RepositoryPolicy.Issue {
         public let revision: String
         public let verification: String
 
-        public init(grammarVersion: Int, revision: String, verification: String) throws {
+        public init(grammarVersion: Int, revision: String, verification: String) throws(Error) {
             guard grammarVersion == 1 else {
                 throw Error.unsupportedVersion(grammarVersion)
             }
@@ -150,7 +150,7 @@ extension RepositoryPolicy.Issue {
     }
 
     public enum Parser {
-        public static func record(_ body: String) throws -> Record {
+        public static func record(_ body: String) throws(Error) -> Record {
             let fields = try fields(in: body, profile: .record)
             guard let kind = Kind(rawValue: try required("Kind", in: fields)) else {
                 throw Error.missingField("Kind")
@@ -169,7 +169,7 @@ extension RepositoryPolicy.Issue {
             )
         }
 
-        public static func decision(_ body: String) throws -> Decision {
+        public static func decision(_ body: String) throws(Error) -> Decision {
             let fields = try fields(in: body, profile: .decision)
             return try Decision(
                 grammarVersion: Int(try required("Grammar version", in: fields)) ?? -1,
@@ -178,7 +178,7 @@ extension RepositoryPolicy.Issue {
             )
         }
 
-        public static func checkpoint(_ body: String) throws -> CompactionCheckpoint {
+        public static func checkpoint(_ body: String) throws(Error) -> CompactionCheckpoint {
             let fields = try fields(in: body, profile: .checkpoint)
             return try CompactionCheckpoint(
                 grammarVersion: Int(try required("Grammar version", in: fields)) ?? -1,
@@ -187,7 +187,7 @@ extension RepositoryPolicy.Issue {
             )
         }
 
-        public static func receipt(_ body: String) throws -> TerminalReceipt {
+        public static func receipt(_ body: String) throws(Error) -> TerminalReceipt {
             let fields = try fields(in: body, profile: .receipt)
             return try TerminalReceipt(
                 grammarVersion: Int(try required("Grammar version", in: fields)) ?? -1,
@@ -209,7 +209,7 @@ extension RepositoryPolicy.Issue {
             }
         }
 
-        private static func fields(in body: String, profile: Profile) throws -> [String: String] {
+        private static func fields(in body: String, profile: Profile) throws(Error) -> [String: String] {
             var result = [String: String]()
             let lines = body.split(separator: "\n", omittingEmptySubsequences: false)
             var index = 0
@@ -240,7 +240,7 @@ extension RepositoryPolicy.Issue {
             return result
         }
 
-        private static func required(_ name: String, in fields: [String: String]) throws -> String {
+        private static func required(_ name: String, in fields: [String: String]) throws(Error) -> String {
             guard let value = fields[name], !value.isEmpty else { throw Error.missingField(name) }
             return value
         }
@@ -351,7 +351,7 @@ extension RepositoryPolicy.Issue {
         public let revision: String
         public let digest: String
 
-        public init(revision: String, digest: String) throws {
+        public init(revision: String, digest: String) throws(Error) {
             guard !revision.isEmpty, FIPS_180_4.SHA1.isDigestHex(digest) else {
                 throw Error.invalidDigest
             }
@@ -379,7 +379,7 @@ extension RepositoryPolicy.Issue {
         /// Plans a rewrite only for an open, Active Issue whose supplied guard
         /// still names its current body. Calling this method never mutates an
         /// Issue or reads its history.
-        public static func plan(snapshot: Snapshot, guard expected: Guard) throws -> Compaction? {
+        public static func plan(snapshot: Snapshot, guard expected: Guard) throws(Error) -> Compaction? {
             guard snapshot.revision == expected.revision, snapshot.digest == expected.digest else {
                 throw Error.staleGuard
             }

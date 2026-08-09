@@ -1,8 +1,8 @@
+import Foundation
 import GitHub_Continuous_Integration
 import GitHub_Continuous_Integration_Validation
 import GitHub_Standard
 import Institute_Continuous_Integration
-import Foundation
 
 extension Institute.ContinuousIntegration.Validation {
     /// `[GH-REPO-063]` — `metadata-schema.json` ↔ consumer
@@ -85,13 +85,15 @@ extension Institute.ContinuousIntegration.Validation {
             let schemaText = try Self.text(at: schemaPath)
             let workflowText = try Self.text(at: workflowPath)
             let readmeText = try Self.text(at: readmePath)
-            // swift-linter:disable:next try optional
-            // REASON: `JSONSerialization.jsonObject` throws untyped; its
-            // failure here is exactly the defect raised on the next line.
-            guard
-                let object = try? JSONSerialization.jsonObject(with: Data(schemaText.utf8)),
-                let schema = object as? [String: Any]
-            else {
+            // `JSONSerialization.jsonObject` throws untyped; its failure
+            // here is exactly the defect raised below.
+            let object: Any
+            do {
+                object = try JSONSerialization.jsonObject(with: Data(schemaText.utf8))
+            } catch {
+                throw .unreadableFile(path: schemaPath)
+            }
+            guard let schema = object as? [String: Any] else {
                 throw .unreadableFile(path: schemaPath)
             }
 
@@ -155,7 +157,10 @@ extension Institute.ContinuousIntegration.Validation.SchemaCorrespondence {
 
         for (field, constant) in readmePairs {
             let declared = schemaEnum(schema, block: "readme", field: field)
-            let read = constants[constant] ?? nil
+            // Flattens the double optional: an absent constant and one
+            // present-but-not-a-literal-tuple (`.some(nil)`) both report
+            // as the guard below.
+            let read = constants[constant].flatMap { $0 }
             guard let declared else {
                 problems.append(
                     "\(schemaName) `readme.\(field)` declares no string enum -- "
@@ -271,7 +276,9 @@ extension Institute.ContinuousIntegration.Validation.SchemaCorrespondence {
         // different name.
         if let next = rest.first,
             next.isLetter || next.isNumber || next == "_"
-        { return false }
+        {
+            return false
+        }
         while rest.first == " " || rest.first == "\t" { rest = rest.dropFirst() }
         return rest.first == "=" && !rest.hasPrefix("==")
     }
@@ -283,9 +290,13 @@ extension Institute.ContinuousIntegration.Validation.SchemaCorrespondence {
         var escaped = false
         for character in text {
             if let active = quote {
-                if escaped { escaped = false } else if character == "\\" {
+                if escaped {
+                    escaped = false
+                } else if character == "\\" {
                     escaped = true
-                } else if character == active { quote = nil }
+                } else if character == active {
+                    quote = nil
+                }
                 continue
             }
             switch character {
@@ -350,6 +361,7 @@ extension Institute.ContinuousIntegration.Validation.SchemaCorrespondence {
                     case "t": value.append("\t")
                     case "r": value.append("\r")
                     case "\\", "'", "\"": value.append(escapedCharacter)
+
                     default:
                         // Python keeps an unrecognised escape verbatim.
                         value.append("\\")

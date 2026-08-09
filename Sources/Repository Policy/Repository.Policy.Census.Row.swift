@@ -55,10 +55,12 @@ extension Repository.Policy.Census {
         }
 
         public var values: [String] {
-            [censusVersion, repository, headSha, path,
-             coordinateKind.rawValue, coordinateId, String(line), engine,
-             excerptSha256, family, intendedOwner, disposition,
-             measurement, cause, generatedBy, notes]
+            [
+                censusVersion, repository, headSha, path,
+                coordinateKind.rawValue, coordinateId, String(line), engine,
+                excerptSha256, family, intendedOwner, disposition,
+                measurement, cause, generatedBy, notes,
+            ]
         }
     }
 }

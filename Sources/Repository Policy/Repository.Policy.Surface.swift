@@ -125,8 +125,17 @@ extension RepositoryPolicy {
                 .appending(path: "Policy/repository-surfaces.json")
         }
 
-        public static func load(from url: URL) throws -> Self {
-            let policy = try JSONDecoder().decode(Self.self, from: Data(contentsOf: url))
+        public static func load(from url: URL) throws(ConfigurationError) -> Self {
+            let policy: Self
+            do {
+                policy = try JSONDecoder().decode(Self.self, from: Data(contentsOf: url))
+            } catch let error as ConfigurationError {
+                throw error
+            } catch {
+                throw ConfigurationError(
+                    "could not read repository surface policy at \(url.path): \(error)"
+                )
+            }
             guard policy.schemaVersion == 1 else {
                 throw ConfigurationError(
                     "unsupported repository surface policy schema \(policy.schemaVersion)"
@@ -159,7 +168,7 @@ extension RepositoryPolicy {
             return policy
         }
 
-        private static func validate(repository: String) throws {
+        private static func validate(repository: String) throws(ConfigurationError) {
             guard
                 repository.split(separator: "/", omittingEmptySubsequences: false).count == 2
             else {
@@ -209,7 +218,7 @@ extension RepositoryPolicy {
         repositoryClass: RepositoryClass,
         root: URL,
         policy: SurfacePolicy
-    ) throws -> SurfaceReport {
+    ) throws(ConfigurationError) -> SurfaceReport {
         try validateSurface(
             repository: repository,
             repositoryClass: repositoryClass,
@@ -223,7 +232,7 @@ extension RepositoryPolicy {
         repositoryClass: RepositoryClass,
         files: [String: String],
         policy: SurfacePolicy
-    ) throws -> SurfaceReport {
+    ) throws(ConfigurationError) -> SurfaceReport {
         try validateSurface(
             repository: repository,
             repositoryClass: repositoryClass,
@@ -237,7 +246,7 @@ extension RepositoryPolicy {
         repositoryClass: RepositoryClass,
         snapshot: SurfaceSnapshot,
         policy: SurfacePolicy
-    ) throws -> SurfaceReport {
+    ) throws(ConfigurationError) -> SurfaceReport {
         guard repository.split(separator: "/", omittingEmptySubsequences: false).count == 2 else {
             throw ConfigurationError("repository must use owner/name form")
         }
@@ -467,8 +476,8 @@ private func isPlatformSupportHeading(_ line: Substring) -> Bool {
     return index == characters.count
 }
 
-private extension RepositoryPolicy.SurfacePolicy {
-    func exempts(
+extension RepositoryPolicy.SurfacePolicy {
+    fileprivate func exempts(
         surface: RepositoryPolicy.Surface,
         repository: String,
         path: String
@@ -479,8 +488,8 @@ private extension RepositoryPolicy.SurfacePolicy {
     }
 }
 
-private extension Array {
-    var only: Element? {
+extension Array {
+    fileprivate var only: Element? {
         count == 1 ? self[0] : nil
     }
 }
@@ -525,7 +534,7 @@ private struct SurfaceSnapshot {
     let doccMarkdownFiles: [DoccMarkdownFile]
     let readmeContents: String?
 
-    init(root: URL) throws {
+    init(root: URL) throws(RepositoryPolicy.ConfigurationError) {
         let manager = FileManager.default
         guard
             let enumerator = manager.enumerator(
@@ -543,8 +552,26 @@ private struct SurfaceSnapshot {
         var doccMarkdownFiles = [DoccMarkdownFile]()
         var readmeContents: String?
         let rootPath = root.standardizedFileURL.path
+
+        func text(of url: URL) throws(RepositoryPolicy.ConfigurationError) -> String {
+            do {
+                return try String(contentsOf: url, encoding: .utf8)
+            } catch {
+                throw RepositoryPolicy.ConfigurationError(
+                    "could not read \(url.path): \(error)"
+                )
+            }
+        }
+
         while let url = enumerator.nextObject() as? URL {
-            let values = try url.resourceValues(forKeys: [.isRegularFileKey])
+            let values: URLResourceValues
+            do {
+                values = try url.resourceValues(forKeys: [.isRegularFileKey])
+            } catch {
+                throw RepositoryPolicy.ConfigurationError(
+                    "could not inspect \(url.path): \(error)"
+                )
+            }
             guard values.isRegularFile == true else { continue }
             let path = relativePath(url: url, rootPath: rootPath)
 
@@ -556,11 +583,12 @@ private struct SurfaceSnapshot {
                 hasSPIYML = true
             }
             if path == "README.md" {
-                readmeContents = try String(contentsOf: url, encoding: .utf8)
+                readmeContents = try text(of: url)
             }
             if isDoccMarkdownPath(path) {
-                let contents = try String(contentsOf: url, encoding: .utf8)
-                doccMarkdownFiles.append(DoccMarkdownFile(path: path, contents: contents))
+                doccMarkdownFiles.append(
+                    DoccMarkdownFile(path: path, contents: try text(of: url))
+                )
             }
 
             let isWorkflow =
@@ -570,11 +598,10 @@ private struct SurfaceSnapshot {
                 path.hasPrefix(".github/actions/")
                 && (url.lastPathComponent == "action.yml" || url.lastPathComponent == "action.yaml")
             if isWorkflow || isAction {
-                let source = try String(contentsOf: url, encoding: .utf8)
                 actions.append(
                     try ActionFile(
                         path: path,
-                        source: source,
+                        source: try text(of: url),
                         manifestIsAction: isAction
                     )
                 )
@@ -587,7 +614,7 @@ private struct SurfaceSnapshot {
         self.readmeContents = readmeContents
     }
 
-    init(files: [String: String]) throws {
+    init(files: [String: String]) throws(RepositoryPolicy.ConfigurationError) {
         var actions = [ActionFile]()
         var issueForms = [String]()
         var hasSPIYML = false
@@ -646,7 +673,9 @@ private struct ActionFile {
     let jobCount: Int
     let jobsWithUses: Int
 
-    init(path: String, source: String, manifestIsAction: Bool) throws {
+    init(
+        path: String, source: String, manifestIsAction: Bool
+    ) throws(RepositoryPolicy.ConfigurationError) {
         let lines = source.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
         var triggers = Set<String>()
         var uses = Set<String>()

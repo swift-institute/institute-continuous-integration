@@ -70,6 +70,7 @@ extension RepositoryPolicy.Ruleset {
                     reason:
                         "no Institute ruleset exists; the explicit apply-rulesets opt-in permits first application"
                 )
+
             case .scheduledHeal:
                 return ConvergenceDecision(
                     action: .skipAbsentOnSchedule,

@@ -77,6 +77,7 @@ extension Repository.Policy {
             switch subject.rootManifest {
             case .absent:
                 return .noManifest
+
             case .present:
                 if let exception = exception(subject.repository) {
                     return .bespoke(exception)

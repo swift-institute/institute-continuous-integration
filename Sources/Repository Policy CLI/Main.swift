@@ -9,6 +9,33 @@ import Repository_Policy
 
 @main
 enum Main {
+    /// Every way one subcommand refuses, preserving the refusing domain's
+    /// own typed error. `main()` renders whichever domain refused and
+    /// exits non-zero.
+    enum Error: Swift.Error, CustomStringConvertible {
+        case configuration(RepositoryPolicy.ConfigurationError)
+        case issue(RepositoryPolicy.Issue.Error)
+        case client(RepositoryPolicy.GitHubClient.Error)
+        case policy(RepositoryPolicy.Error)
+        case census(Repository.Policy.Census.Generator.Error)
+        case metadata(Repository.Policy.Metadata.Error)
+        case caller(Repository.Policy.Caller.Error)
+        case io(String)
+
+        var description: String {
+            switch self {
+            case .configuration(let error): return error.description
+            case .issue(let error): return String(describing: error)
+            case .client(let error): return error.description
+            case .policy(let error): return error.description
+            case .census(let error): return String(describing: error)
+            case .metadata(let error): return String(describing: error)
+            case .caller(let error): return String(describing: error)
+            case .io(let message): return message
+            }
+        }
+    }
+
     static func main() async {
         do {
             if CommandLine.arguments.dropFirst().first == "validate" {
@@ -40,25 +67,35 @@ enum Main {
         }
     }
 
-    private static func compact(_ arguments: CompactionArguments) async throws {
+    private static func compact(_ arguments: CompactionArguments) async throws(Error) {
         guard let token = ProcessInfo.processInfo.environment["GH_TOKEN"], !token.isEmpty else {
-            throw RepositoryPolicy.ConfigurationError("GH_TOKEN is required")
+            throw .configuration(RepositoryPolicy.ConfigurationError("GH_TOKEN is required"))
         }
         let api = ProcessInfo.processInfo.environment["GITHUB_API_URL"] ?? "https://api.github.com"
         guard let baseURL = URL(string: api) else {
-            throw RepositoryPolicy.ConfigurationError("GITHUB_API_URL is invalid")
+            throw .configuration(RepositoryPolicy.ConfigurationError("GITHUB_API_URL is invalid"))
         }
-        let expected = try RepositoryPolicy.Issue.Guard(
-            revision: arguments.revision,
-            digest: arguments.digest
-        )
-        let plan = try await RepositoryPolicy.GitHubClient(token: token, baseURL: baseURL)
-            .compactIssue(
-                arguments.repository,
-                number: arguments.issue,
-                guard: expected,
-                apply: arguments.apply
+        let expected: RepositoryPolicy.Issue.Guard
+        do throws(RepositoryPolicy.Issue.Error) {
+            expected = try RepositoryPolicy.Issue.Guard(
+                revision: arguments.revision,
+                digest: arguments.digest
             )
+        } catch {
+            throw .issue(error)
+        }
+        let plan: RepositoryPolicy.Issue.Compaction?
+        do throws(RepositoryPolicy.GitHubClient.Error) {
+            plan = try await RepositoryPolicy.GitHubClient(token: token, baseURL: baseURL)
+                .compactIssue(
+                    arguments.repository,
+                    number: arguments.issue,
+                    guard: expected,
+                    apply: arguments.apply
+                )
+        } catch {
+            throw .client(error)
+        }
         guard let plan else {
             print("repository-policy: compact already-converged")
             return
@@ -69,21 +106,27 @@ enum Main {
         )
     }
 
-    private static func reconcile(_ arguments: ReconcileArguments) async throws {
+    private static func reconcile(_ arguments: ReconcileArguments) async throws(Error) {
         guard let token = ProcessInfo.processInfo.environment["GH_TOKEN"], !token.isEmpty else {
-            throw RepositoryPolicy.ConfigurationError("GH_TOKEN is required")
+            throw .configuration(RepositoryPolicy.ConfigurationError("GH_TOKEN is required"))
         }
         let api = ProcessInfo.processInfo.environment["GITHUB_API_URL"] ?? "https://api.github.com"
         guard let baseURL = URL(string: api) else {
-            throw RepositoryPolicy.ConfigurationError("GITHUB_API_URL is invalid")
+            throw .configuration(RepositoryPolicy.ConfigurationError("GITHUB_API_URL is invalid"))
         }
-        let scope = try RepositoryPolicy.Scope(
-            organization: arguments.organization,
-            repository: arguments.repository
-        )
-        let policy = try RepositoryPolicy.SurfacePolicy.load(
-            from: URL(filePath: arguments.surfacePolicy)
-        )
+        let scope: RepositoryPolicy.Scope
+        let policy: RepositoryPolicy.SurfacePolicy
+        do throws(RepositoryPolicy.ConfigurationError) {
+            scope = try RepositoryPolicy.Scope(
+                organization: arguments.organization,
+                repository: arguments.repository
+            )
+            policy = try RepositoryPolicy.SurfacePolicy.load(
+                from: URL(filePath: arguments.surfacePolicy)
+            )
+        } catch {
+            throw .configuration(error)
+        }
         let client = RepositoryPolicy.GitHubClient(token: token, baseURL: baseURL)
 
         // Surface-policy validation and private-vulnerability-reporting
@@ -101,11 +144,16 @@ enum Main {
         // diverged). Run both predicates unconditionally, report both, and
         // fail closed at the end if either failed — never let one predicate
         // suppress the other's execution.
-        let surfaceReport = try await RepositoryPolicy.validateSurfaces(
-            client: client,
-            scope: scope,
-            policy: policy
-        )
+        let surfaceReport: RepositoryPolicy.SurfaceSweepReport
+        do throws(RepositoryPolicy.Error) {
+            surfaceReport = try await RepositoryPolicy.validateSurfaces(
+                client: client,
+                scope: scope,
+                policy: policy
+            )
+        } catch {
+            throw .policy(error)
+        }
         try write(surfaceReport, to: arguments.surfaceReport)
         if !surfaceReport.passed {
             for repository in surfaceReport.reports {
@@ -120,15 +168,20 @@ enum Main {
             }
         }
 
-        let receipt = try await RepositoryPolicy.run(
-            client: client,
-            configuration: .init(
-                scope: scope,
-                dryRun: arguments.dryRun,
-                journal: URL(filePath: arguments.journal),
-                receipt: URL(filePath: arguments.receipt)
+        let receipt: RepositoryPolicy.Receipt
+        do throws(RepositoryPolicy.Error) {
+            receipt = try await RepositoryPolicy.run(
+                client: client,
+                configuration: .init(
+                    scope: scope,
+                    dryRun: arguments.dryRun,
+                    journal: URL(filePath: arguments.journal),
+                    receipt: URL(filePath: arguments.receipt)
+                )
             )
-        )
+        } catch {
+            throw .policy(error)
+        }
         // `excluded` names why an examined repository (including an
         // explicitly named single one) did not reconcile, so a divergence
         // is legible from the step output alone (swift-institute/.github#160).
@@ -146,14 +199,18 @@ enum Main {
         )
 
         guard surfaceReport.passed else {
-            throw RepositoryPolicy.ConfigurationError(
-                "repository surface policy rejected the selected scope "
-                    + "(vulnerability-reporting reconciliation above still ran to completion)"
+            throw .configuration(
+                RepositoryPolicy.ConfigurationError(
+                    "repository surface policy rejected the selected scope "
+                        + "(vulnerability-reporting reconciliation above still ran to completion)"
+                )
             )
         }
     }
 
-    private static func ruleset(_ arguments: RulesetArguments) throws {
+    private static func ruleset(
+        _ arguments: RulesetArguments
+    ) throws(RepositoryPolicy.ConfigurationError) {
         let url = URL(filePath: arguments.policy)
         let payload: Data
         // TX5 (swift-institute/.github#276): the migration-window public
@@ -162,10 +219,13 @@ enum Main {
         switch (arguments.repositoryClass, arguments.visibility) {
         case (.package, .public):
             payload = try RepositoryPolicy.Ruleset.protectedMainPayload(from: url)
+
         case (.package, .private):
             payload = try RepositoryPolicy.Ruleset.protectedMainPrivatePayload(from: url)
+
         case (.controlPlane, _):
             payload = try RepositoryPolicy.Ruleset.protectedMainControlPayload(from: url)
+
         case (.tool, _):
             throw RepositoryPolicy.ConfigurationError(
                 "ruleset --class must be package or control-plane"
@@ -179,7 +239,9 @@ enum Main {
     /// (swift-institute/.github#204). Pure and network-free: the caller
     /// resolves whether an Institute ruleset currently exists and passes
     /// that in, this only decides the mechanical action.
-    private static func rulesetConvergence(_ arguments: RulesetConvergenceArguments) throws {
+    private static func rulesetConvergence(
+        _ arguments: RulesetConvergenceArguments
+    ) throws(Error) {
         let decision = RepositoryPolicy.Ruleset.decideConvergence(
             rulesetExists: arguments.rulesetExists,
             mode: arguments.mode
@@ -187,35 +249,39 @@ enum Main {
         try write(decision, to: nil)
     }
 
-    private static func write<T: Encodable>(_ value: T, to path: String?) throws {
+    private static func write<T: Encodable>(_ value: T, to path: String?) throws(Error) {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        var data = try encoder.encode(value)
-        data.append(0x0A)
-        if let path {
-            try data.write(to: URL(filePath: path), options: .atomic)
+        let data: Data
+        do {
+            var encoded = try encoder.encode(value)
+            encoded.append(0x0A)
+            if let path {
+                try encoded.write(to: URL(filePath: path), options: .atomic)
+            }
+            data = encoded
+        } catch {
+            throw .io("could not write \(path ?? "standard output"): \(error)")
         }
         FileHandle.standardOutput.write(data)
     }
 
-    private static func validate(_ arguments: ValidationArguments) throws {
-        let policy = try RepositoryPolicy.SurfacePolicy.load(
-            from: URL(filePath: arguments.policy)
-        )
-        let report = try RepositoryPolicy.validateSurface(
-            repository: arguments.repository,
-            repositoryClass: arguments.repositoryClass,
-            root: URL(filePath: arguments.root),
-            policy: policy
-        )
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        var data = try encoder.encode(report)
-        data.append(0x0A)
-        if let reportPath = arguments.report {
-            try data.write(to: URL(filePath: reportPath), options: .atomic)
+    private static func validate(_ arguments: ValidationArguments) throws(Error) {
+        let report: RepositoryPolicy.SurfaceReport
+        do throws(RepositoryPolicy.ConfigurationError) {
+            let policy = try RepositoryPolicy.SurfacePolicy.load(
+                from: URL(filePath: arguments.policy)
+            )
+            report = try RepositoryPolicy.validateSurface(
+                repository: arguments.repository,
+                repositoryClass: arguments.repositoryClass,
+                root: URL(filePath: arguments.root),
+                policy: policy
+            )
+        } catch {
+            throw .configuration(error)
         }
-        FileHandle.standardOutput.write(data)
+        try write(report, to: arguments.report)
         guard report.passed else {
             for violation in report.violations {
                 FileHandle.standardError.write(
@@ -237,7 +303,7 @@ enum Main {
         var surfacePolicy: String
         var surfaceReport: String
 
-        init(_ arguments: [String]) throws {
+        init(_ arguments: [String]) throws(RepositoryPolicy.ConfigurationError) {
             let temporary = FileManager.default.temporaryDirectory
             journal = temporary.appending(path: "repository-policy-journal.jsonl").path
             receipt = temporary.appending(path: "repository-policy-receipt.json").path
@@ -255,8 +321,10 @@ enum Main {
                 switch name {
                 case "--organization":
                     organization = value
+
                 case "--repository":
                     repository = value
+
                 case "--dry-run":
                     guard let parsed = Bool(value) else {
                         throw RepositoryPolicy.ConfigurationError(
@@ -264,14 +332,19 @@ enum Main {
                         )
                     }
                     dryRun = parsed
+
                 case "--journal":
                     journal = value
+
                 case "--receipt":
                     receipt = value
+
                 case "--surface-policy":
                     surfacePolicy = value
+
                 case "--surface-report":
                     surfaceReport = value
+
                 default:
                     throw RepositoryPolicy.ConfigurationError("unknown argument \(name)")
                 }
@@ -287,7 +360,7 @@ enum Main {
         let digest: String
         var apply = false
 
-        init(_ arguments: [String]) throws {
+        init(_ arguments: [String]) throws(RepositoryPolicy.ConfigurationError) {
             var repository: String?
             var issue: Int?
             var revision: String?
@@ -305,11 +378,13 @@ enum Main {
                 case "--issue": issue = Int(value)
                 case "--revision": revision = value
                 case "--digest": digest = value
+
                 case "--apply":
                     guard let parsed = Bool(value) else {
                         throw RepositoryPolicy.ConfigurationError("--apply must be true or false")
                     }
                     apply = parsed
+
                 default: throw RepositoryPolicy.ConfigurationError("unknown argument \(name)")
                 }
                 index += 2
@@ -352,7 +427,7 @@ enum Main {
         let repositoryClass: RepositoryPolicy.RepositoryClass
         let visibility: Visibility
 
-        init(_ arguments: [String]) throws {
+        init(_ arguments: [String]) throws(RepositoryPolicy.ConfigurationError) {
             var values = [String: String]()
             var index = 0
             while index < arguments.count {
@@ -409,7 +484,7 @@ enum Main {
         let mode: RepositoryPolicy.Ruleset.SweepMode
         let rulesetExists: Bool
 
-        init(_ arguments: [String]) throws {
+        init(_ arguments: [String]) throws(RepositoryPolicy.ConfigurationError) {
             var values = [String: String]()
             var index = 0
             while index < arguments.count {
@@ -456,7 +531,7 @@ enum Main {
         let policy: String
         let report: String?
 
-        init(_ arguments: [String]) throws {
+        init(_ arguments: [String]) throws(RepositoryPolicy.ConfigurationError) {
             var values = [String: String]()
             var index = 0
             while index < arguments.count {

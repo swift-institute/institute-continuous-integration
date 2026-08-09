@@ -19,6 +19,7 @@ extension Institute.ContinuousIntegration.Validation {
     /// and nothing else. Keep the list sorted by type name to make the
     /// conflict resolution mechanical.
     public enum Registry {
+        // swiftlint:disable:next no_any_protocol_existential - heterogeneous registry over the externally owned Validator protocol; deliberate dynamic dispatch, the [API-ERR-006]-extension opt-out class (Wave 2b decision 3)
         public static let validators: [any Validator] = [
             Anchor(),
             Gitignore(),
@@ -27,6 +28,8 @@ extension Institute.ContinuousIntegration.Validation {
             SchemaCorrespondence(),
             SkillHygiene(),
         ]
+
+        // swiftlint:disable no_any_protocol_existential - selects one member of the heterogeneous registry above; same [API-ERR-006]-extension opt-out (Wave 2b decision 3)
 
         /// The validator authoritative for a rule, or `nil` when the rule
         /// has no Institute owner.
@@ -57,5 +60,6 @@ extension Institute.ContinuousIntegration.Validation {
         public static func validator(replacing script: String) -> (any Validator)? {
             validators.first { $0.retiredScript == script }
         }
+        // swiftlint:enable no_any_protocol_existential
     }
 }

@@ -66,7 +66,7 @@ struct CICanonGitignoreTests {
 
         @Test func `a file ending at the terminator has an empty local half`() {
             let file = Institute.ContinuousIntegration.Canon.Gitignore("/*\n\(Institute.ContinuousIntegration.Canon.Gitignore.terminator)")
-            #expect(file.local == "")
+            #expect(file.local?.isEmpty == true)
             #expect(file.canonical?.hasSuffix("\n") == true)
         }
 

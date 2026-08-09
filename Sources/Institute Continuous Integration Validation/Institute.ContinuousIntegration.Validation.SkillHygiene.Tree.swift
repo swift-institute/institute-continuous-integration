@@ -1,8 +1,8 @@
+import Foundation
 import GitHub_Continuous_Integration
 import GitHub_Continuous_Integration_Validation
 import GitHub_Standard
 import Institute_Continuous_Integration
-import Foundation
 
 extension Institute.ContinuousIntegration.Validation.SkillHygiene {
     /// The scanned repository as a set of files.
@@ -26,7 +26,7 @@ extension Institute.ContinuousIntegration.Validation.SkillHygiene {
         init(root: String) throws(GitHub.ContinuousIntegration.Validation.EnvironmentDefect) {
             var isDirectory: ObjCBool = false
             guard FileManager.default.fileExists(atPath: root, isDirectory: &isDirectory),
-                  isDirectory.boolValue
+                isDirectory.boolValue
             else { throw .unreadableSubject(root: root) }
 
             self.root = root
@@ -34,7 +34,14 @@ extension Institute.ContinuousIntegration.Validation.SkillHygiene {
             var seen: Set<String> = []
             var stack = [root]
             while let directory = stack.popLast() {
-                let names = (try? FileManager.default.contentsOfDirectory(atPath: directory)) ?? []
+                let names: [String]
+                do {
+                    names = try FileManager.default.contentsOfDirectory(atPath: directory)
+                } catch {
+                    // An unlistable directory contributes no files; the
+                    // subject root itself was already verified above.
+                    names = []
+                }
                 for name in names where name != ".git" {
                     let path = "\(directory)/\(name)"
                     var isDirectory: ObjCBool = false

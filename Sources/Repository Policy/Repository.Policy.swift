@@ -104,8 +104,10 @@ extension RepositoryPolicy {
         switch vulnerabilityReporting {
         case .enabled:
             return .converged
+
         case .disabled:
             return .enable
+
         case nil:
             return .excluded(.missingRootManifest)
         }

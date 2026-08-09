@@ -1,8 +1,8 @@
 import ContinuousIntegration
-import Institute_Continuous_Integration
 import GitHub_Continuous_Integration
 import GitHub_Continuous_Integration_Workflow
 import GitHub_Standard
+import Institute_Continuous_Integration
 
 extension Institute.ContinuousIntegration.Inventory {
     /// Why an inventory could not be derived.
@@ -40,19 +40,26 @@ extension Institute.ContinuousIntegration.Inventory {
             switch self {
             case .unreadableWorkflow(let message):
                 "the universal workflow could not be read: \(message)"
+
             case .noJobs:
                 "the universal workflow declares no jobs"
+
             case .missingJob(let job):
                 "the universal workflow declares no '\(job)' job"
+
             case .malformedRevision(let text):
                 "'\(text)' is not a canonical 40-hex object name, so it pins nothing"
+
             case .unpinnedAction(let reference):
                 "the trust anchor's checkout action '\(reference)' is not pinned to a "
                     + "full commit SHA"
+
             case .noSources:
                 "the trust anchor pins no source repositories"
+
             case .duplicateSource(let repository):
                 "the trust anchor pins '\(repository)' more than once"
+
             case .unreadableAnchor(let message):
                 "the trust-anchor manifest could not be read: \(message)"
             }

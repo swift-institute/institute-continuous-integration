@@ -17,7 +17,9 @@ struct RepositoryPolicyMetadataTests {
               '9945': 'Portable Operating System Interface (POSIX)'
             """)
 
-    static func draft(_ target: String, packageDescription: String = "") throws
+    static func draft(
+        _ target: String, packageDescription: String = ""
+    ) throws
         -> Repository.Policy.Metadata.Draft
     {
         try .init(target: target, titles: titles, packageDescription: packageDescription)
@@ -31,7 +33,7 @@ struct RepositoryPolicyMetadataTests {
             #expect(
                 draft.metadata.description
                     == "Swift implementation of RFC 3986: "
-                        + "Uniform Resource Identifier (URI) Generic Syntax.")
+                    + "Uniform Resource Identifier (URI) Generic Syntax.")
             #expect(draft.metadata.topics == ["standards", "rfc", "rfc-3986", "TODO-domain-tag"])
         }
 

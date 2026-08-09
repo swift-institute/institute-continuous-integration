@@ -1,8 +1,8 @@
-import Institute_Continuous_Integration_Canon
 import GitHub_Continuous_Integration
 import GitHub_Continuous_Integration_Validation
 import GitHub_Standard
 import Institute_Continuous_Integration
+import Institute_Continuous_Integration_Canon
 import Testing
 
 @testable import Institute_Continuous_Integration_Validation
@@ -26,7 +26,7 @@ struct CIValidationGitignoreTests {
             }
         }
 
-        @Test func `the canonical whitelist keeps every work probe and denies every junk probe`()
+        @Test func `the canonical allowlist keeps every work probe and denies every junk probe`()
             throws
         {
             // The gate's two halves in one measurement, asked of git

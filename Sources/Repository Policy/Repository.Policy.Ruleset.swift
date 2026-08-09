@@ -70,7 +70,7 @@ extension RepositoryPolicy {
     /// rather than let the bypass linger.
     public enum Ruleset {
         /// The target public contract: exactly `ci / matrix / ci-ok`.
-        public static func protectedMainPayload(from url: URL) throws -> Data {
+        public static func protectedMainPayload(from url: URL) throws(ConfigurationError) -> Data {
             try protectedMainPackagePayload(
                 from: url,
                 requiredContexts: ["ci / matrix / ci-ok"]
@@ -81,7 +81,7 @@ extension RepositoryPolicy {
         /// trusted control-plane receipt (Task 2-01/2-02,
         /// swift-institute/.github#253). No compatibility variant: no
         /// producer preceded it.
-        public static func protectedMainPrivatePayload(from url: URL) throws -> Data {
+        public static func protectedMainPrivatePayload(from url: URL) throws(ConfigurationError) -> Data {
             try protectedMainPackagePayload(
                 from: url,
                 requiredContexts: ["verification / workspace"]
@@ -97,7 +97,7 @@ extension RepositoryPolicy {
         private static func protectedMainPackagePayload(
             from url: URL,
             requiredContexts: Set<String>
-        ) throws -> Data {
+        ) throws(ConfigurationError) -> Data {
             let (object, rules) = try identity(
                 from: url,
                 expectedName: "Institute protected main"
@@ -126,7 +126,11 @@ extension RepositoryPolicy {
                     "protected-main status-check transaction differs from the Institute contract"
                 )
             }
-            return try JSONSerialization.data(withJSONObject: object, options: [.sortedKeys])
+            do {
+                return try JSONSerialization.data(withJSONObject: object, options: [.sortedKeys])
+            } catch {
+                throw ConfigurationError("protected-main ruleset failed to serialize: \(error)")
+            }
         }
 
         /// The control-plane variant: identical protections minus the
@@ -138,7 +142,7 @@ extension RepositoryPolicy {
         /// rule of any type (including a smuggled `required_status_checks`)
         /// fails closed, as does a package-shaped payload (wrong name, and a
         /// `required_status_checks` rule the control set does not admit).
-        public static func protectedMainControlPayload(from url: URL) throws -> Data {
+        public static func protectedMainControlPayload(from url: URL) throws(ConfigurationError) -> Data {
             let (object, rules) = try identity(
                 from: url,
                 expectedName: "Institute protected main (control)"
@@ -153,7 +157,11 @@ extension RepositoryPolicy {
                 )
             }
             try validatePullRequestRule(rules)
-            return try JSONSerialization.data(withJSONObject: object, options: [.sortedKeys])
+            do {
+                return try JSONSerialization.data(withJSONObject: object, options: [.sortedKeys])
+            } catch {
+                throw ConfigurationError("protected-main ruleset failed to serialize: \(error)")
+            }
         }
 
         /// Shared identity checks both contract classes require: schema
@@ -164,10 +172,16 @@ extension RepositoryPolicy {
         private static func identity(
             from url: URL,
             expectedName: String
-        ) throws -> (object: [String: Any], rules: [[String: Any]]) {
-            let source = try Data(contentsOf: url)
-            guard var object = try JSONSerialization.jsonObject(with: source) as? [String: Any]
-            else {
+        ) throws(ConfigurationError) -> (object: [String: Any], rules: [[String: Any]]) {
+            let parsed: Any
+            do {
+                parsed = try JSONSerialization.jsonObject(with: Data(contentsOf: url))
+            } catch {
+                throw ConfigurationError(
+                    "could not read protected-main ruleset at \(url.path): \(error)"
+                )
+            }
+            guard var object = parsed as? [String: Any] else {
                 throw ConfigurationError("protected-main ruleset must be a JSON object")
             }
             guard (object.removeValue(forKey: "schemaVersion") as? Int) == 1 else {
@@ -205,7 +219,7 @@ extension RepositoryPolicy {
         }
 
         /// The pull-request transaction both contract classes pin identically.
-        private static func validatePullRequestRule(_ rules: [[String: Any]]) throws {
+        private static func validatePullRequestRule(_ rules: [[String: Any]]) throws(ConfigurationError) {
             guard
                 let review = rules.first(where: { $0["type"] as? String == "pull_request" })?[
                     "parameters"
