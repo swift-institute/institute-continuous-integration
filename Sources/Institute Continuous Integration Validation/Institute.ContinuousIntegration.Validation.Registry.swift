@@ -6,7 +6,7 @@ import Institute_Continuous_Integration
 extension Institute.ContinuousIntegration.Validation {
     /// Rule identifier → validator, for the Institute-policy validators.
     ///
-    /// The Institute's own registry: the five corpus-and-convention
+    /// The Institute's own registry: the six corpus-and-convention
     /// validators this package owns. The seventeen GitHub-Actions-
     /// mechanics validators live with their subject in
     /// `GitHub.ContinuousIntegration.Validation.Registry`
@@ -20,6 +20,7 @@ extension Institute.ContinuousIntegration.Validation {
     /// conflict resolution mechanical.
     public enum Registry {
         public static let validators: [any Validator] = [
+            Anchor(),
             Gitignore(),
             ManifestBinding(),
             Readme(),
