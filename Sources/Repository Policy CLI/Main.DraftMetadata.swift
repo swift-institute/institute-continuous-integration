@@ -11,7 +11,7 @@ extension Main {
     /// commit, and pull request stay in `generate-metadata.yml`: they are
     /// plumbing over a token, and keeping them out is what lets the
     /// classification be tested without one.
-    static func draftMetadata(_ arguments: [String]) throws {
+    static func draftMetadata(_ arguments: [String]) throws(Error) {
         var repository: String?
         var specTitles: String?
         var packageDescription = ""
@@ -25,22 +25,33 @@ extension Main {
             case "--date": date = iterator.next()
 
             default:
-                throw RepositoryPolicy.ConfigurationError(
-                    "unknown draft-metadata argument \(argument)")
+                throw .configuration(
+                    RepositoryPolicy.ConfigurationError(
+                        "unknown draft-metadata argument \(argument)")
+                )
             }
         }
         guard let repository else {
-            throw RepositoryPolicy.ConfigurationError("draft-metadata requires --repository")
+            throw .configuration(
+                RepositoryPolicy.ConfigurationError("draft-metadata requires --repository")
+            )
         }
         var titles = Repository.Policy.Metadata.Draft.Titles()
         if let specTitles {
             guard let data = FileManager.default.contents(atPath: specTitles) else {
-                throw RepositoryPolicy.ConfigurationError("spec titles not found: \(specTitles)")
+                throw .configuration(
+                    RepositoryPolicy.ConfigurationError("spec titles not found: \(specTitles)")
+                )
             }
             titles = .init(parsing: String(decoding: data, as: UTF8.self))
         }
-        let draft = try Repository.Policy.Metadata.Draft(
-            target: repository, titles: titles, packageDescription: packageDescription)
+        let draft: Repository.Policy.Metadata.Draft
+        do throws(Repository.Policy.Metadata.Error) {
+            draft = try Repository.Policy.Metadata.Draft(
+                target: repository, titles: titles, packageDescription: packageDescription)
+        } catch {
+            throw .metadata(error)
+        }
         let render = Repository.Policy.Metadata.Draft.Render(generatedOn: date ?? Self.today)
         print(render(draft), terminator: "")
     }

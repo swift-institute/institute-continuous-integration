@@ -27,6 +27,10 @@ extension Repository.Policy.Census {
 
         public enum Error: Swift.Error {
             case unreadable(path: String)
+            /// A literal extraction pattern failed to compile — a
+            /// programming error surfaced as a refusal so the census
+            /// never silently drops a coordinate class.
+            case pattern(String)
         }
 
         public let repos: [Repo]
@@ -62,12 +66,12 @@ extension Repository.Policy.Census {
             return "other"
         }
 
-        public func run() throws -> Repository.Policy.Census {
+        public func run() throws(Error) -> Repository.Policy.Census {
             var rows: [Row] = []
             let hasher = Hasher()
             for repo in repos {
                 let githubRoot = repo.root + "/.github"
-                for rel in try Self.walk(root: repo.root, under: githubRoot) {
+                for rel in Self.walk(root: repo.root, under: githubRoot) {
                     try Self.rows(
                         for: rel, repo: repo, hasher: hasher, into: &rows)
                 }
@@ -79,12 +83,20 @@ extension Repository.Policy.Census {
 
         // MARK: traversal
 
-        static func walk(root: String, under directory: String) throws -> [String] {
+        static func walk(root: String, under directory: String) -> [String] {
             let fm = FileManager.default
             var results: [String] = []
             var stack = [directory]
             while let dir = stack.popLast() {
-                guard let entries = try? fm.contentsOfDirectory(atPath: dir) else { continue }
+                let entries: [String]
+                do {
+                    entries = try fm.contentsOfDirectory(atPath: dir)
+                } catch {
+                    // An unlistable directory contributes no coordinates;
+                    // absence of the whole `.github` tree is the common,
+                    // legitimate case.
+                    continue
+                }
                 for entry in entries.sorted() {
                     if entry == ".git" { continue }
                     let full = dir + "/" + entry
@@ -107,7 +119,7 @@ extension Repository.Policy.Census {
         static func rows(
             for rel: String, repo: Repo, hasher: Hasher,
             into rows: inout [Row]
-        ) throws {
+        ) throws(Error) {
             let full = repo.root + "/" + rel
             guard let raw = FileManager.default.contents(atPath: full) else {
                 throw Error.unreadable(path: full)
@@ -155,8 +167,8 @@ extension Repository.Policy.Census {
                 return count
             }
 
-            let expression = try NSRegularExpression(
-                pattern: "\\$\\{\\{.*?\\}\\}",
+            let expression = try Self.expression(
+                "\\$\\{\\{.*?\\}\\}",
                 options: [.dotMatchesLineSeparators])
             var i = 0
             expression.enumerateMatches(
@@ -173,8 +185,8 @@ extension Repository.Policy.Census {
                 i += 1
             }
 
-            let uses = try NSRegularExpression(
-                pattern: "^\\s*(?:-\\s+)?uses:\\s*(\\S+)",
+            let uses = try Self.expression(
+                "^\\s*(?:-\\s+)?uses:\\s*(\\S+)",
                 options: [.anchorsMatchLines])
             i = 0
             uses.enumerateMatches(
@@ -193,10 +205,10 @@ extension Repository.Policy.Census {
             }
 
             let lines = text.components(separatedBy: "\n")
-            let runPattern = try NSRegularExpression(
-                pattern: "^(\\s*)run:\\s*(\\||>|\\|-|>-)?",
+            let runPattern = try Self.expression(
+                "^(\\s*)run:\\s*(\\||>|\\|-|>-)?",
                 options: [.anchorsMatchLines])
-            let command = try NSRegularExpression(pattern: "^\\s*([A-Za-z0-9_.\\/-]+)")
+            let command = try Self.expression("^\\s*([A-Za-z0-9_.\\/-]+)")
             i = 0
             runPattern.enumerateMatches(
                 in: text, range: NSRange(location: 0, length: ns.length)
@@ -239,6 +251,19 @@ extension Repository.Policy.Census {
                             notes: token))
                 }
                 i += 1
+            }
+        }
+
+        /// Compiles one literal extraction pattern, surfacing a
+        /// non-compiling pattern as the typed `pattern` refusal.
+        static func expression(
+            _ pattern: String,
+            options: NSRegularExpression.Options = []
+        ) throws(Error) -> NSRegularExpression {
+            do {
+                return try NSRegularExpression(pattern: pattern, options: options)
+            } catch {
+                throw .pattern(pattern)
             }
         }
 

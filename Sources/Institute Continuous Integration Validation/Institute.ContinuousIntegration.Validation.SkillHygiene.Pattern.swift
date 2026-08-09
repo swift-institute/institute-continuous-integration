@@ -23,7 +23,11 @@ extension Institute.ContinuousIntegration.Validation.SkillHygiene {
             // A literal pattern that does not compile is a programming
             // error, not a runtime condition: there is no input that
             // makes it compile later.
-            expression = try! NSRegularExpression(pattern: pattern, options: options)
+            do {
+                expression = try NSRegularExpression(pattern: pattern, options: options)
+            } catch {
+                preconditionFailure("literal pattern does not compile: \(pattern): \(error)")
+            }
         }
 
         /// One match: the whole match, its capture groups, and where it

@@ -14,7 +14,7 @@ extension Main {
     /// consumer reading the old payload reads this one. A caller carrying
     /// something the renderer does not model exits non-zero naming it,
     /// rather than reporting a spec that would silently erase it.
-    static func parseCaller(_ arguments: [String]) throws {
+    static func parseCaller(_ arguments: [String]) throws(Error) {
         var caller: String?
         var repository: String?
         var iterator = arguments.makeIterator()
@@ -24,16 +24,30 @@ extension Main {
             case "--repository": repository = iterator.next()
 
             default:
-                throw RepositoryPolicy.ConfigurationError(
-                    "unknown parse-caller argument \(argument)")
+                throw .configuration(
+                    RepositoryPolicy.ConfigurationError(
+                        "unknown parse-caller argument \(argument)")
+                )
             }
         }
         guard let caller, let repository else {
-            throw RepositoryPolicy.ConfigurationError(
-                "parse-caller requires --caller <ci.yml> and --repository <owner/name>")
+            throw .configuration(
+                RepositoryPolicy.ConfigurationError(
+                    "parse-caller requires --caller <ci.yml> and --repository <owner/name>")
+            )
         }
-        let text = try String(contentsOf: URL(filePath: caller), encoding: .utf8)
-        let spec = try Repository.Policy.Caller.Parse.caller(text, repository: repository)
+        let text: String
+        do {
+            text = try String(contentsOf: URL(filePath: caller), encoding: .utf8)
+        } catch {
+            throw .io("could not read caller at \(caller): \(error)")
+        }
+        let spec: Repository.Policy.Caller
+        do throws(Repository.Policy.Caller.Error) {
+            spec = try Repository.Policy.Caller.Parse.caller(text, repository: repository)
+        } catch {
+            throw .caller(error)
+        }
 
         var payload: [String: String?] = [
             "layer": spec.layer.rawValue,
@@ -45,7 +59,12 @@ extension Main {
         }
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        var data = try encoder.encode(payload)
+        var data: Data
+        do {
+            data = try encoder.encode(payload)
+        } catch {
+            throw .io("could not encode the recovered spec: \(error)")
+        }
         data.append(0x0A)
         FileHandle.standardOutput.write(data)
     }

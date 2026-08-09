@@ -7,7 +7,7 @@ extension Main {
     /// [--form <current|direct>] [--private-dependency-closure]`
     ///
     /// Prints the deterministic host projection to stdout (F3; #366).
-    static func renderCaller(_ arguments: [String]) throws {
+    static func renderCaller(_ arguments: [String]) throws(Error) {
         var repository: String?
         var layer: Repository.Policy.Caller.Layer?
         var inputs: [(key: String, value: String)] = []
@@ -22,7 +22,7 @@ extension Main {
                 guard let raw = iterator.next(),
                     let value = Repository.Policy.Caller.Layer(rawValue: raw)
                 else {
-                    throw RepositoryPolicy.ConfigurationError("--layer must be primitives|standards|institute")
+                    throw .configuration(RepositoryPolicy.ConfigurationError("--layer must be primitives|standards|institute"))
                 }
                 layer = value
 
@@ -30,11 +30,11 @@ extension Main {
                 guard let raw = iterator.next(),
                     let separator = raw.firstIndex(of: "=")
                 else {
-                    throw RepositoryPolicy.ConfigurationError("--input needs <key>=<value>")
+                    throw .configuration(RepositoryPolicy.ConfigurationError("--input needs <key>=<value>"))
                 }
                 let key = String(raw[..<separator])
                 guard Repository.Policy.Caller.approvedTypedInputs.contains(key) else {
-                    throw RepositoryPolicy.ConfigurationError("unapproved input key \(key)")
+                    throw .configuration(RepositoryPolicy.ConfigurationError("unapproved input key \(key)"))
                 }
                 inputs.append((key: key, value: String(raw[raw.index(after: separator)...])))
 
@@ -42,14 +42,19 @@ extension Main {
             case "--private-dependency-closure": privateClosure = true
 
             default:
-                throw RepositoryPolicy.ConfigurationError("unknown render-caller argument \(argument)")
+                throw .configuration(RepositoryPolicy.ConfigurationError("unknown render-caller argument \(argument)"))
             }
         }
         guard let repository, let layer else {
-            throw RepositoryPolicy.ConfigurationError("render-caller requires --repository and --layer")
+            throw .configuration(RepositoryPolicy.ConfigurationError("render-caller requires --repository and --layer"))
         }
-        let caller = try Repository.Policy.Caller(
-            repository: repository, layer: layer, inputs: inputs)
+        let caller: Repository.Policy.Caller
+        do throws(Repository.Policy.Caller.Error) {
+            caller = try Repository.Policy.Caller(
+                repository: repository, layer: layer, inputs: inputs)
+        } catch {
+            throw .caller(error)
+        }
         switch form {
         case "current":
             print(Repository.Policy.Caller.Render.current(caller), terminator: "")
@@ -60,7 +65,7 @@ extension Main {
                     caller, privateDependencyClosure: privateClosure), terminator: "")
 
         default:
-            throw RepositoryPolicy.ConfigurationError("--form must be current|direct")
+            throw .configuration(RepositoryPolicy.ConfigurationError("--form must be current|direct"))
         }
     }
 }

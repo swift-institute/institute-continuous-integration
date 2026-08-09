@@ -7,7 +7,7 @@ extension Main {
     /// Regenerates the FT1 census from checked-out trees at the given heads
     /// (F1; swift-institute/.github#363). Deterministic sorted traversal;
     /// parity with the FT1 artifact is order-normalized.
-    static func census(_ arguments: [String]) throws {
+    static func census(_ arguments: [String]) throws(Error) {
         var repos: [Repository.Policy.Census.Generator.Repo] = []
         var output: String?
         var iterator = arguments.makeIterator()
@@ -15,11 +15,15 @@ extension Main {
             switch argument {
             case "--repo":
                 guard let value = iterator.next() else {
-                    throw RepositoryPolicy.ConfigurationError("--repo needs <name>=<root>=<headSha>")
+                    throw .configuration(
+                        RepositoryPolicy.ConfigurationError("--repo needs <name>=<root>=<headSha>")
+                    )
                 }
                 let parts = value.split(separator: "=", maxSplits: 2).map(String.init)
                 guard parts.count == 3 else {
-                    throw RepositoryPolicy.ConfigurationError("--repo needs <name>=<root>=<headSha>")
+                    throw .configuration(
+                        RepositoryPolicy.ConfigurationError("--repo needs <name>=<root>=<headSha>")
+                    )
                 }
                 repos.append(.init(name: parts[0], root: parts[1], headSha: parts[2]))
 
@@ -27,15 +31,28 @@ extension Main {
                 output = iterator.next()
 
             default:
-                throw RepositoryPolicy.ConfigurationError("unknown census argument \(argument)")
+                throw .configuration(
+                    RepositoryPolicy.ConfigurationError("unknown census argument \(argument)")
+                )
             }
         }
         guard let output, !repos.isEmpty else {
-            throw RepositoryPolicy.ConfigurationError("census requires --repo … and --output")
+            throw .configuration(
+                RepositoryPolicy.ConfigurationError("census requires --repo … and --output")
+            )
         }
-        let census = try Repository.Policy.Census.Generator(repos: repos).run()
-        try Data(census.normalized.csv.utf8)
-            .write(to: URL(fileURLWithPath: output))
+        let census: Repository.Policy.Census
+        do throws(Repository.Policy.Census.Generator.Error) {
+            census = try Repository.Policy.Census.Generator(repos: repos).run()
+        } catch {
+            throw .census(error)
+        }
+        do {
+            try Data(census.normalized.csv.utf8)
+                .write(to: URL(fileURLWithPath: output))
+        } catch {
+            throw .io("could not write census to \(output): \(error)")
+        }
         var byKind: [String: Int] = [:]
         for row in census.rows {
             byKind[row.coordinateKind.rawValue, default: 0] += 1
@@ -47,12 +64,23 @@ extension Main {
 
     /// `repository-policy capability-records --output <json>` — emits the
     /// FT1-frozen D-01…D-12 capability records.
-    static func capabilityRecords(_ arguments: [String]) throws {
+    static func capabilityRecords(_ arguments: [String]) throws(Error) {
         guard arguments.count == 2, arguments[0] == "--output" else {
-            throw RepositoryPolicy.ConfigurationError("capability-records requires --output <path>")
+            throw .configuration(
+                RepositoryPolicy.ConfigurationError("capability-records requires --output <path>")
+            )
         }
-        try Repository.Policy.Capability.recordsJSON()
-            .write(to: URL(fileURLWithPath: arguments[1]))
+        let records: Data
+        do throws(RepositoryPolicy.ConfigurationError) {
+            records = try Repository.Policy.Capability.recordsJSON()
+        } catch {
+            throw .configuration(error)
+        }
+        do {
+            try records.write(to: URL(fileURLWithPath: arguments[1]))
+        } catch {
+            throw .io("could not write capability records to \(arguments[1]): \(error)")
+        }
         print("repository-policy: capability-records count=\(Repository.Policy.Capability.records.count)")
     }
 }

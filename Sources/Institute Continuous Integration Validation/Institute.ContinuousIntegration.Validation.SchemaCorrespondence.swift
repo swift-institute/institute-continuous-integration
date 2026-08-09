@@ -85,13 +85,15 @@ extension Institute.ContinuousIntegration.Validation {
             let schemaText = try Self.text(at: schemaPath)
             let workflowText = try Self.text(at: workflowPath)
             let readmeText = try Self.text(at: readmePath)
-            // swift-linter:disable:next try optional
-            // REASON: `JSONSerialization.jsonObject` throws untyped; its
-            // failure here is exactly the defect raised on the next line.
-            guard
-                let object = try? JSONSerialization.jsonObject(with: Data(schemaText.utf8)),
-                let schema = object as? [String: Any]
-            else {
+            // `JSONSerialization.jsonObject` throws untyped; its failure
+            // here is exactly the defect raised below.
+            let object: Any
+            do {
+                object = try JSONSerialization.jsonObject(with: Data(schemaText.utf8))
+            } catch {
+                throw .unreadableFile(path: schemaPath)
+            }
+            guard let schema = object as? [String: Any] else {
                 throw .unreadableFile(path: schemaPath)
             }
 
@@ -155,7 +157,10 @@ extension Institute.ContinuousIntegration.Validation.SchemaCorrespondence {
 
         for (field, constant) in readmePairs {
             let declared = schemaEnum(schema, block: "readme", field: field)
-            let read = constants[constant] ?? nil
+            // Flattens the double optional: an absent constant and one
+            // present-but-not-a-literal-tuple (`.some(nil)`) both report
+            // as the guard below.
+            let read = constants[constant].flatMap { $0 }
             guard let declared else {
                 problems.append(
                     "\(schemaName) `readme.\(field)` declares no string enum -- "

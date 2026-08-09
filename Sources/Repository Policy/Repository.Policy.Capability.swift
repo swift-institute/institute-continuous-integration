@@ -100,10 +100,16 @@ extension Repository.Policy {
                 forbiddenDuplicate: "control libraries in ordinary/fork closure"),
         ]
 
-        public static func recordsJSON() throws -> Data {
+        public static func recordsJSON() throws(RepositoryPolicy.ConfigurationError) -> Data {
             let encoder = JSONEncoder()
             encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-            return try encoder.encode(records)
+            do {
+                return try encoder.encode(records)
+            } catch {
+                throw RepositoryPolicy.ConfigurationError(
+                    "capability records failed to encode: \(error)"
+                )
+            }
         }
     }
 }

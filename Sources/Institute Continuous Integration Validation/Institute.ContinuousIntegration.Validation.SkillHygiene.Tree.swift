@@ -34,7 +34,14 @@ extension Institute.ContinuousIntegration.Validation.SkillHygiene {
             var seen: Set<String> = []
             var stack = [root]
             while let directory = stack.popLast() {
-                let names = (try? FileManager.default.contentsOfDirectory(atPath: directory)) ?? []
+                let names: [String]
+                do {
+                    names = try FileManager.default.contentsOfDirectory(atPath: directory)
+                } catch {
+                    // An unlistable directory contributes no files; the
+                    // subject root itself was already verified above.
+                    names = []
+                }
                 for name in names where name != ".git" {
                     let path = "\(directory)/\(name)"
                     var isDirectory: ObjCBool = false

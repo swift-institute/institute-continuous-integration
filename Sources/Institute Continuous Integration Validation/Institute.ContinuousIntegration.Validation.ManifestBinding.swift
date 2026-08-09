@@ -255,7 +255,12 @@ extension Institute.ContinuousIntegration.Validation {
             guard FileManager.default.fileExists(atPath: directory, isDirectory: &isDirectory),
                 isDirectory.boolValue
             else { return [] }
-            guard let names = try? FileManager.default.contentsOfDirectory(atPath: directory) else {
+            // `FileManager.contentsOfDirectory` throws untyped; its
+            // failure here is exactly the defect raised in the catch.
+            let names: [String]
+            do {
+                names = try FileManager.default.contentsOfDirectory(atPath: directory)
+            } catch {
                 throw EnvironmentDefect.unreadableFile(path: directory)
             }
             return

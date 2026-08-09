@@ -193,11 +193,17 @@ extension Institute.ContinuousIntegration.Validation.Readme {
     /// not-knowing (absent file, unreadable file, unparseable YAML, a
     /// non-mapping where a mapping belongs) is `None`, not an error.
     static func family(of subject: GitHub.ContinuousIntegration.Validation.Subject) -> String? {
-        guard let text = try? subject.text(at: ".github/metadata.yaml") else {
+        let document: GitHub.ContinuousIntegration.Workflow.YAML.Node
+        do {
+            guard let text = try subject.text(at: ".github/metadata.yaml") else { return nil }
+            document = try GitHub.ContinuousIntegration.Workflow.YAML.Parser.parse(text)
+        } catch {
+            // Every way of not-knowing (absent file, unreadable file,
+            // unparseable YAML) is `nil`, not an error — the retired
+            // `detect_family` posture.
             return nil
         }
-        guard let document = try? GitHub.ContinuousIntegration.Workflow.YAML.Parser.parse(text),
-            let top = document.mapping,
+        guard let top = document.mapping,
             let readme = top["readme"]?.mapping
         else { return nil }
         if let exempt = readme["exempt"]?.text, exemptions.contains(exempt) {

@@ -162,10 +162,17 @@ extension Institute.ContinuousIntegration.Validation {
             guard let supportRoot else { return [] }
             let path = supportRoot + "/.github/actions/read-orgs/orgs.yaml"
             guard let data = FileManager.default.contents(atPath: path),
-                let text = String(data: data, encoding: .utf8),
-                let node = try? GitHub.ContinuousIntegration.Workflow.YAML.Parser.parse(text),
-                let entries = node.sequence
+                let text = String(data: data, encoding: .utf8)
             else { return [] }
+            let node: GitHub.ContinuousIntegration.Workflow.YAML.Node
+            do {
+                node = try GitHub.ContinuousIntegration.Workflow.YAML.Parser.parse(text)
+            } catch {
+                // An unparseable manifest widens nothing — the retired
+                // script's posture for every way of not-knowing here.
+                return []
+            }
+            guard let entries = node.sequence else { return [] }
             return Set(
                 entries.compactMap { entry in
                     guard let name = entry["name"]?.text, !name.isEmpty else { return nil }

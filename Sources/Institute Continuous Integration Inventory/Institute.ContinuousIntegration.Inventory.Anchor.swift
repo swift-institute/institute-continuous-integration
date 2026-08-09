@@ -222,13 +222,15 @@ extension Institute.ContinuousIntegration.Inventory.Anchor {
     /// would regenerate a partial block and the correspondence check
     /// would then agree with it.
     public init(manifest text: String) throws(Institute.ContinuousIntegration.Inventory.Error) {
-        // swift-linter:disable:next try optional
-        // REASON: `JSONSerialization.jsonObject` throws untyped; its
-        // failure is exactly the refusal raised on the next line.
-        guard
-            let object = try? JSONSerialization.jsonObject(with: Data(text.utf8)),
-            let manifest = object as? [String: Any]
-        else {
+        // `JSONSerialization.jsonObject` throws untyped; its failure is
+        // exactly the refusal raised below.
+        let object: Any
+        do {
+            object = try JSONSerialization.jsonObject(with: Data(text.utf8))
+        } catch {
+            throw .unreadableAnchor(message: "the manifest is not a JSON object")
+        }
+        guard let manifest = object as? [String: Any] else {
             throw .unreadableAnchor(message: "the manifest is not a JSON object")
         }
         guard let version = manifest["schema_version"] as? Int else {
