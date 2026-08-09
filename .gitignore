@@ -30,6 +30,7 @@ Thumbs.db
 !/.gitignore
 !/.spi.yml
 !/.swift-format
+!/.swift-format-ignore
 !/.swiftformat
 !/.swiftlint.yml
 !/.swiftlint/
