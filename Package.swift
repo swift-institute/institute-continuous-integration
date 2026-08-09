@@ -77,6 +77,12 @@ let package = Package(
             dependencies: [
                 "Institute Continuous Integration",
                 "Institute Continuous Integration Canon",
+                // CI-ANCHOR-001 regenerates the trust-anchor block from
+                // its recorded inputs and compares. The emitter is the
+                // relation's owner (Q3, swift-institute/.github#461); a
+                // second copy of it here is the drift the rule exists to
+                // catch.
+                "Institute Continuous Integration Inventory",
                 .product(
                     name: "GitHub Continuous Integration",
                     package: "swift-github-continuous-integration"),
@@ -135,7 +141,10 @@ let package = Package(
         ),
         .testTarget(
             name: "Institute Continuous Integration Validation Tests",
-            dependencies: ["Institute Continuous Integration Validation"],
+            dependencies: [
+                "Institute Continuous Integration Validation",
+                "Institute Continuous Integration Inventory",
+            ],
             // Read from source through `#filePath`, not bundled: the
             // corpus is data the suite reads, unmodified.
             exclude: ["Fixtures"]

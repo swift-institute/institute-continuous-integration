@@ -19,6 +19,22 @@ extension Institute.ContinuousIntegration.Inventory {
         case noJobs
         /// A job the aggregate depends on is absent.
         case missingJob(String)
+        /// An object name is not a canonical 40-hex revision — an
+        /// abbreviation, a ref, or an expression. Refused rather than
+        /// resolved: resolution is what a pin exists to avoid.
+        case malformedRevision(String)
+        /// The trust anchor's own `uses:` reference is not identity
+        /// pinned, which would leave the anchor anchored to a tag.
+        case unpinnedAction(String)
+        /// A trust anchor pins nothing. An empty anchor would report
+        /// correspondence over zero sources — a gate that passes because
+        /// it checked nothing.
+        case noSources
+        /// One source repository is pinned twice, so two pins claim
+        /// authority over the same checkout.
+        case duplicateSource(String)
+        /// A recorded trust-anchor manifest could not be read as one.
+        case unreadableAnchor(message: String)
 
         public var message: String {
             switch self {
@@ -28,6 +44,17 @@ extension Institute.ContinuousIntegration.Inventory {
                 "the universal workflow declares no jobs"
             case .missingJob(let job):
                 "the universal workflow declares no '\(job)' job"
+            case .malformedRevision(let text):
+                "'\(text)' is not a canonical 40-hex object name, so it pins nothing"
+            case .unpinnedAction(let reference):
+                "the trust anchor's checkout action '\(reference)' is not pinned to a "
+                    + "full commit SHA"
+            case .noSources:
+                "the trust anchor pins no source repositories"
+            case .duplicateSource(let repository):
+                "the trust anchor pins '\(repository)' more than once"
+            case .unreadableAnchor(let message):
+                "the trust-anchor manifest could not be read: \(message)"
             }
         }
     }

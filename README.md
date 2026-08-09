@@ -11,14 +11,18 @@ the vendor-neutral CI domain and the GitHub↔CI relation.
 - **Institute Continuous Integration Canon** — the documents this control
   plane distributes into every package (`.gitignore` canon) and how they
   are spliced: one owner for the renderer and the gate.
-- **Institute Continuous Integration Validation** — the five
+- **Institute Continuous Integration Validation** — the six
   Institute-policy validators (skill hygiene, gitignore canon, README
-  conventions, schema correspondence, manifest binding), registered in this
+  conventions, schema correspondence, manifest binding, trust-anchor
+  regeneration correspondence), registered in this
   package's own registry and conforming to the validation engine owned by
   [swift-github-continuous-integration](https://github.com/swift-foundations/swift-github-continuous-integration).
 - **Institute Continuous Integration Inventory** — the structural
   inventory of the shipped CI verdict: the universal workflow's jobs,
-  postures, waves, token boundary, and single aggregate.
+  postures, waves, token boundary, and single aggregate — and the trust
+  anchor, which pins the CI source repositories a workflow revision is
+  entitled to execute and emits the generated checkout and identity
+  steps that carry those pins.
 
 The vendor-neutral continuous-integration contract lives in
 [swift-continuous-integration](https://github.com/swift-foundations/swift-continuous-integration),
