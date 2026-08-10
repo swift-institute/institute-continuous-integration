@@ -50,6 +50,42 @@ struct CICanonGitignoreTests {
     }
 
     @Suite
+    struct Class {
+        typealias Class = Institute.ContinuousIntegration.Canon.Gitignore.Class
+
+        @Test func `every class names its own canon document`() {
+            #expect(Class.package.canonPath == "canon/gitignore-package.txt")
+            for `class` in Class.allCases {
+                #expect(`class`.canonPath == "canon/gitignore-\(`class`.rawValue).txt")
+            }
+        }
+
+        @Test func `classification authority order is assignment, org, manifest`() {
+            // Assignments are empty today; the derivations carry the
+            // fleet. The control-plane org outranks manifest facts, and
+            // the manifest's generator fact outranks the package default.
+            #expect(Class.of(repository: "swift-institute/Research", manifest: nil) == .institute)
+            #expect(
+                Class.of(
+                    repository: "swift-institute/institute-continuous-integration",
+                    manifest: "// swift-tools-version: 6.3") == .institute)
+            #expect(Class.of(repository: "swift-primitives/x", manifest: "…") == .package)
+            #expect(Class.of(repository: "swift-primitives/x", manifest: nil) == .scaffold)
+            #expect(
+                Class.of(
+                    repository: "swift-standards/x",
+                    manifest: #".executableTarget(name: "SVG Generator")"#) == .generator)
+        }
+
+        @Test func `no repository is assigned before the convergence ruling`() {
+            // The typed exception list is admitted by ruling, not by
+            // drift; an entry appearing here must arrive with the ruling
+            // that admits it.
+            #expect(Class.assignments.isEmpty)
+        }
+    }
+
+    @Suite
     struct `Edge Case` {
         @Test func `a pre canonical file is preserved whole beneath canon`() throws {
             // Replacing it would delete rules a package deliberately
