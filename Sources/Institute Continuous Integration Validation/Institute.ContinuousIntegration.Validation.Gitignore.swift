@@ -6,13 +6,17 @@ import Institute_Continuous_Integration
 import Institute_Continuous_Integration_Canon
 
 extension Institute.ContinuousIntegration.Validation {
-    /// `[GH-IGNORE-001]` / `[GH-IGNORE-002]` — the canonical package
-    /// `.gitignore`, and the work it must not deny.
+    /// `[GH-IGNORE-001]` / `[GH-IGNORE-002]` / `[GH-IGNORE-003]` — the
+    /// canonical `.gitignore` for a repository's class, the work it must
+    /// not deny, and the deny-by-default shape it must keep.
     ///
     /// **001** is conformance: the file's canonical half must match
-    /// `canon/gitignore-package.txt` byte-for-byte, and the file must
+    /// `canon/gitignore-<class>.txt` byte-for-byte for the repository's
+    /// class — `Canon.Gitignore.Class` decides which — and the file must
     /// have such a half. Content after the terminator is the package's
-    /// own and is not compared.
+    /// own and is not compared. A whitelist that admits one path more
+    /// than its class canon is a byte away from canon and fires here;
+    /// near-conformant is not conformant.
     ///
     /// **002 is the half that matters.** A whitelist inverts the failure
     /// mode. Before it, junk crept in and `git status` showed you; after
@@ -22,10 +26,18 @@ extension Institute.ContinuousIntegration.Validation {
     /// lost. A validator that asks only "is junk denied?" would have
     /// reported that repository clean. This one also asks "is real work
     /// still tracked?", which is what makes work-loss loud. Do not weaken
-    /// it to a warning, and when the whitelist gains a directory, add a
-    /// probe for it here in the same change.
+    /// it to a warning, and when a class whitelist gains a directory, add
+    /// a probe for it here in the same change.
     ///
-    /// Both halves evaluate the file **the way git will**: it is copied
+    /// **003** is shape: deny-by-default, proven behaviorally. A path no
+    /// class admits must come back ignored; if it survives, the file is
+    /// not a whitelist regardless of what its patterns look like. 001
+    /// already implies this for a conformant file — 003 exists so a
+    /// divergent or pre-canonical file is measured on its own shape, and
+    /// so a canon edit that broke deny-by-default would fire the corpus
+    /// before it shipped.
+    ///
+    /// All three evaluate the file **the way git will**: it is copied
     /// into a throwaway `git init` tree with the probe paths
     /// materialised, and `git check-ignore` decides. Reading the patterns
     /// and reasoning about them is how the premise of this gate came to
@@ -33,6 +45,8 @@ extension Institute.ContinuousIntegration.Validation {
     /// deny-line was read as the absence of denial, when the whitelist
     /// was denying it all along.
     public struct Gitignore: Validator {
+        public typealias Class = Institute.ContinuousIntegration.Canon.Gitignore.Class
+
         /// A path the whitelist is probed with, and whether git must be
         /// told it is a directory.
         ///
@@ -49,9 +63,17 @@ extension Institute.ContinuousIntegration.Validation {
             }
         }
 
-        /// Paths that carry real work. Every one must survive the
-        /// whitelist.
-        public static let work: [Probe] = [
+        /// Paths every class must keep: the repository's own floor.
+        public static let floor: [Probe] = [
+            Probe("README.md"),
+            Probe("LICENSE.md"),
+            Probe(".github/workflows/ci.yml"),
+            Probe(".gitignore"),
+        ]
+
+        /// Paths that carry package work. Every package-shaped class
+        /// must keep all of them.
+        public static let packageWork: [Probe] = [
             Probe("Sources/Core/Type.swift"),
             Probe("Sources/Core/Type.docc/Article.md"),
             Probe("Sources/Core/Type.docc/asset.png"),
@@ -62,12 +84,38 @@ extension Institute.ContinuousIntegration.Validation {
             Probe("Experiments/probe/main.swift"),
             Probe("Package.swift"),
             Probe("Lint.swift"),
-            Probe("README.md"),
-            Probe("LICENSE.md"),
-            Probe(".github/workflows/ci.yml"),
             Probe(".spi.yml"),
-            Probe(".gitignore"),
         ]
+
+        /// Paths that carry real work for a class. Every one must
+        /// survive that class's whitelist.
+        public static func work(for class: Class) -> [Probe] {
+            switch `class` {
+            case .package:
+                floor + packageWork
+            case .scaffold:
+                floor
+            case .institute:
+                floor + packageWork + [
+                    Probe("canon/gitignore-package.txt"),
+                    Probe("Policy/whitelist.json"),
+                    Probe("Tools/tool/Package.swift"),
+                    Probe("profile/README.md"),
+                    Probe("RULINGS.md"),
+                ]
+            case .application:
+                floor + packageWork + [
+                    Probe("Public/favicon.ico"),
+                    Probe("Resources/Views/page.html"),
+                    Probe("Configuration/production.json"),
+                    Probe(".env.example"),
+                ]
+            case .generator:
+                floor + packageWork + [
+                    Probe("Generation/main.swift")
+                ]
+            }
+        }
 
         /// Paths that must be denied. Not a rule of its own — a positive
         /// control on the probe harness. If these come back tracked,
@@ -80,15 +128,25 @@ extension Institute.ContinuousIntegration.Validation {
             Probe(".build/debug/thing.o"),
         ]
 
-        public let rules: [Rule] = ["GH-IGNORE-001", "GH-IGNORE-002"]
+        /// Paths no class admits. Each must come back ignored, or the
+        /// file is not deny-by-default and `[GH-IGNORE-003]` fires. The
+        /// spelling is deliberately unguessable so no class canon — nor
+        /// any plausible local override — ever admits it.
+        public static let unadmitted: [Probe] = [
+            Probe("Unadmitted-GH-IGNORE-003/probe.txt"),
+            Probe("unadmitted-gh-ignore-003.txt"),
+        ]
+
+        public let rules: [Rule] = ["GH-IGNORE-001", "GH-IGNORE-002", "GH-IGNORE-003"]
         public let retiredScript: String? = ".github/scripts/validate-gitignore.py"
 
-        /// Canon's path within the control-plane checkout.
+        /// The package-class canon's path within the control-plane
+        /// checkout. The other classes' documents are its siblings.
         public static let canonPath = "canon/gitignore-package.txt"
 
-        /// Where canon lives. `nil` means *find it*: the working
-        /// directory and each of its ancestors are searched for
-        /// `canonPath`.
+        /// Where the package-class canon lives. `nil` means *find it*:
+        /// the working directory and each of its ancestors are searched
+        /// for `canonPath`.
         ///
         /// The retired script resolved canon from its own location
         /// (`__file__/../../canon/…`), which a Swift executable cannot
@@ -104,24 +162,34 @@ extension Institute.ContinuousIntegration.Validation {
         }
 
         public func findings(in subject: Subject) throws(EnvironmentDefect) -> [Finding] {
+            // A root that is not there is not a repository of any class.
+            var isDirectory: ObjCBool = false
+            guard FileManager.default.fileExists(atPath: subject.root, isDirectory: &isDirectory),
+                isDirectory.boolValue
+            else { return [] }
+
+            let `class` = Class.of(
+                repository: subject.repository,
+                manifest: Self.read(subject.path("Package.swift")))
             let path = canon ?? Self.resolvedCanonPath ?? Self.canonPath
-            guard let canonText = Self.read(path) else {
-                throw .missingSupportFile(path: path)
+            let classPath = (path as NSString).deletingLastPathComponent
+                + "/" + (`class`.canonPath as NSString).lastPathComponent
+            guard let canonText = Self.read(classPath) else {
+                throw .missingSupportFile(path: classPath)
             }
             guard let canonical = Institute.ContinuousIntegration.Canon.Gitignore(canonText).canonical else {
-                throw .missingSupportFile(path: path)
+                throw .missingSupportFile(path: classPath)
             }
-            // Packages only. A repository with no manifest is not what
-            // this canon describes.
-            guard Self.read(subject.path("Package.swift")) != nil else { return [] }
 
             let conformance = rules[0]
             let workLoss = rules[1]
+            let shape = rules[2]
             guard let text = Self.read(subject.path(".gitignore")) else {
                 return [
                     Finding(
                         repository: subject.repository, rule: conformance,
-                        message: "no .gitignore; the canonical whitelist is absent")
+                        message: "no .gitignore; the canonical \(`class`.rawValue)-class "
+                            + "whitelist is absent")
                 ]
             }
 
@@ -137,17 +205,21 @@ extension Institute.ContinuousIntegration.Validation {
                 findings.append(
                     Finding(
                         repository: subject.repository, rule: conformance,
-                        message: "CANONICAL section diverges from canon/gitignore-package.txt"))
+                        message: "CANONICAL section diverges from \(`class`.canonPath) "
+                            + "(class: \(`class`.rawValue))"))
 
             case .some:
                 break
             }
 
-            // 002 evaluates the repository's ACTUAL file, canonical or
-            // not — a divergent file that loses real work should say so
-            // on its own terms, not only via 001.
-            let ignored = try Self.ignored(under: text, probes: Self.work + Self.junk)
-            for probe in Self.work where ignored.contains(probe.path) {
+            // 002 and 003 evaluate the repository's ACTUAL file,
+            // canonical or not — a divergent file that loses real work or
+            // admits the unadmitted should say so on its own terms, not
+            // only via 001.
+            let work = Self.work(for: `class`)
+            let ignored = try Self.ignored(
+                under: text, probes: work + Self.junk + Self.unadmitted)
+            for probe in work where ignored.contains(probe.path) {
                 findings.append(
                     Finding(
                         repository: subject.repository, rule: workLoss,
@@ -165,6 +237,13 @@ extension Institute.ContinuousIntegration.Validation {
                         message: "probe control failed — tool state not denied ("
                             + tracked.map { "`\($0.path)`" }.joined(separator: ", ")
                             + "); this run's whitelist verdicts are not evidence"))
+            }
+            for probe in Self.unadmitted where !ignored.contains(probe.path) {
+                findings.append(
+                    Finding(
+                        repository: subject.repository, rule: shape,
+                        message: "not deny-by-default: unadmitted path `\(probe.path)` "
+                            + "would be tracked"))
             }
             return findings
         }
