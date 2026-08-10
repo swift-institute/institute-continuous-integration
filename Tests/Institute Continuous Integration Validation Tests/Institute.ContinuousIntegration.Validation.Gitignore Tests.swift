@@ -17,7 +17,8 @@ struct CIValidationGitignoreTests {
     /// hand-written stand-in would test the test.
     static func canon(for class: Class) throws -> String {
         let package = try #require(Gitignore.resolvedCanonPath)
-        let path = (package as NSString).deletingLastPathComponent
+        let path =
+            (package as NSString).deletingLastPathComponent
             + "/" + (`class`.canonPath as NSString).lastPathComponent
         return try #require(Gitignore.read(path))
     }
@@ -121,7 +122,7 @@ struct CIValidationGitignoreTests {
             #expect(!ignored.contains("Extra/leak.txt"))
         }
 
-        @Test func `a blacklist is not deny-by-default and fires shape`() throws {
+        @Test func `a deny-listing file is not deny-by-default and fires shape`() throws {
             let repository = TemporaryRepository()
             repository.write("// swift-tools-version: 6.3", to: "Package.swift")
             repository.write(".build/\n.DS_Store\n", to: ".gitignore")
@@ -148,7 +149,7 @@ struct CIValidationGitignoreTests {
             #expect(tracked.count == Gitignore.junk.count)
         }
 
-        @Test func `the sweep fires on itself when the whitelist breaks`() throws {
+        @Test func `the sweep fires on itself when the allow set breaks`() throws {
             // Self-firing control for the whole rule family: a repository
             // whose file is an empty whitelist must produce a junk-control
             // 002 finding AND a 003 finding — a run in which neither can

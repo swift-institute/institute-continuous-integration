@@ -93,16 +93,19 @@ extension Institute.ContinuousIntegration.Validation {
             switch `class` {
             case .package:
                 floor + packageWork
+
             case .scaffold:
                 floor
+
             case .institute:
                 floor + packageWork + [
                     Probe("canon/gitignore-package.txt"),
-                    Probe("Policy/whitelist.json"),
+                    Probe("Policy/ruleset.json"),
                     Probe("Tools/tool/Package.swift"),
                     Probe("profile/README.md"),
                     Probe("RULINGS.md"),
                 ]
+
             case .application:
                 floor + packageWork + [
                     Probe("Public/favicon.ico"),
@@ -110,6 +113,7 @@ extension Institute.ContinuousIntegration.Validation {
                     Probe("Configuration/production.json"),
                     Probe(".env.example"),
                 ]
+
             case .generator:
                 floor + packageWork + [
                     Probe("Generation/main.swift")
@@ -172,7 +176,8 @@ extension Institute.ContinuousIntegration.Validation {
                 repository: subject.repository,
                 manifest: Self.read(subject.path("Package.swift")))
             let path = canon ?? Self.resolvedCanonPath ?? Self.canonPath
-            let classPath = (path as NSString).deletingLastPathComponent
+            let classPath =
+                (path as NSString).deletingLastPathComponent
                 + "/" + (`class`.canonPath as NSString).lastPathComponent
             guard let canonText = Self.read(classPath) else {
                 throw .missingSupportFile(path: classPath)
