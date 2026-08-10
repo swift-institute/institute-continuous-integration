@@ -5,10 +5,10 @@ import PackageDescription
 let package = Package(
     name: "swift-witness-exemption-fixture",
     products: [
-        .library(name: "Witness Exemption Fixture", targets: ["Witness Exemption Fixture"]),
+        .library(name: "Fixture", targets: ["Fixture"]),
     ],
     targets: [
-        .target(name: "Witness Exemption Fixture"),
+        .target(name: "Fixture"),
     ],
     swiftLanguageModes: [.v6]
 )

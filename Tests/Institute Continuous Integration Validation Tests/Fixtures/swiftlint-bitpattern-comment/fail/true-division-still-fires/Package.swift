@@ -5,10 +5,10 @@ import PackageDescription
 let package = Package(
     name: "swift-bitpattern-comment-fixture",
     products: [
-        .library(name: "Bitpattern Comment Fixture", targets: ["Bitpattern Comment Fixture"]),
+        .library(name: "Fixture", targets: ["Fixture"]),
     ],
     targets: [
-        .target(name: "Bitpattern Comment Fixture"),
+        .target(name: "Fixture"),
     ],
     swiftLanguageModes: [.v6]
 )
