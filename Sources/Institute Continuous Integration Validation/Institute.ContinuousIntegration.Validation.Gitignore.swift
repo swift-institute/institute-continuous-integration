@@ -598,7 +598,13 @@ extension Institute.ContinuousIntegration.Validation.Gitignore {
             let separator: Character = ":"
             let names = ["git"]
         #endif
-        guard let path = environment["PATH"] else { return nil }
+        // Windows preserves the host spelling of environment keys. Its
+        // standard `Path` spelling is semantically the same variable as
+        // POSIX `PATH`, but `ProcessInfo.environment` presents it as a
+        // case-sensitive Swift dictionary.
+        guard let path = environment.first(where: {
+            $0.key.caseInsensitiveCompare("PATH") == .orderedSame
+        })?.value else { return nil }
         let fileManager = FileManager.default
         for rawDirectory in path.split(separator: separator, omittingEmptySubsequences: false) {
             let directory = rawDirectory.trimmingCharacters(in: .whitespacesAndNewlines)
