@@ -129,6 +129,30 @@ struct CIValidationGitignoreTests {
             #expect(try Gitignore.ignoredIndexedPaths(paths, in: repository.root, noIndex: false).isEmpty)
         }
 
+        @Test
+        func `an ambient alternate empty index cannot hide the real index`() throws {
+            let repository = try CIValidationGitignoreTests.repository()
+            repository.write("/*\n", to: ".gitignore")
+            repository.write("evidence", to: "tracked.txt")
+            #expect(try repository.git(["add", "--force", "tracked.txt"]) == 0)
+            #expect(try repository.git(
+                ["read-tree", "--empty"],
+                environment: ["GIT_INDEX_FILE": repository.path("alternate-index")]) == 0)
+
+            #expect(try Gitignore.indexedPaths(
+                in: repository.root,
+                environment: ["GIT_INDEX_FILE": repository.path("alternate-index")]
+            ) == ["tracked.txt"])
+        }
+
+        @Test func `ignored index transport exceeds pipe capacity without blocking`() throws {
+            let repository = try CIValidationGitignoreTests.repository()
+            repository.write("/*\n", to: ".gitignore")
+            let paths = (0..<20_000).map { "generated/path-\($0)-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.txt" }
+            #expect(try Gitignore.ignoredIndexedPaths(paths, in: repository.root) == paths)
+            #expect(try Gitignore.ignoredIndexedPaths(["kept.txt"], in: repository.root).isEmpty)
+        }
+
         @Test func `declared nested packages require exact generated nested policy`() throws {
             let repository = try CIValidationGitignoreTests.repository()
             repository.write("// swift-tools-version: 6.3", to: "Package.swift")

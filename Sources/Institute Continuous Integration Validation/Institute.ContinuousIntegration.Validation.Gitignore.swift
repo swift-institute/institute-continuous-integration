@@ -407,8 +407,13 @@ extension Institute.ContinuousIntegration.Validation.Gitignore {
 
     /// Stage-0 pathnames from the real index. Records of any other shape are
     /// refused rather than treated as an empty index.
-    static func indexedPaths(in root: String) throws(GitHub.ContinuousIntegration.Validation.EnvironmentDefect) -> [String] {
-        let result = try git(["ls-files", "--stage", "-z"], in: URL(filePath: root), input: nil)
+    static func indexedPaths(
+        in root: String,
+        environment: [String: String] = ProcessInfo.processInfo.environment
+    ) throws(GitHub.ContinuousIntegration.Validation.EnvironmentDefect) -> [String] {
+        let result = try git(
+            ["ls-files", "--stage", "-z"],
+            in: URL(filePath: root), input: nil, environment: environment)
         guard result.status == 0 else { throw .unreadableSubject(root: root) }
         if result.output.isEmpty { return [] }
         var paths: [String] = []
@@ -486,13 +491,18 @@ extension Institute.ContinuousIntegration.Validation.Gitignore {
     }
 
     private static func git(
-        _ arguments: [String], in root: URL, input: Data?
+        _ arguments: [String], in root: URL, input: Data?,
+        environment: [String: String] = ProcessInfo.processInfo.environment
     ) throws(GitHub.ContinuousIntegration.Validation.EnvironmentDefect) -> (status: Int32, output: Data) {
         let process = Process()
         let output = Pipe()
         process.executableURL = URL(filePath: "/usr/bin/env")
-        process.arguments = ["git"] + arguments
-        process.currentDirectoryURL = root
+        process.arguments = ["git", "-C", root.path] + arguments
+        // Git's ambient control variables can redirect the repository,
+        // work tree, index, object database, configuration, and namespace.
+        // A fixed environment removes that entire input surface rather than
+        // trying to maintain a partial deny-list of Git variables.
+        process.environment = controlledGitEnvironment(environment)
         process.standardOutput = output
         process.standardError = FileHandle.nullDevice
         let standardInput = input.map { _ in Pipe() }
@@ -505,12 +515,47 @@ extension Institute.ContinuousIntegration.Validation.Gitignore {
         } catch {
             throw .missingSupportFile(path: "git")
         }
+        let inputFailure = Pipe()
+        let inputGroup = DispatchGroup()
         if let input, let standardInput {
-            standardInput.fileHandleForWriting.write(input)
-            try? standardInput.fileHandleForWriting.close()
+            inputGroup.enter()
+            DispatchQueue.global().async {
+                defer { inputGroup.leave() }
+                do {
+                    try standardInput.fileHandleForWriting.write(contentsOf: input)
+                    try standardInput.fileHandleForWriting.close()
+                } catch {
+                    inputFailure.fileHandleForWriting.write(Data([1]))
+                    try? inputFailure.fileHandleForWriting.close()
+                }
+            }
+        } else {
+            try? inputFailure.fileHandleForWriting.close()
         }
-        let data = output.fileHandleForReading.readDataToEndOfFile()
+        let data: Data
+        do {
+            data = try output.fileHandleForReading.readToEnd() ?? Data()
+        } catch {
+            process.terminate()
+            process.waitUntilExit()
+            inputGroup.wait()
+            throw .unreadableSubject(root: root.path)
+        }
         process.waitUntilExit()
+        inputGroup.wait()
+        try? inputFailure.fileHandleForWriting.close()
+        let failedInput = inputFailure.fileHandleForReading.readDataToEndOfFile()
+        guard failedInput.isEmpty else { throw .unreadableSubject(root: root.path) }
         return (process.terminationStatus, data)
+    }
+
+    private static func controlledGitEnvironment(_: [String: String]) -> [String: String] {
+        [
+            "GIT_CONFIG_NOSYSTEM": "1",
+            "HOME": "/dev/null",
+            "LC_ALL": "C",
+            "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
+            "XDG_CONFIG_HOME": "/dev/null",
+        ]
     }
 }
