@@ -183,9 +183,7 @@ extension Institute.ContinuousIntegration.Validation {
                 repository: subject.repository,
                 manifest: Self.read(subject.path("Package.swift")))
             let path = canon ?? Self.resolvedCanonPath ?? Self.canonPath
-            let classPath =
-                (path as NSString).deletingLastPathComponent
-                + "/" + (`class`.canonPath as NSString).lastPathComponent
+            let classPath = Self.siblingCanonPath(of: path, for: `class`)
             guard let canonText = Self.read(classPath) else {
                 throw .missingSupportFile(path: classPath)
             }
@@ -312,19 +310,31 @@ extension Institute.ContinuousIntegration.Validation.Gitignore {
             // root, so a caller whose working directory is elsewhere —
             // a test runner, a consumer package — still resolves the
             // document this validator was built against.
-            ?? resolvedCanonPath(startingAt: (#filePath as NSString).deletingLastPathComponent)
+            ?? resolvedCanonPath(
+                startingAt: URL(filePath: #filePath).deletingLastPathComponent().path)
     }
 
     /// `canonPath` found by walking up from `directory`, or `nil` when
     /// no ancestor carries it.
     static func resolvedCanonPath(startingAt start: String) -> String? {
-        var directory = start
-        while !directory.isEmpty, directory != "/" {
-            let candidate = "\(directory)/\(canonPath)"
+        var directory = URL(filePath: start, directoryHint: .isDirectory)
+        while true {
+            let candidate = directory.appending(path: canonPath).path
             if read(candidate) != nil { return candidate }
-            directory = (directory as NSString).deletingLastPathComponent
+            let parent = directory.deletingLastPathComponent()
+            guard parent.path != directory.path else { return nil }
+            directory = parent
         }
-        return nil
+    }
+
+    /// The class-specific canon beside a resolved package canon. `URL`
+    /// preserves the host platform's separator and root semantics; string
+    /// concatenation produced mixed paths on Windows.
+    static func siblingCanonPath(of packageCanon: String, for `class`: Class) -> String {
+        URL(filePath: packageCanon)
+            .deletingLastPathComponent()
+            .appending(path: `class`.canonPath)
+            .path
     }
 
     /// The text of a file, or `nil` when it is absent or is not a file.
