@@ -482,12 +482,14 @@ extension Institute.ContinuousIntegration.Validation.Gitignore {
         guard result.status == 0 || result.status == 1, result.output.last == 0 || result.output.isEmpty else {
             throw .unreadableSubject(root: root)
         }
-        return try result.output.split(separator: 0).map { record in
+        var ignored: [String] = []
+        for record in result.output.split(separator: 0) {
             guard let path = String(data: Data(record), encoding: .utf8), !path.isEmpty else {
-                throw GitHub.ContinuousIntegration.Validation.EnvironmentDefect.unreadableSubject(root: root)
+                throw .unreadableSubject(root: root)
             }
-            return path
+            ignored.append(path)
         }
+        return ignored
     }
 
     private static func git(
