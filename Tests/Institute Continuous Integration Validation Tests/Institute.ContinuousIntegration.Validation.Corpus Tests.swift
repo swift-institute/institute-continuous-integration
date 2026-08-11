@@ -74,11 +74,15 @@ struct InstituteValidationCorpusTests {
                     at: root,
                     includingPropertiesForKeys: [.isDirectoryKey]
                 ) where (try? subject.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true {
-                    guard try Institute.ContinuousIntegration.Validation.Gitignore.git(
-                        ["init", "-q", "."], in: subject, input: nil).status == 0
+                    guard
+                        try Institute.ContinuousIntegration.Validation.Gitignore.git(
+                            ["init", "-q", "."], in: subject, input: nil
+                        ).status == 0
                     else { throw CocoaError(.fileWriteUnknown) }
-                    guard try Institute.ContinuousIntegration.Validation.Gitignore.git(
-                        ["add", "-f", "--all"], in: subject, input: nil).status == 0
+                    guard
+                        try Institute.ContinuousIntegration.Validation.Gitignore.git(
+                            ["add", "-f", "--all"], in: subject, input: nil
+                        ).status == 0
                     else { throw CocoaError(.fileWriteUnknown) }
                 }
             }
