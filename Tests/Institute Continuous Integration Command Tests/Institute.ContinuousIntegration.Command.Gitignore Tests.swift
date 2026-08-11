@@ -55,9 +55,10 @@ extension Institute.ContinuousIntegration.Command.Gitignore {
             let fileManager = FileManager.default
             let ruleDirectories = try fileManager.contentsOfDirectory(
                 at: corpus,
-                includingPropertiesForKeys: [.isDirectoryKey])
-                .filter { $0.lastPathComponent.hasPrefix("gh-ignore-") }
-                .filter { (try? $0.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true }
+                includingPropertiesForKeys: [.isDirectoryKey]
+            )
+            .filter { $0.lastPathComponent.hasPrefix("gh-ignore-") }
+            .filter { (try? $0.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true }
             for rule in ruleDirectories {
                 for expectation in ["pass", "fail", "edge"] {
                     let root = rule.appending(path: expectation)
