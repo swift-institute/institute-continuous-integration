@@ -50,10 +50,11 @@ struct CICanonGitignoreTests {
         }
 
         @Test func `a Windows text checkout retains its closed admissions`() throws {
-            let canon = CICanonGitignoreTests.canon.split(
-                separator: "\n", omittingEmptySubsequences: false
-            )
-            .joined(separator: "\r\n")
+            var canon = ""
+            for character in CICanonGitignoreTests.canon {
+                if character == "\n" { canon.append("\r") }
+                canon.append(character)
+            }
             let rendered = try Institute.ContinuousIntegration.Canon.Gitignore.Render(
                 canon: .init(canon))(over: nil)
             #expect(rendered == canon)

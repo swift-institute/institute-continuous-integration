@@ -18,11 +18,10 @@ extension Institute.ContinuousIntegration.Canon.Gitignore {
             // The canon is one Git document whose blob remains LF-pinned;
             // line-ending conversion must not make its closed admission
             // vocabulary disappear from the parser.
-            let normalized = canon.text.split(
-                separator: "\n", omittingEmptySubsequences: false
-            )
-            .map { $0.last == "\r" ? $0.dropLast() : $0 }
-            .joined(separator: "\n")
+            var normalized = ""
+            for character in canon.text where character != "\r" {
+                normalized.append(character)
+            }
             guard normalized.contains(Institute.ContinuousIntegration.Canon.Gitignore.Capability.block)
             else { throw .capabilityBlockAbsent }
             self.canon = canon.text
