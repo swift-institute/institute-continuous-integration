@@ -132,3 +132,38 @@ struct CICanonGitignoreTests {
             ) == ["Tests/.gitignore": ".build/\n.swiftpm/\n.benchmarks/\n"])
     }
 }
+
+@Suite
+struct CICanonConfigurationTests {
+    typealias Configuration = Institute.ContinuousIntegration.Canon.Configuration
+
+    static let declaration = Configuration.Declaration(repositoryClass: .package)
+
+    static func profile(_ baseline: Configuration.Baseline, _ text: String = "policy\n") throws -> Configuration.Profile {
+        try .init(baseline: baseline, declaration: declaration, text: text)
+    }
+
+    @Test func `rendering selects one complete profile per tool deterministically`() throws {
+        let render = try Configuration.Render(profiles: [
+            try profile(.swiftLintV1, "lint\n"), try profile(.swiftFormatV1, "format\n"),
+        ], declaration: declaration)
+        #expect(try render.text(for: .swiftFormat) == "format\n")
+        #expect(try render.text(for: .swiftLint) == "lint\n")
+        #expect(Configuration.Render.outputDirectory == ".institute/configuration")
+        #expect(Configuration.Tool.swiftFormat.invocation == "swift format --configuration .institute/configuration/.swift-format")
+        #expect(Configuration.Tool.swiftLint.invocation == "swiftlint --config .institute/configuration/.swiftlint.yml")
+    }
+
+    @Test func `missing profile fails closed`() throws {
+        #expect(throws: Configuration.Error.missingProfile(.swiftLint)) {
+            _ = try Configuration.Render(profiles: [try profile(.swiftFormatV1)], declaration: declaration)
+        }
+    }
+
+    @Test func `unratified typed delta fails closed rather than becoming a local escape hatch`() throws {
+        let withDelta = Configuration.Declaration(repositoryClass: .package, deltas: [.frozenEvidence])
+        #expect(throws: Configuration.Error.unratifiedDeltas([.frozenEvidence])) {
+            _ = try Configuration.Render(profiles: [], declaration: withDelta)
+        }
+    }
+}
