@@ -634,14 +634,14 @@ extension Institute.ContinuousIntegration.Validation.Gitignore {
     }
 
     private static func controlledGitEnvironment(
-        _: [String: String], executable: URL
+        _ ambient: [String: String], executable: URL
     ) -> [String: String] {
         #if os(Windows)
             let null = "NUL"
         #else
             let null = "/dev/null"
         #endif
-        return [
+        var environment: [String: String] = [
             "GIT_CONFIG_NOSYSTEM": "1",
             "GIT_CONFIG_GLOBAL": null,
             "HOME": null,
@@ -649,5 +649,34 @@ extension Institute.ContinuousIntegration.Validation.Gitignore {
             "PATH": executable.deletingLastPathComponent().path,
             "XDG_CONFIG_HOME": null,
         ]
+        #if os(Windows)
+            // Git for Windows launches through its MSYS/Cygwin POSIX
+            // emulation layer, which bootstraps from the Win32 environment
+            // — including `SystemRoot` — to translate host paths (an 8.3
+            // short-name ancestor such as the hosted runner's `RUNNER~1`
+            // profile directory among them) into the form its runtime
+            // operates on. A `CreateProcess` environment that omits these
+            // is a documented way to break any Win32-hosted program's
+            // startup, not a git-specific quirk: without them the process
+            // can fail before it reaches the repository at all, which
+            // surfaces here as the subject reading as unreadable rather
+            // than as a git exit status. None of these carry the ambient
+            // *git* control surface this isolation exists to remove
+            // (repository, work tree, index, object database,
+            // configuration, or namespace) — they are OS bootstrap
+            // variables, not git variables — so restoring them narrows
+            // nothing this function isolates.
+            for name in [
+                "SystemRoot", "SystemDrive", "windir", "ComSpec",
+                "TEMP", "TMP", "USERPROFILE", "ALLUSERSPROFILE",
+            ] {
+                if let value = ambient.first(where: {
+                    $0.key.caseInsensitiveCompare(name) == .orderedSame
+                })?.value {
+                    environment[name] = value
+                }
+            }
+        #endif
+        return environment
     }
 }
