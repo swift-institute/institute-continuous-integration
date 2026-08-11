@@ -3,6 +3,8 @@ import Institute_Continuous_Integration
 import Institute_Continuous_Integration_Command
 import Testing
 
+@testable import Institute_Continuous_Integration_Validation
+
 extension Institute.ContinuousIntegration.Command.Gitignore {
     @Suite
     struct Test {
@@ -67,24 +69,14 @@ extension Institute.ContinuousIntegration.Command.Gitignore {
                         at: root,
                         includingPropertiesForKeys: [.isDirectoryKey])
                     where (try? subject.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true {
-                        try git(["init", "-q", "."], in: subject)
-                        try git(["add", "-f", "--all"], in: subject)
+                        guard try Institute.ContinuousIntegration.Validation.Gitignore.git(
+                            ["init", "-q", "."], in: subject, input: nil).status == 0
+                        else { throw CocoaError(.fileWriteUnknown) }
+                        guard try Institute.ContinuousIntegration.Validation.Gitignore.git(
+                            ["add", "-f", "--all"], in: subject, input: nil).status == 0
+                        else { throw CocoaError(.fileWriteUnknown) }
                     }
                 }
-            }
-        }
-
-        private static func git(_ arguments: [String], in root: URL) throws {
-            let process = Process()
-            process.executableURL = URL(filePath: "/usr/bin/env")
-            process.arguments = ["git"] + arguments
-            process.currentDirectoryURL = root
-            process.standardOutput = FileHandle.nullDevice
-            process.standardError = FileHandle.nullDevice
-            try process.run()
-            process.waitUntilExit()
-            guard process.terminationStatus == 0 else {
-                throw CocoaError(.fileWriteUnknown)
             }
         }
 

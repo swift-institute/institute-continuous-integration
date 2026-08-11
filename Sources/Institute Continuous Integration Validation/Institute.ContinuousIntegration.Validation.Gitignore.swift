@@ -516,19 +516,22 @@ extension Institute.ContinuousIntegration.Validation.Gitignore {
         }
     }
 
-    private static func git(
+    static func git(
         _ arguments: [String], in root: URL, input: Data?,
         environment: [String: String] = ProcessInfo.processInfo.environment
     ) throws(GitHub.ContinuousIntegration.Validation.EnvironmentDefect) -> (status: Int32, output: Data) {
+        guard let executable = gitExecutable(in: environment) else {
+            throw .missingSupportFile(path: "git")
+        }
         let process = Process()
         let output = Pipe()
-        process.executableURL = URL(filePath: "/usr/bin/env")
-        process.arguments = ["git", "-C", root.path] + arguments
+        process.executableURL = executable
+        process.arguments = ["-C", root.path] + arguments
         // Git's ambient control variables can redirect the repository,
         // work tree, index, object database, configuration, and namespace.
         // A fixed environment removes that entire input surface rather than
         // trying to maintain a partial deny-list of Git variables.
-        process.environment = controlledGitEnvironment(environment)
+        process.environment = controlledGitEnvironment(environment, executable: executable)
         process.standardOutput = output
         process.standardError = FileHandle.nullDevice
         let standardInput = input.map { _ in Pipe() }
@@ -587,13 +590,43 @@ extension Institute.ContinuousIntegration.Validation.Gitignore {
         return (process.terminationStatus, data)
     }
 
-    private static func controlledGitEnvironment(_: [String: String]) -> [String: String] {
+    private static func gitExecutable(in environment: [String: String]) -> URL? {
+        #if os(Windows)
+            let separator: Character = ";"
+            let names = ["git.exe"]
+        #else
+            let separator: Character = ":"
+            let names = ["git"]
+        #endif
+        guard let path = environment["PATH"] else { return nil }
+        let fileManager = FileManager.default
+        for rawDirectory in path.split(separator: separator, omittingEmptySubsequences: false) {
+            let directory = rawDirectory.trimmingCharacters(in: .whitespacesAndNewlines)
+                .trimmingCharacters(in: CharacterSet(charactersIn: "\""))
+            guard !directory.isEmpty else { continue }
+            for name in names {
+                let candidate = URL(filePath: directory).appending(path: name)
+                if fileManager.isExecutableFile(atPath: candidate.path) { return candidate }
+            }
+        }
+        return nil
+    }
+
+    private static func controlledGitEnvironment(
+        _: [String: String], executable: URL
+    ) -> [String: String] {
+        #if os(Windows)
+            let null = "NUL"
+        #else
+            let null = "/dev/null"
+        #endif
         [
             "GIT_CONFIG_NOSYSTEM": "1",
-            "HOME": "/dev/null",
+            "GIT_CONFIG_GLOBAL": null,
+            "HOME": null,
             "LC_ALL": "C",
-            "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
-            "XDG_CONFIG_HOME": "/dev/null",
+            "PATH": executable.deletingLastPathComponent().path,
+            "XDG_CONFIG_HOME": null,
         ]
     }
 }

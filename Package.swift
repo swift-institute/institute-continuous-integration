@@ -203,6 +203,7 @@ let package = Package(
             dependencies: [
                 .target(name: "Institute Continuous Integration"),
                 .target(name: "Institute Continuous Integration Command"),
+                .target(name: "Institute Continuous Integration Validation"),
             ]
         ),
     ],
