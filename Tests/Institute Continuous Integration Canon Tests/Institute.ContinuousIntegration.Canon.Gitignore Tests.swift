@@ -139,14 +139,10 @@ struct CICanonConfigurationTests {
 
     static let declaration = Configuration.Declaration(repositoryClass: .package)
 
-    static func profile(_ baseline: Configuration.Baseline, _ text: String = "policy\n") throws -> Configuration.Profile {
-        try .init(baseline: baseline, declaration: declaration, text: text)
-    }
-
     @Test func `rendering selects one complete profile per tool deterministically`() throws {
-        let render = try Configuration.Render(profiles: [
-            try profile(.swiftLintV1, "lint\n"), try profile(.swiftFormatV1, "format\n"),
-        ], declaration: declaration)
+        let render = try Configuration.Render(declaration: declaration) { baseline, _ in
+            baseline == .swiftFormatV1 ? "format\n" : "lint\n"
+        }
         #expect(try render.text(for: .swiftFormat) == "format\n")
         #expect(try render.text(for: .swiftLint) == "lint\n")
         #expect(Configuration.Render.outputDirectory == ".institute/configuration")
@@ -155,8 +151,8 @@ struct CICanonConfigurationTests {
     }
 
     @Test func `missing profile fails closed`() throws {
-        #expect(throws: Configuration.Error.missingProfile(.swiftLint)) {
-            _ = try Configuration.Render(profiles: [try profile(.swiftFormatV1)], declaration: declaration)
+        #expect(throws: Configuration.Error.profileUnavailable(.swiftFormatV1)) {
+            _ = try Configuration.Render(declaration: declaration)
         }
     }
 
@@ -164,6 +160,15 @@ struct CICanonConfigurationTests {
         let withDelta = Configuration.Declaration(repositoryClass: .package, deltas: [.frozenEvidence])
         #expect(throws: Configuration.Error.unratifiedDeltas([.frozenEvidence])) {
             _ = try Configuration.Render(profiles: [], declaration: withDelta)
+        }
+    }
+
+    @Test func `render configuration command accepts only typed selection and explicit output root`() throws {
+        let command = try Configuration.Command(arguments: ["--class", "package", "--root", "."])
+        #expect(command.declaration == declaration)
+        #expect(command.root == ".")
+        #expect(throws: Configuration.Error.unknownCommandArgument("--swift-format-profile")) {
+            _ = try Configuration.Command(arguments: ["--swift-format-profile", "outside", "--class", "package", "--root", "."])
         }
     }
 }

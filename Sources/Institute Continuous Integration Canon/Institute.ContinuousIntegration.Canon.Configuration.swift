@@ -77,50 +77,31 @@ extension Institute.ContinuousIntegration.Canon.Configuration {
         }
     }
 
-    /// A complete already-ratified profile. `text` is supplied by the future
-    /// canonical profile owner, never composed from per-repository snippets.
-    public struct Profile: Sendable, Equatable {
-        public let baseline: Baseline
-        public let declaration: Declaration
-        public let text: String
-
-        public init(
-            baseline: Baseline,
-            declaration: Declaration,
-            text: String
-        ) throws(Error) {
-            guard !text.isEmpty else { throw .emptyProfile(baseline) }
-            self.baseline = baseline
-            self.declaration = declaration
-            self.text = text
-        }
-    }
-
     public struct Render: Sendable, Equatable {
         public static let outputDirectory = ".institute/configuration"
 
         public let declaration: Declaration
-        public let profiles: [Tool: Profile]
+        public let profiles: [Tool: String]
 
-        public init(
+        /// Resolve only profiles installed by the canonical profile owner.
+        /// That owner has not ratified profile bytes yet, so this public
+        /// entry point refuses before any repository-local output is made.
+        public init(declaration: Declaration) throws(Error) {
+            try self.init(declaration: declaration, profile: Self.authoritativeProfile)
+        }
+
+        init(
             declaration: Declaration,
-            profiles: [Profile]
+            profile: (Baseline, Declaration) throws(Error) -> String
         ) throws(Error) {
             guard declaration.deltas.isEmpty else {
                 throw .unratifiedDeltas(declaration.deltas)
             }
-            var selected: [Tool: Profile] = [:]
-            for profile in profiles {
-                guard profile.declaration == declaration else {
-                    throw .profileDoesNotMatchDeclaration(profile.baseline)
-                }
-                guard selected[profile.baseline.tool] == nil else {
-                    throw .duplicateProfile(profile.baseline.tool)
-                }
-                selected[profile.baseline.tool] = profile
-            }
-            for tool in Tool.allCases where selected[tool] == nil {
-                throw .missingProfile(tool)
+            var selected: [Tool: String] = [:]
+            for baseline in Baseline.allCases {
+                let text = try profile(baseline, declaration)
+                guard !text.isEmpty else { throw .emptyProfile(baseline) }
+                selected[baseline.tool] = text
             }
             self.declaration = declaration
             self.profiles = selected
@@ -128,27 +109,79 @@ extension Institute.ContinuousIntegration.Canon.Configuration {
 
         public func text(for tool: Tool) throws(Error) -> String {
             guard let profile = profiles[tool] else { throw .missingProfile(tool) }
-            return profile.text
+            return profile
+        }
+
+        private static func authoritativeProfile(
+            _ baseline: Baseline,
+            _ declaration: Declaration
+        ) throws(Error) -> String {
+            _ = declaration
+            throw .profileUnavailable(baseline)
         }
     }
 
     public enum Error: Swift.Error, Sendable, Equatable, CustomStringConvertible {
         case emptyProfile(Baseline)
+        case profileUnavailable(Baseline)
         case missingProfile(Tool)
-        case duplicateProfile(Tool)
-        case profileDoesNotMatchDeclaration(Baseline)
         case unratifiedDeltas(Set<LocalDelta>)
+        case commandRequiresClassAndRoot
+        case unknownCommandArgument(String)
+        case invalidRepositoryClass(String)
+        case invalidDelta(String)
+        case duplicateDelta(LocalDelta)
 
         public var description: String {
             switch self {
             case .emptyProfile(let baseline): "configuration profile \(baseline.rawValue) is empty"
+            case .profileUnavailable(let baseline):
+                "canonical configuration profile \(baseline.rawValue) is unavailable"
             case .missingProfile(let tool): "configuration profile for \(tool.rawValue) is required"
-            case .duplicateProfile(let tool): "configuration profile for \(tool.rawValue) is duplicated"
-            case .profileDoesNotMatchDeclaration(let baseline):
-                "configuration profile \(baseline.rawValue) does not match the declared class and deltas"
             case .unratifiedDeltas(let deltas):
                 "configuration deltas are not ratified: \(deltas.map(\.rawValue).sorted().joined(separator: ","))"
+            case .commandRequiresClassAndRoot:
+                "render-configuration requires --class and --root"
+            case .unknownCommandArgument(let argument):
+                "unknown render-configuration argument \(argument)"
+            case .invalidRepositoryClass(let value):
+                "--class must be package|institute|tool, not \(value)"
+            case .invalidDelta(let value):
+                "--delta must name an admitted typed delta, not \(value)"
+            case .duplicateDelta(let delta):
+                "--delta \(delta.rawValue) is duplicated"
             }
+        }
+    }
+
+    /// The portable command grammar. It is intentionally a typed parsing
+    /// seam rather than a bag of paths and configuration-text arguments.
+    public struct Command: Sendable, Equatable {
+        public let declaration: Declaration
+        public let root: String
+
+        public init(arguments: [String]) throws(Error) {
+            var repositoryClass: RepositoryClass?
+            var deltas: Set<LocalDelta> = []
+            var root: String?
+            var iterator = arguments.makeIterator()
+            while let argument = iterator.next() {
+                switch argument {
+                case "--class":
+                    guard let raw = iterator.next() else { throw .commandRequiresClassAndRoot }
+                    guard let value = RepositoryClass(rawValue: raw) else { throw .invalidRepositoryClass(raw) }
+                    repositoryClass = value
+                case "--delta":
+                    guard let raw = iterator.next() else { throw .commandRequiresClassAndRoot }
+                    guard let value = LocalDelta(rawValue: raw) else { throw .invalidDelta(raw) }
+                    guard deltas.insert(value).inserted else { throw .duplicateDelta(value) }
+                case "--root": root = iterator.next()
+                default: throw .unknownCommandArgument(argument)
+                }
+            }
+            guard let repositoryClass, let root else { throw .commandRequiresClassAndRoot }
+            self.declaration = .init(repositoryClass: repositoryClass, deltas: deltas)
+            self.root = root
         }
     }
 }

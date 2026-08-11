@@ -128,7 +128,10 @@ let package = Package(
         ),
         .executableTarget(
             name: "Repository Policy CLI",
-            dependencies: ["Repository Policy"]
+            dependencies: [
+                .target(name: "Repository Policy"),
+                .target(name: "Institute Continuous Integration Canon"),
+            ]
         ),
         .testTarget(
             name: "Repository Policy Tests",
