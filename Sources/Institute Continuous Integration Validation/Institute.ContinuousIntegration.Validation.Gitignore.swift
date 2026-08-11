@@ -177,6 +177,7 @@ extension Institute.ContinuousIntegration.Validation {
             guard FileManager.default.fileExists(atPath: subject.root, isDirectory: &isDirectory),
                 isDirectory.boolValue
             else { return [] }
+            try Self.validateRepositoryEnvironment(subject.root)
 
             let `class` = Class.of(
                 repository: subject.repository,
@@ -432,28 +433,35 @@ extension Institute.ContinuousIntegration.Validation.Gitignore {
 
     /// Every effective per-directory policy input outside Git's own metadata.
     static func policyPaths(in root: String) throws(GitHub.ContinuousIntegration.Validation.EnvironmentDefect) -> [String] {
-        var failed = false
-        guard let enumerator = FileManager.default.enumerator(
-            at: URL(filePath: root),
-            includingPropertiesForKeys: [.isRegularFileKey],
-            options: [],
-            errorHandler: { _, _ in
-                failed = true
-                return false
-            })
-        else { throw .unreadableSubject(root: root) }
+        let rootURL = URL(filePath: root)
+        var directories: [(url: URL, relative: String)] = [(rootURL, "")]
         var paths: [String] = []
-        for case let url as URL in enumerator {
-            if url.path == root + "/.git" {
-                enumerator.skipDescendants()
-                continue
+        while let directory = directories.popLast() {
+            let contents: [URL]
+            do {
+                contents = try FileManager.default.contentsOfDirectory(
+                    at: directory.url,
+                    includingPropertiesForKeys: [.isDirectoryKey, .isSymbolicLinkKey])
+            } catch {
+                throw .unreadableSubject(root: root)
             }
-            guard url.lastPathComponent == ".gitignore" else { continue }
-            let prefix = root.hasSuffix("/") ? root : root + "/"
-            guard url.path.hasPrefix(prefix) else { throw .unreadableSubject(root: root) }
-            paths.append(String(url.path.dropFirst(prefix.count)))
+            for url in contents {
+                let relative = directory.relative.isEmpty
+                    ? url.lastPathComponent
+                    : directory.relative + "/" + url.lastPathComponent
+                if relative == ".git" { continue }
+                if url.lastPathComponent == ".gitignore" { paths.append(relative) }
+                let values: URLResourceValues
+                do {
+                    values = try url.resourceValues(forKeys: [.isDirectoryKey, .isSymbolicLinkKey])
+                } catch {
+                    throw .unreadableSubject(root: root)
+                }
+                if values.isDirectory == true, values.isSymbolicLink != true {
+                    directories.append((url, relative))
+                }
+            }
         }
-        guard !failed else { throw .unreadableSubject(root: root) }
         return Array(Set(paths)).sorted()
     }
 
@@ -464,12 +472,7 @@ extension Institute.ContinuousIntegration.Validation.Gitignore {
         _ paths: [String], in root: String, noIndex: Bool = true
     ) throws(GitHub.ContinuousIntegration.Validation.EnvironmentDefect) -> [String] {
         guard !paths.isEmpty else { return [] }
-        let infoExclude = root + "/.git/info/exclude"
-        if let contents = read(infoExclude),
-            contents.split(whereSeparator: \.isNewline).contains(where: {
-                !$0.trimmingCharacters(in: .whitespaces).isEmpty && !$0.hasPrefix("#")
-            })
-        { throw .unreadableSubject(root: root) }
+        try validateRepositoryEnvironment(root)
 
         var arguments = ["-c", "core.excludesFile=/dev/null", "check-ignore"]
         if noIndex { arguments.append("--no-index") }
@@ -490,6 +493,17 @@ extension Institute.ContinuousIntegration.Validation.Gitignore {
             ignored.append(path)
         }
         return ignored
+    }
+
+    private static func validateRepositoryEnvironment(
+        _ root: String
+    ) throws(GitHub.ContinuousIntegration.Validation.EnvironmentDefect) {
+        let infoExclude = root + "/.git/info/exclude"
+        if let contents = read(infoExclude),
+            contents.split(whereSeparator: \.isNewline).contains(where: {
+                !$0.trimmingCharacters(in: .whitespaces).isEmpty && !$0.hasPrefix("#")
+            })
+        { throw .unreadableSubject(root: root) }
     }
 
     private static func git(

@@ -147,7 +147,7 @@ struct CIValidationGitignoreTests {
 
         @Test func `ignored index transport exceeds pipe capacity without blocking`() throws {
             let repository = try CIValidationGitignoreTests.repository()
-            repository.write("/*\n", to: ".gitignore")
+            repository.write("/*\n!/kept.txt\n", to: ".gitignore")
             let paths = (0..<20_000).map { "generated/path-\($0)-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.txt" }
             #expect(try Gitignore.ignoredIndexedPaths(paths, in: repository.root) == paths)
             #expect(try Gitignore.ignoredIndexedPaths(["kept.txt"], in: repository.root).isEmpty)
