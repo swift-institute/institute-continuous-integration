@@ -620,7 +620,7 @@ extension Institute.ContinuousIntegration.Validation.Gitignore {
         #else
             let null = "/dev/null"
         #endif
-        [
+        return [
             "GIT_CONFIG_NOSYSTEM": "1",
             "GIT_CONFIG_GLOBAL": null,
             "HOME": null,
