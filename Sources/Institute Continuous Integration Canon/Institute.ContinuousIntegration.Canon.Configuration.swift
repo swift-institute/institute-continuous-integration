@@ -135,19 +135,27 @@ extension Institute.ContinuousIntegration.Canon.Configuration {
         public var description: String {
             switch self {
             case .emptyProfile(let baseline): "configuration profile \(baseline.rawValue) is empty"
+
             case .profileUnavailable(let baseline):
                 "canonical configuration profile \(baseline.rawValue) is unavailable"
+
             case .missingProfile(let tool): "configuration profile for \(tool.rawValue) is required"
+
             case .unratifiedDeltas(let deltas):
                 "configuration deltas are not ratified: \(deltas.map(\.rawValue).sorted().joined(separator: ","))"
+
             case .commandRequiresClassAndRoot:
                 "render-configuration requires --class and --root"
+
             case .unknownCommandArgument(let argument):
                 "unknown render-configuration argument \(argument)"
+
             case .invalidRepositoryClass(let value):
                 "--class must be package|institute|tool, not \(value)"
+
             case .invalidDelta(let value):
                 "--delta must name an admitted typed delta, not \(value)"
+
             case .duplicateDelta(let delta):
                 "--delta \(delta.rawValue) is duplicated"
             }
@@ -171,11 +179,14 @@ extension Institute.ContinuousIntegration.Canon.Configuration {
                     guard let raw = iterator.next() else { throw .commandRequiresClassAndRoot }
                     guard let value = RepositoryClass(rawValue: raw) else { throw .invalidRepositoryClass(raw) }
                     repositoryClass = value
+
                 case "--delta":
                     guard let raw = iterator.next() else { throw .commandRequiresClassAndRoot }
                     guard let value = LocalDelta(rawValue: raw) else { throw .invalidDelta(raw) }
                     guard deltas.insert(value).inserted else { throw .duplicateDelta(value) }
+
                 case "--root": root = iterator.next()
+
                 default: throw .unknownCommandArgument(argument)
                 }
             }

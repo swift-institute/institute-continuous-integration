@@ -3,6 +3,7 @@
 // you may not use this file except in compliance with the License.
 
 import Foundation
+import Institute_Continuous_Integration
 import Institute_Continuous_Integration_Canon
 import Repository_Policy
 

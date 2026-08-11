@@ -130,6 +130,7 @@ let package = Package(
             name: "Repository Policy CLI",
             dependencies: [
                 .target(name: "Repository Policy"),
+                .target(name: "Institute Continuous Integration"),
                 .target(name: "Institute Continuous Integration Canon"),
             ]
         ),
