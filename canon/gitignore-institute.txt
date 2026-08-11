@@ -30,6 +30,7 @@ Thumbs.db
 !/.gitignore
 !/.spi.yml
 !/.swift-format
+!/.swift-format-ignore
 !/.swiftformat
 !/.swiftlint.yml
 !/.swiftlint/
@@ -105,7 +106,16 @@ Thumbs.db
 **/.*/
 !/.github/
 
-# ========== END CANONICAL ==========
+# Closed semantic capability admissions
+!**/.benchmarks/
+!**/.snapshots/
+!/.env.example
+!/canon/
+!**/Fixtures/MANIFEST.md
+!/.editorconfig
 
-# ========== LOCAL OVERRIDES ==========
-# Package-specific rules below (preserved across propagation).
+# Repository-policy fixtures preserve hidden subject trees as corpus data.
+!/Tests/**/Fixtures/**/.*/
+!/Tests/**/Fixtures/**/*.md
+
+# ========== END CANONICAL ==========
