@@ -99,9 +99,11 @@ struct CIValidationGitignoreTests {
             try "canon".write(to: canon, atomically: true, encoding: .utf8)
 
             #expect(Gitignore.resolvedCanonPath(startingAt: nested.path) == canon.path)
-            #expect(
-                Gitignore.siblingCanonPath(of: canon.path, for: .scaffold)
-                    == root.appending(path: Class.scaffold.canonPath).path)
+            for `class` in Class.allCases {
+                #expect(
+                    Gitignore.siblingCanonPath(of: canon.path, for: `class`)
+                        == root.appending(path: `class`.canonPath).path)
+            }
         }
 
         @Test func `a conformant scaffold repository is clean`() throws {

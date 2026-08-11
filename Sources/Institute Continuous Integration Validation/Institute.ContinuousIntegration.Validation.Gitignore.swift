@@ -327,13 +327,16 @@ extension Institute.ContinuousIntegration.Validation.Gitignore {
         }
     }
 
-    /// The class-specific canon beside a resolved package canon. `URL`
+    /// The class-specific canon beside a resolved package-canon *file*.
+    /// `canon` is a document path, not the `canon/` directory: take its
+    /// parent once, then append the sibling document's filename. `URL`
     /// preserves the host platform's separator and root semantics; string
-    /// concatenation produced mixed paths on Windows.
+    /// concatenation produced mixed paths on Windows, and re-appending the
+    /// class's relative `canon/...` path here would compose `canon/canon`.
     static func siblingCanonPath(of packageCanon: String, for `class`: Class) -> String {
         URL(filePath: packageCanon)
             .deletingLastPathComponent()
-            .appending(path: `class`.canonPath)
+            .appending(path: "gitignore-\(`class`.rawValue).txt")
             .path
     }
 
