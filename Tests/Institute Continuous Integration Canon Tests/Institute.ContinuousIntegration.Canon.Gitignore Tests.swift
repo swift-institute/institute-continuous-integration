@@ -6,7 +6,8 @@ import Testing
 @Suite
 struct CICanonGitignoreTests {
     static let terminator = Institute.ContinuousIntegration.Canon.Gitignore.terminator
-    static let canon = "# CANONICAL\n/*\n!/Sources/\n"
+    static let canon =
+        "# CANONICAL\n/*\n!/Sources/\n"
         + Institute.ContinuousIntegration.Canon.Gitignore.Capability.block
         + "\(terminator)\n"
 
@@ -110,21 +111,24 @@ struct CICanonGitignoreTests {
 
     @Test func `the policy vocabulary is closed at six capabilities`() {
         typealias Capability = Institute.ContinuousIntegration.Canon.Gitignore.Capability
-        #expect(Capability.allCases.map(\.rawValue) == [
-            "benchmark baseline", "snapshot baseline", "environment example",
-            "repository policy corpus", "fixture provenance manifest", "editor configuration",
-        ])
-        #expect(Capability.allCases.map(\.admission) == [
-            "!**/.benchmarks/", "!**/.snapshots/", "!/.env.example", "!/canon/",
-            "!**/Fixtures/MANIFEST.md", "!/.editorconfig",
-        ])
+        #expect(
+            Capability.allCases.map(\.rawValue) == [
+                "benchmark baseline", "snapshot baseline", "environment example",
+                "repository policy corpus", "fixture provenance manifest", "editor configuration",
+            ])
+        #expect(
+            Capability.allCases.map(\.admission) == [
+                "!**/.benchmarks/", "!**/.snapshots/", "!/.env.example", "!/canon/",
+                "!**/Fixtures/MANIFEST.md", "!/.editorconfig",
+            ])
     }
 
     @Test func `nested package policy is exact`() {
         #expect(Institute.ContinuousIntegration.Canon.Gitignore.Nested.roots == ["Tests", "Benchmarks"])
         #expect(Institute.ContinuousIntegration.Canon.Gitignore.Nested.text == ".build/\n.swiftpm/\n.benchmarks/\n")
-        #expect(Institute.ContinuousIntegration.Canon.Gitignore.Nested.policies(
-            declarations: ["Tests/Package.swift"]
-        ) == ["Tests/.gitignore": ".build/\n.swiftpm/\n.benchmarks/\n"])
+        #expect(
+            Institute.ContinuousIntegration.Canon.Gitignore.Nested.policies(
+                declarations: ["Tests/Package.swift"]
+            ) == ["Tests/.gitignore": ".build/\n.swiftpm/\n.benchmarks/\n"])
     }
 }

@@ -15,10 +15,11 @@ extension Institute.ContinuousIntegration.Canon.Gitignore {
 
         /// Exact policy paths generated from declared nested manifests.
         public static func policies(declarations: [String]) -> [String: String] {
-            Dictionary(uniqueKeysWithValues: roots.compactMap { root in
-                declarations.contains("\(root)/Package.swift")
-                    ? ("\(root)/.gitignore", text) : nil
-            })
+            Dictionary(
+                uniqueKeysWithValues: roots.compactMap { root in
+                    declarations.contains("\(root)/Package.swift")
+                        ? ("\(root)/.gitignore", text) : nil
+                })
         }
     }
 }

@@ -43,6 +43,7 @@ extension Institute.ContinuousIntegration.Canon.Gitignore.Render {
             switch self {
             case .terminatorAbsent:
                 "canon has no \(Institute.ContinuousIntegration.Canon.Gitignore.terminator) marker"
+
             case .capabilityBlockAbsent:
                 "canon has no closed six-capability admission block"
             }

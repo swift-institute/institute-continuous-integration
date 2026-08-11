@@ -189,9 +189,10 @@ extension Institute.ContinuousIntegration.Validation {
             guard let canonText = Self.read(classPath) else {
                 throw .missingSupportFile(path: classPath)
             }
-            guard (try? Institute.ContinuousIntegration.Canon.Gitignore.Render(
-                canon: .init(canonText))) != nil
-            else {
+            do {
+                _ = try Institute.ContinuousIntegration.Canon.Gitignore.Render(
+                    canon: .init(canonText))
+            } catch {
                 throw .missingSupportFile(path: classPath)
             }
 
@@ -215,12 +216,14 @@ extension Institute.ContinuousIntegration.Validation {
                     Finding(
                         repository: subject.repository, rule: conformance,
                         message: "no CANONICAL section; file predates the canonical whitelist"))
+
             case true where text != canonText:
                 findings.append(
                     Finding(
                         repository: subject.repository, rule: conformance,
                         message: "complete generated policy diverges from \(`class`.canonPath) "
                             + "(class: \(`class`.rawValue)); handwritten tails are forbidden"))
+
             case true:
                 break
             }
@@ -232,22 +235,25 @@ extension Institute.ContinuousIntegration.Validation {
                 let nestedText = Self.read(nestedPath)
                 if declaredNested.contains(root) {
                     if nestedText != Institute.ContinuousIntegration.Canon.Gitignore.Nested.text {
-                        findings.append(Finding(
-                            repository: subject.repository, rule: conformance,
-                            message: "declared nested package `\(root)/Package.swift` requires exact generated `\(root)/.gitignore` policy"))
+                        findings.append(
+                            Finding(
+                                repository: subject.repository, rule: conformance,
+                                message: "declared nested package `\(root)/Package.swift` requires exact generated `\(root)/.gitignore` policy"))
                     }
                 } else if nestedText != nil {
-                    findings.append(Finding(
-                        repository: subject.repository, rule: conformance,
-                        message: "undeclared nested policy `\(root)/.gitignore` is forbidden"))
+                    findings.append(
+                        Finding(
+                            repository: subject.repository, rule: conformance,
+                            message: "undeclared nested policy `\(root)/.gitignore` is forbidden"))
                 }
             }
             let lawfulPolicyPaths = Set([".gitignore"] + declaredNested.map { "\($0)/.gitignore" })
             for policyPath in try Self.policyPaths(in: subject.root)
             where !lawfulPolicyPaths.contains(policyPath) {
-                findings.append(Finding(
-                    repository: subject.repository, rule: conformance,
-                    message: "ignore policy `\(policyPath)` is not a declared generated policy location"))
+                findings.append(
+                    Finding(
+                        repository: subject.repository, rule: conformance,
+                        message: "ignore policy `\(policyPath)` is not a declared generated policy location"))
             }
 
             // 002 and 003 evaluate the repository's ACTUAL file,
@@ -286,9 +292,10 @@ extension Institute.ContinuousIntegration.Validation {
             let indexed = try Self.indexedPaths(in: subject.root)
             let ignoredIndexed = try Self.ignoredIndexedPaths(indexed, in: subject.root)
             for path in ignoredIndexed {
-                findings.append(Finding(
-                    repository: subject.repository, rule: indexedCoverage,
-                    message: "tracked index path is ignored by generated repository policy: `\(path)`"))
+                findings.append(
+                    Finding(
+                        repository: subject.repository, rule: indexedCoverage,
+                        message: "tracked index path is ignored by generated repository policy: `\(path)`"))
             }
             return findings
         }
@@ -446,7 +453,8 @@ extension Institute.ContinuousIntegration.Validation.Gitignore {
                 throw .unreadableSubject(root: root)
             }
             for url in contents {
-                let relative = directory.relative.isEmpty
+                let relative =
+                    directory.relative.isEmpty
                     ? url.lastPathComponent
                     : directory.relative + "/" + url.lastPathComponent
                 if relative == ".git" { continue }
@@ -503,7 +511,9 @@ extension Institute.ContinuousIntegration.Validation.Gitignore {
             contents.split(whereSeparator: \.isNewline).contains(where: {
                 !$0.trimmingCharacters(in: .whitespaces).isEmpty && !$0.hasPrefix("#")
             })
-        { throw .unreadableSubject(root: root) }
+        {
+            throw .unreadableSubject(root: root)
+        }
     }
 
     private static func git(
@@ -542,11 +552,19 @@ extension Institute.ContinuousIntegration.Validation.Gitignore {
                     try standardInput.fileHandleForWriting.close()
                 } catch {
                     inputFailure.fileHandleForWriting.write(Data([1]))
-                    try? inputFailure.fileHandleForWriting.close()
+                    do {
+                        try inputFailure.fileHandleForWriting.close()
+                    } catch {
+                        // The marker already records this transport failure.
+                    }
                 }
             }
         } else {
-            try? inputFailure.fileHandleForWriting.close()
+            do {
+                try inputFailure.fileHandleForWriting.close()
+            } catch {
+                throw .unreadableSubject(root: root.path)
+            }
         }
         let data: Data
         do {
@@ -559,7 +577,11 @@ extension Institute.ContinuousIntegration.Validation.Gitignore {
         }
         process.waitUntilExit()
         inputGroup.wait()
-        try? inputFailure.fileHandleForWriting.close()
+        do {
+            try inputFailure.fileHandleForWriting.close()
+        } catch {
+            // The writer may already have closed the signalling pipe.
+        }
         let failedInput = inputFailure.fileHandleForReading.readDataToEndOfFile()
         guard failedInput.isEmpty else { throw .unreadableSubject(root: root.path) }
         return (process.terminationStatus, data)
