@@ -39,6 +39,10 @@ let package = Package(
     ],
     dependencies: [
         .package(
+            url: "https://github.com/swift-foundations/swift-ascii.git",
+            branch: "main"
+        ),
+        .package(
             url: "https://github.com/swift-foundations/swift-continuous-integration.git",
             branch: "main"
         ),
@@ -73,7 +77,10 @@ let package = Package(
         // which must never disagree about where canon ends.
         .target(
             name: "Institute Continuous Integration Canon",
-            dependencies: ["Institute Continuous Integration"]
+            dependencies: [
+                "Institute Continuous Integration",
+                .product(name: "ASCII", package: "swift-ascii"),
+            ]
         ),
         // The Institute-policy validators — skill hygiene, gitignore
         // canon, README conventions, schema correspondence, manifest

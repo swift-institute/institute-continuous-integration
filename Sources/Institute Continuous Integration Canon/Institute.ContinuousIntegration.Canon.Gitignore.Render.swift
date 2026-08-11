@@ -1,3 +1,4 @@
+import ASCII
 import Institute_Continuous_Integration
 
 extension Institute.ContinuousIntegration.Canon.Gitignore {
@@ -18,10 +19,7 @@ extension Institute.ContinuousIntegration.Canon.Gitignore {
             // The canon is one Git document whose blob remains LF-pinned;
             // line-ending conversion must not make its closed admission
             // vocabulary disappear from the parser.
-            var normalized = ""
-            for character in canon.text where character != "\r" {
-                normalized.append(character)
-            }
+            let normalized = canon.text.normalized(to: .lf)
             guard normalized.contains(Institute.ContinuousIntegration.Canon.Gitignore.Capability.block)
             else { throw .capabilityBlockAbsent }
             self.canon = canon.text
