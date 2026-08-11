@@ -590,7 +590,7 @@ extension Institute.ContinuousIntegration.Validation.Gitignore {
         return (process.terminationStatus, data)
     }
 
-    private static func gitExecutable(in environment: [String: String]) -> URL? {
+    static func gitExecutable(in environment: [String: String]) -> URL? {
         #if os(Windows)
             let separator: Character = ";"
             let names = ["git.exe"]
@@ -602,9 +602,11 @@ extension Institute.ContinuousIntegration.Validation.Gitignore {
         // standard `Path` spelling is semantically the same variable as
         // POSIX `PATH`, but `ProcessInfo.environment` presents it as a
         // case-sensitive Swift dictionary.
-        guard let path = environment.first(where: {
-            $0.key.caseInsensitiveCompare("PATH") == .orderedSame
-        })?.value else { return nil }
+        guard
+            let path = environment.first(where: {
+                $0.key.caseInsensitiveCompare("PATH") == .orderedSame
+            })?.value
+        else { return nil }
         let fileManager = FileManager.default
         for rawDirectory in path.split(separator: separator, omittingEmptySubsequences: false) {
             let directory = rawDirectory.trimmingCharacters(in: .whitespacesAndNewlines)

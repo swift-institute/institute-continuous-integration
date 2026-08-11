@@ -50,9 +50,14 @@ struct TemporaryRepository: ~Copyable {
     /// surfaced through the returned status rather than hidden.
     @discardableResult
     func git(_ arguments: [String], environment: [String: String]? = nil) throws -> Int32 {
+        guard let executable = Institute.ContinuousIntegration.Validation.Gitignore.gitExecutable(
+            in: ProcessInfo.processInfo.environment
+        ) else {
+            throw CocoaError(.fileNoSuchFile)
+        }
         let process = Process()
-        process.executableURL = URL(filePath: "/usr/bin/env")
-        process.arguments = ["git"] + arguments
+        process.executableURL = executable
+        process.arguments = arguments
         process.currentDirectoryURL = URL(filePath: root)
         if let environment {
             process.environment = ProcessInfo.processInfo.environment.merging(environment) {
