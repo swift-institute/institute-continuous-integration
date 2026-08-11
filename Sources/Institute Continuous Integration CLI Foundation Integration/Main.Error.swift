@@ -17,8 +17,11 @@ extension Main.Error {
     var message: String {
         switch self {
         case .command(let error): error.message
+
         case .unreadable(let path): "could not read `\(path)`"
+
         case .environment(let error): error.message
+
         case .unowned(let directories):
             "unowned Gitignore fixture directories: \(directories.joined(separator: ", "))"
         }
