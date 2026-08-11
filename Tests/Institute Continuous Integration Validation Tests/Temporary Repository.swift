@@ -50,9 +50,11 @@ struct TemporaryRepository: ~Copyable {
     /// surfaced through the returned status rather than hidden.
     @discardableResult
     func git(_ arguments: [String], environment: [String: String]? = nil) throws -> Int32 {
-        guard let executable = Institute.ContinuousIntegration.Validation.Gitignore.gitExecutable(
-            in: ProcessInfo.processInfo.environment
-        ) else {
+        guard
+            let executable = Institute.ContinuousIntegration.Validation.Gitignore.gitExecutable(
+                in: ProcessInfo.processInfo.environment
+            )
+        else {
             throw CocoaError(.fileNoSuchFile)
         }
         let process = Process()
