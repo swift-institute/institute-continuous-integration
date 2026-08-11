@@ -30,6 +30,7 @@ Thumbs.db
 !/.gitignore
 !/.spi.yml
 !/.swift-format
+!/.swift-format-ignore
 !/.swiftformat
 !/.swiftlint.yml
 !/.swiftlint/
@@ -86,10 +87,15 @@ Thumbs.db
 **/.*/
 !/.github/
 
-# ========== END CANONICAL ==========
+# Closed semantic capability admissions
+!**/.benchmarks/
+!**/.snapshots/
+!/.env.example
+!/canon/
+!**/Fixtures/MANIFEST.md
+!/.editorconfig
 
-# ========== LOCAL OVERRIDES ==========
-# Package-specific rules below (preserved across propagation).
+# ========== END CANONICAL ==========
 
 # package-specific
 /Vendor/

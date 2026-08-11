@@ -1,15 +1,7 @@
 import Institute_Continuous_Integration
 
 extension Institute.ContinuousIntegration.Canon {
-    /// A package `.gitignore`, read as the two-part document the canon
-    /// defines it to be.
-    ///
-    /// ```
-    /// # ========== CANONICAL (auto-synced, do not edit) ==========
-    /// …                          <- owned by canon, replaced wholesale
-    /// # ========== END CANONICAL ==========
-    /// …                          <- owned by the package, PRESERVED
-    /// ```
+    /// A complete generated repository `.gitignore` policy.
     ///
     /// The canonical text is a **whitelist**: `/*` denies every top-level
     /// entry and the `!/…` lines re-include the ones that carry real
@@ -19,11 +11,9 @@ extension Institute.ContinuousIntegration.Canon {
     /// repository carrying the canonical file, without anyone having
     /// named it.
     ///
-    /// This type owns exactly one thing: where the canonical half ends.
-    /// Both consumers ask it — the renderer that splices canon over a
-    /// package's own tail, and the `[GH-IGNORE-001]` predicate that
-    /// compares the two halves — so a marker change cannot land in one
-    /// and miss the other.
+    /// The document is indivisible. Repository-local tails made the effective
+    /// policy wider than the generated policy while still satisfying the old
+    /// prefix comparison, so generation and validation now compare every byte.
     public struct Gitignore: Sendable, Equatable {
         /// The line that closes the canonical half. Matched as a
         /// substring, exactly as the retired pair matched it, so a file
@@ -36,30 +26,17 @@ extension Institute.ContinuousIntegration.Canon {
             self.text = text
         }
 
-        /// The canonical half — everything through the terminator, plus
-        /// the newline that closes it — or `nil` when the file carries no
-        /// terminator at all.
-        ///
-        /// `nil` is the *pre-canonical* file: one written before the
-        /// whitelist existed. It is a finding under `[GH-IGNORE-001]` and
-        /// a preserve-verbatim case for the renderer; the two readings
-        /// are different, which is why this returns the absence rather
-        /// than deciding it.
-        public var canonical: String? {
-            guard let range = text.firstRange(of: Self.terminator) else { return nil }
-            return String(text[text.startIndex..<range.upperBound]) + "\n"
+        /// Whether this is structurally a generated policy document.
+        public var isGenerated: Bool {
+            text.firstRange(of: Self.terminator) != nil
         }
 
-        /// The package's own half — everything after the terminator's
-        /// line — or `nil` when the file is pre-canonical.
-        ///
-        /// One character past the terminator is dropped: the newline that
-        /// ends the marker line, which `canonical` re-supplies. Without
-        /// that, splicing the two halves back together doubles it.
-        public var local: String? {
+        /// The bytes through the historical terminator. Kept only so a
+        /// diagnostic can distinguish pre-generated input from a generated
+        /// document with a forbidden tail.
+        public var generatedPrefix: String? {
             guard let range = text.firstRange(of: Self.terminator) else { return nil }
-            let tail = text[range.upperBound...]
-            return tail.isEmpty ? "" : String(tail.dropFirst())
+            return String(text[text.startIndex..<range.upperBound]) + "\n"
         }
     }
 }

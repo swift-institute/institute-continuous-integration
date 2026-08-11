@@ -13,9 +13,8 @@ extension Institute.ContinuousIntegration.Canon.Gitignore {
     /// dot-directories at every depth. Classes differ only in *what is
     /// admitted*, never in shape.
     ///
-    /// Repository-specific admissions do not widen a class: they belong
-    /// in the file's LOCAL OVERRIDES half, which the renderer preserves
-    /// and `[GH-IGNORE-001]` does not compare.
+    /// Repository-specific handwritten admissions are not supported. The
+    /// generated class document is the complete policy.
     public enum Class: String, CaseIterable, Sendable, Equatable {
         /// An ordinary package: a layer-org repository with a root
         /// `Package.swift`. The original canon, unchanged.

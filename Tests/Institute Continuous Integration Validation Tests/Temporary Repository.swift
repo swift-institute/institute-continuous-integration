@@ -46,6 +46,26 @@ struct TemporaryRepository: ~Copyable {
     /// The absolute path of a file written into this repository.
     func path(_ relative: String) -> String { root + "/" + relative }
 
+    /// Run Git inside the temporary repository. Test setup failures are
+    /// surfaced through the returned status rather than hidden.
+    @discardableResult
+    func git(_ arguments: [String], environment: [String: String]? = nil) throws -> Int32 {
+        let process = Process()
+        process.executableURL = URL(filePath: "/usr/bin/env")
+        process.arguments = ["git"] + arguments
+        process.currentDirectoryURL = URL(filePath: root)
+        if let environment {
+            process.environment = ProcessInfo.processInfo.environment.merging(environment) {
+                _, value in value
+            }
+        }
+        process.standardOutput = FileHandle.nullDevice
+        process.standardError = FileHandle.nullDevice
+        try process.run()
+        process.waitUntilExit()
+        return process.terminationStatus
+    }
+
     deinit {
         try? FileManager.default.removeItem(atPath: root)
     }

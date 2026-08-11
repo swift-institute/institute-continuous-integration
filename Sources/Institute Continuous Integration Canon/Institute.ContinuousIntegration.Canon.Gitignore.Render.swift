@@ -5,59 +5,28 @@ extension Institute.ContinuousIntegration.Canon.Gitignore {
     /// `.github/scripts/render-gitignore.py`, driven by
     /// `sync-gitignore.yml`.
     ///
-    /// Rendering is deterministic and byte-compared by the caller, so a
-    /// repository that is already conformant produces no commit. Nothing
-    /// a package wrote is discarded: a pre-canonical file, which has no
-    /// terminator, is preserved *whole* beneath a freshly prepended
-    /// canonical section per the 2026-03-12 gitignore-sync-strategy
-    /// decision. Replacing it would delete rules a package deliberately
-    /// added, and that is not recoverable from the diff alone.
+    /// Rendering is deterministic and byte-compared by the caller. The canon
+    /// is the complete policy: existing handwritten content is never spliced
+    /// onto it.
     public struct Render: Sendable, Equatable {
-        /// The canonical half of canon, resolved once at construction.
-        /// Canon being unusable is a refusal about the control plane, and
-        /// it is settled here so that applying the renderer to a package
-        /// cannot fail at all.
-        public let canonical: String
-
-        /// The whole canon text, emitted verbatim when the package has no
-        /// `.gitignore` yet.
+        /// The whole generated policy.
         public let canon: String
 
         public init(canon: Institute.ContinuousIntegration.Canon.Gitignore) throws(Error) {
-            guard let canonical = canon.canonical else { throw .terminatorAbsent }
-            self.canonical = canonical
+            guard canon.isGenerated else { throw .terminatorAbsent }
+            guard canon.text.contains(Institute.ContinuousIntegration.Canon.Gitignore.Capability.block)
+            else { throw .capabilityBlockAbsent }
             self.canon = canon.text
         }
     }
 }
 
 extension Institute.ContinuousIntegration.Canon.Gitignore.Render {
-    /// The header that introduces a preserved pre-canonical file.
-    /// Emitted byte-for-byte as the retired renderer emitted it —
-    /// leading newline included — because every already-synced
-    /// repository carries this text and a changed byte is a commit
-    /// against every one of them.
-    public static let preservedHeader = """
-
-        # ========== LOCAL OVERRIDES ==========
-        # Preserved verbatim from this package's pre-canonical .gitignore. Rules here
-        # may duplicate the canonical section above; that is harmless, and deleting
-        # them is not this script's call to make.
-
-        """
-
-    /// The file to write into a package, given the package's current
-    /// `.gitignore` (`nil` when it has none).
+    /// The file to write into a repository. Existing bytes do not affect the
+    /// result because no post-generation policy fragment is lawful.
     public func callAsFunction(over existing: Institute.ContinuousIntegration.Canon.Gitignore?) -> String {
-        guard let existing else {
-            // No file at all: canon already carries an empty LOCAL
-            // OVERRIDES block, so it is emitted whole rather than
-            // truncated at the terminator.
-            return canon
-        }
-        if let local = existing.local { return canonical + local }
-        return canonical + Self.preservedHeader + "\n"
-            + String(existing.text.drop(while: { $0 == "\n" }))
+        _ = existing
+        return canon
     }
 
     /// The one way a canonical document refuses.
@@ -68,11 +37,15 @@ extension Institute.ContinuousIntegration.Canon.Gitignore.Render {
     public enum Error: Swift.Error, Sendable, Equatable {
         /// Canon carries no `END CANONICAL` terminator.
         case terminatorAbsent
+        case capabilityBlockAbsent
 
         public var message: String {
             switch self {
             case .terminatorAbsent:
                 "canon has no \(Institute.ContinuousIntegration.Canon.Gitignore.terminator) marker"
+
+            case .capabilityBlockAbsent:
+                "canon has no closed six-capability admission block"
             }
         }
     }

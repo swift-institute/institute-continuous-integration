@@ -6,35 +6,36 @@ import Testing
 @Suite
 struct CICanonGitignoreTests {
     static let terminator = Institute.ContinuousIntegration.Canon.Gitignore.terminator
-    static let canon = "# CANONICAL\n/*\n!/Sources/\n\(terminator)\n"
+    static let canon =
+        "# CANONICAL\n/*\n!/Sources/\n"
+        + Institute.ContinuousIntegration.Canon.Gitignore.Capability.block
+        + "\(terminator)\n"
 
     @Suite
     struct Unit {
-        @Test func `the canonical half ends at the terminator`() {
-            let file = Institute.ContinuousIntegration.Canon.Gitignore(CICanonGitignoreTests.canon + "own/\n")
-            #expect(file.canonical == CICanonGitignoreTests.canon)
-            #expect(file.local == "own/\n")
+        @Test func `the generated marker is recognized`() {
+            let file = Institute.ContinuousIntegration.Canon.Gitignore(CICanonGitignoreTests.canon)
+            #expect(file.isGenerated)
+            #expect(file.generatedPrefix == CICanonGitignoreTests.canon)
         }
 
-        @Test func `a pre canonical file has neither half`() {
-            // Absence, not a decision: it is a [GH-IGNORE-001] finding to
-            // the validator and a preserve-verbatim case to the renderer.
+        @Test func `a pre canonical file has no generated marker`() {
+            // Absence is a [GH-IGNORE-001] finding to the validator and
+            // replacement input to the complete-policy renderer.
             let file = Institute.ContinuousIntegration.Canon.Gitignore(".build/\n")
-            #expect(file.canonical == nil)
-            #expect(file.local == nil)
+            #expect(!file.isGenerated)
+            #expect(file.generatedPrefix == nil)
         }
 
-        @Test func `rendering over a canonical file replaces only the canonical half`() throws {
+        @Test func `rendering over a canonical file replaces the complete policy`() throws {
             let existing = Institute.ContinuousIntegration.Canon.Gitignore("# OLD\n\(Institute.ContinuousIntegration.Canon.Gitignore.terminator)\nown/\n")
             let rendered = try Institute.ContinuousIntegration.Canon.Gitignore.Render(
                 canon: .init(CICanonGitignoreTests.canon))(over: existing)
-            #expect(rendered == CICanonGitignoreTests.canon + "own/\n")
+            #expect(rendered == CICanonGitignoreTests.canon)
         }
 
         @Test func `rendering over no file emits canon whole`() throws {
-            // Canon already carries an empty LOCAL OVERRIDES block, so it
-            // is not truncated at the terminator.
-            let canon = CICanonGitignoreTests.canon + "# LOCAL\n"
+            let canon = CICanonGitignoreTests.canon
             let rendered = try Institute.ContinuousIntegration.Canon.Gitignore.Render(canon: .init(canon))(over: nil)
             #expect(rendered == canon)
         }
@@ -87,23 +88,16 @@ struct CICanonGitignoreTests {
 
     @Suite
     struct `Edge Case` {
-        @Test func `a pre canonical file is preserved whole beneath canon`() throws {
-            // Replacing it would delete rules a package deliberately
-            // added, which is not recoverable from the diff alone.
+        @Test func `a pre canonical file is replaced rather than preserved as a tail`() throws {
             let rendered = try Institute.ContinuousIntegration.Canon.Gitignore.Render(
                 canon: .init(CICanonGitignoreTests.canon))(over: .init("\n\nlegacy/\n"))
-            #expect(rendered.hasPrefix(CICanonGitignoreTests.canon))
-            #expect(rendered.hasSuffix("legacy/\n"))
-            #expect(rendered.contains("# ========== LOCAL OVERRIDES =========="))
-            // The leading blank lines of the old file are dropped, but
-            // not a byte of its content.
-            #expect(!rendered.contains("\n\n\nlegacy/"))
+            #expect(rendered == CICanonGitignoreTests.canon)
         }
 
-        @Test func `a file ending at the terminator has an empty local half`() {
+        @Test func `a file ending at the terminator is generated`() {
             let file = Institute.ContinuousIntegration.Canon.Gitignore("/*\n\(Institute.ContinuousIntegration.Canon.Gitignore.terminator)")
-            #expect(file.local?.isEmpty == true)
-            #expect(file.canonical?.hasSuffix("\n") == true)
+            #expect(file.isGenerated)
+            #expect(file.generatedPrefix?.hasSuffix("\n") == true)
         }
 
         @Test func `canon without a terminator is refused, not reported`() {
@@ -113,5 +107,28 @@ struct CICanonGitignoreTests {
                 try Institute.ContinuousIntegration.Canon.Gitignore.Render(canon: .init("/*\n"))
             }
         }
+    }
+
+    @Test func `the policy vocabulary is closed at six capabilities`() {
+        typealias Capability = Institute.ContinuousIntegration.Canon.Gitignore.Capability
+        #expect(
+            Capability.allCases.map(\.rawValue) == [
+                "benchmark baseline", "snapshot baseline", "environment example",
+                "repository policy corpus", "fixture provenance manifest", "editor configuration",
+            ])
+        #expect(
+            Capability.allCases.map(\.admission) == [
+                "!**/.benchmarks/", "!**/.snapshots/", "!/.env.example", "!/canon/",
+                "!**/Fixtures/MANIFEST.md", "!/.editorconfig",
+            ])
+    }
+
+    @Test func `nested package policy is exact`() {
+        #expect(Institute.ContinuousIntegration.Canon.Gitignore.Nested.roots == ["Tests", "Benchmarks"])
+        #expect(Institute.ContinuousIntegration.Canon.Gitignore.Nested.text == ".build/\n.swiftpm/\n.benchmarks/\n")
+        #expect(
+            Institute.ContinuousIntegration.Canon.Gitignore.Nested.policies(
+                declarations: ["Tests/Package.swift"]
+            ) == ["Tests/.gitignore": ".build/\n.swiftpm/\n.benchmarks/\n"])
     }
 }

@@ -6,17 +6,14 @@ import Institute_Continuous_Integration
 import Institute_Continuous_Integration_Canon
 
 extension Institute.ContinuousIntegration.Validation {
-    /// `[GH-IGNORE-001]` / `[GH-IGNORE-002]` / `[GH-IGNORE-003]` — the
-    /// canonical `.gitignore` for a repository's class, the work it must
-    /// not deny, and the deny-by-default shape it must keep.
+    /// `[GH-IGNORE-001]` through `[GH-IGNORE-004]` — complete generated
+    /// ignore policy, work preservation, deny-by-default shape, and tracked
+    /// index coverage.
     ///
-    /// **001** is conformance: the file's canonical half must match
-    /// `canon/gitignore-<class>.txt` byte-for-byte for the repository's
-    /// class — `Canon.Gitignore.Class` decides which — and the file must
-    /// have such a half. Content after the terminator is the package's
-    /// own and is not compared. A whitelist that admits one path more
-    /// than its class canon is a byte away from canon and fires here;
-    /// near-conformant is not conformant.
+    /// **001** compares the complete root document and every declared nested
+    /// test or benchmark package policy byte-for-byte. Handwritten tails,
+    /// missing nested policy, undeclared nested policy, and broad recursive
+    /// substitutes are divergent.
     ///
     /// **002 is the half that matters.** A whitelist inverts the failure
     /// mode. Before it, junk crept in and `git status` showed you; after
@@ -37,7 +34,14 @@ extension Institute.ContinuousIntegration.Validation {
     /// so a canon edit that broke deny-by-default would fire the corpus
     /// before it shipped.
     ///
-    /// All three evaluate the file **the way git will**: it is copied
+    /// **004** enumerates stage-0 records from the subject's real index and
+    /// checks their pathnames against the repository-controlled hierarchy
+    /// with `git check-ignore --no-index`. Both streams are NUL-delimited;
+    /// symlinks and gitlinks are evaluated by pathname without dereferencing.
+    /// Unmerged records, malformed output, ambient excludes, and Git failures
+    /// refuse the environment rather than manufacturing a clean verdict.
+    ///
+    /// 002 and 003 evaluate the file **the way git will**: it is copied
     /// into a throwaway `git init` tree with the probe paths
     /// materialised, and `git check-ignore` decides. Reading the patterns
     /// and reasoning about them is how the premise of this gate came to
@@ -141,7 +145,9 @@ extension Institute.ContinuousIntegration.Validation {
             Probe("unadmitted-gh-ignore-003.txt"),
         ]
 
-        public let rules: [Rule] = ["GH-IGNORE-001", "GH-IGNORE-002", "GH-IGNORE-003"]
+        public let rules: [Rule] = [
+            "GH-IGNORE-001", "GH-IGNORE-002", "GH-IGNORE-003", "GH-IGNORE-004",
+        ]
         public let retiredScript: String? = ".github/scripts/validate-gitignore.py"
 
         /// The package-class canon's path within the control-plane
@@ -171,6 +177,7 @@ extension Institute.ContinuousIntegration.Validation {
             guard FileManager.default.fileExists(atPath: subject.root, isDirectory: &isDirectory),
                 isDirectory.boolValue
             else { return [] }
+            try Self.validateRepositoryEnvironment(subject.root)
 
             let `class` = Class.of(
                 repository: subject.repository,
@@ -182,13 +189,17 @@ extension Institute.ContinuousIntegration.Validation {
             guard let canonText = Self.read(classPath) else {
                 throw .missingSupportFile(path: classPath)
             }
-            guard let canonical = Institute.ContinuousIntegration.Canon.Gitignore(canonText).canonical else {
+            do {
+                _ = try Institute.ContinuousIntegration.Canon.Gitignore.Render(
+                    canon: .init(canonText))
+            } catch {
                 throw .missingSupportFile(path: classPath)
             }
 
             let conformance = rules[0]
             let workLoss = rules[1]
             let shape = rules[2]
+            let indexedCoverage = rules[3]
             guard let text = Self.read(subject.path(".gitignore")) else {
                 return [
                     Finding(
@@ -199,22 +210,50 @@ extension Institute.ContinuousIntegration.Validation {
             }
 
             var findings: [Finding] = []
-            switch Institute.ContinuousIntegration.Canon.Gitignore(text).canonical {
-            case .none:
+            switch Institute.ContinuousIntegration.Canon.Gitignore(text).isGenerated {
+            case false:
                 findings.append(
                     Finding(
                         repository: subject.repository, rule: conformance,
                         message: "no CANONICAL section; file predates the canonical whitelist"))
 
-            case .some(let section) where section != canonical:
+            case true where text != canonText:
                 findings.append(
                     Finding(
                         repository: subject.repository, rule: conformance,
-                        message: "CANONICAL section diverges from \(`class`.canonPath) "
-                            + "(class: \(`class`.rawValue))"))
+                        message: "complete generated policy diverges from \(`class`.canonPath) "
+                            + "(class: \(`class`.rawValue)); handwritten tails are forbidden"))
 
-            case .some:
+            case true:
                 break
+            }
+
+            let declaredNested = Institute.ContinuousIntegration.Canon.Gitignore.Nested.roots
+                .filter { Self.read(subject.path("\($0)/Package.swift")) != nil }
+            for root in Institute.ContinuousIntegration.Canon.Gitignore.Nested.roots {
+                let nestedPath = subject.path("\(root)/.gitignore")
+                let nestedText = Self.read(nestedPath)
+                if declaredNested.contains(root) {
+                    if nestedText != Institute.ContinuousIntegration.Canon.Gitignore.Nested.text {
+                        findings.append(
+                            Finding(
+                                repository: subject.repository, rule: conformance,
+                                message: "declared nested package `\(root)/Package.swift` requires exact generated `\(root)/.gitignore` policy"))
+                    }
+                } else if nestedText != nil {
+                    findings.append(
+                        Finding(
+                            repository: subject.repository, rule: conformance,
+                            message: "undeclared nested policy `\(root)/.gitignore` is forbidden"))
+                }
+            }
+            let lawfulPolicyPaths = Set([".gitignore"] + declaredNested.map { "\($0)/.gitignore" })
+            for policyPath in try Self.policyPaths(in: subject.root)
+            where !lawfulPolicyPaths.contains(policyPath) {
+                findings.append(
+                    Finding(
+                        repository: subject.repository, rule: conformance,
+                        message: "ignore policy `\(policyPath)` is not a declared generated policy location"))
             }
 
             // 002 and 003 evaluate the repository's ACTUAL file,
@@ -249,6 +288,14 @@ extension Institute.ContinuousIntegration.Validation {
                         repository: subject.repository, rule: shape,
                         message: "not deny-by-default: unadmitted path `\(probe.path)` "
                             + "would be tracked"))
+            }
+            let indexed = try Self.indexedPaths(in: subject.root)
+            let ignoredIndexed = try Self.ignoredIndexedPaths(indexed, in: subject.root)
+            for path in ignoredIndexed {
+                findings.append(
+                    Finding(
+                        repository: subject.repository, rule: indexedCoverage,
+                        message: "tracked index path is ignored by generated repository policy: `\(path)`"))
             }
             return findings
         }
@@ -287,7 +334,7 @@ extension Institute.ContinuousIntegration.Validation.Gitignore {
             !isDirectory.boolValue,
             let data = FileManager.default.contents(atPath: path)
         else { return nil }
-        return String(decoding: data, as: UTF8.self)
+        return String(data: data, encoding: .utf8)
     }
 
     /// Which probes the given `.gitignore` ignores, asked of git itself
@@ -363,12 +410,129 @@ extension Institute.ContinuousIntegration.Validation.Gitignore {
     private static func git(
         _ arguments: [String], in root: URL
     ) throws(GitHub.ContinuousIntegration.Validation.EnvironmentDefect) -> Int32 {
+        try git(arguments, in: root, input: nil).status
+    }
+
+    /// Stage-0 pathnames from the real index. Records of any other shape are
+    /// refused rather than treated as an empty index.
+    static func indexedPaths(
+        in root: String,
+        environment: [String: String] = ProcessInfo.processInfo.environment
+    ) throws(GitHub.ContinuousIntegration.Validation.EnvironmentDefect) -> [String] {
+        let result = try git(
+            ["ls-files", "--stage", "-z"],
+            in: URL(filePath: root), input: nil, environment: environment)
+        guard result.status == 0 else { throw .unreadableSubject(root: root) }
+        if result.output.isEmpty { return [] }
+        var paths: [String] = []
+        for record in result.output.split(separator: 0, omittingEmptySubsequences: false).dropLast() {
+            guard let tab = record.firstIndex(of: 9) else { throw .unreadableSubject(root: root) }
+            let header = record[..<tab].split(separator: 32)
+            guard header.count == 3, header[2].elementsEqual([48]),
+                let path = String(data: Data(record[record.index(after: tab)...]), encoding: .utf8),
+                !path.isEmpty
+            else { throw .unreadableSubject(root: root) }
+            paths.append(path)
+        }
+        guard result.output.last == 0 else { throw .unreadableSubject(root: root) }
+        return paths
+    }
+
+    /// Every effective per-directory policy input outside Git's own metadata.
+    static func policyPaths(in root: String) throws(GitHub.ContinuousIntegration.Validation.EnvironmentDefect) -> [String] {
+        let rootURL = URL(filePath: root)
+        var directories: [(url: URL, relative: String)] = [(rootURL, "")]
+        var paths: [String] = []
+        while let directory = directories.popLast() {
+            let contents: [URL]
+            do {
+                contents = try FileManager.default.contentsOfDirectory(
+                    at: directory.url,
+                    includingPropertiesForKeys: [.isDirectoryKey, .isSymbolicLinkKey])
+            } catch {
+                throw .unreadableSubject(root: root)
+            }
+            for url in contents {
+                let relative =
+                    directory.relative.isEmpty
+                    ? url.lastPathComponent
+                    : directory.relative + "/" + url.lastPathComponent
+                if relative == ".git" { continue }
+                if url.lastPathComponent == ".gitignore" { paths.append(relative) }
+                let values: URLResourceValues
+                do {
+                    values = try url.resourceValues(forKeys: [.isDirectoryKey, .isSymbolicLinkKey])
+                } catch {
+                    throw .unreadableSubject(root: root)
+                }
+                if values.isDirectory == true, values.isSymbolicLink != true {
+                    directories.append((url, relative))
+                }
+            }
+        }
+        return Array(Set(paths)).sorted()
+    }
+
+    /// Tracked paths ignored by the repository-controlled hierarchy. The
+    /// `--no-index` flag is load-bearing: without it Git suppresses exactly
+    /// the force-added path this rule exists to detect.
+    static func ignoredIndexedPaths(
+        _ paths: [String], in root: String, noIndex: Bool = true
+    ) throws(GitHub.ContinuousIntegration.Validation.EnvironmentDefect) -> [String] {
+        guard !paths.isEmpty else { return [] }
+        try validateRepositoryEnvironment(root)
+
+        var arguments = ["-c", "core.excludesFile=/dev/null", "check-ignore"]
+        if noIndex { arguments.append("--no-index") }
+        arguments += ["-z", "--stdin"]
+        let input = paths.reduce(into: Data()) { data, path in
+            data.append(contentsOf: path.utf8)
+            data.append(0)
+        }
+        let result = try git(arguments, in: URL(filePath: root), input: input)
+        guard result.status == 0 || result.status == 1, result.output.last == 0 || result.output.isEmpty else {
+            throw .unreadableSubject(root: root)
+        }
+        var ignored: [String] = []
+        for record in result.output.split(separator: 0) {
+            guard let path = String(data: Data(record), encoding: .utf8), !path.isEmpty else {
+                throw .unreadableSubject(root: root)
+            }
+            ignored.append(path)
+        }
+        return ignored
+    }
+
+    private static func validateRepositoryEnvironment(
+        _ root: String
+    ) throws(GitHub.ContinuousIntegration.Validation.EnvironmentDefect) {
+        let infoExclude = root + "/.git/info/exclude"
+        if let contents = read(infoExclude),
+            contents.split(whereSeparator: \.isNewline).contains(where: {
+                !$0.trimmingCharacters(in: .whitespaces).isEmpty && !$0.hasPrefix("#")
+            })
+        {
+            throw .unreadableSubject(root: root)
+        }
+    }
+
+    private static func git(
+        _ arguments: [String], in root: URL, input: Data?,
+        environment: [String: String] = ProcessInfo.processInfo.environment
+    ) throws(GitHub.ContinuousIntegration.Validation.EnvironmentDefect) -> (status: Int32, output: Data) {
         let process = Process()
+        let output = Pipe()
         process.executableURL = URL(filePath: "/usr/bin/env")
-        process.arguments = ["git"] + arguments
-        process.currentDirectoryURL = root
-        process.standardOutput = FileHandle.nullDevice
+        process.arguments = ["git", "-C", root.path] + arguments
+        // Git's ambient control variables can redirect the repository,
+        // work tree, index, object database, configuration, and namespace.
+        // A fixed environment removes that entire input surface rather than
+        // trying to maintain a partial deny-list of Git variables.
+        process.environment = controlledGitEnvironment(environment)
+        process.standardOutput = output
         process.standardError = FileHandle.nullDevice
+        let standardInput = input.map { _ in Pipe() }
+        process.standardInput = standardInput
         // `Process.run()` is an untyped cross-module throw; its only
         // failure here is "git is not on this machine", which is the
         // defect raised in the catch.
@@ -377,7 +541,59 @@ extension Institute.ContinuousIntegration.Validation.Gitignore {
         } catch {
             throw .missingSupportFile(path: "git")
         }
+        let inputFailure = Pipe()
+        let inputGroup = DispatchGroup()
+        if let input, let standardInput {
+            inputGroup.enter()
+            DispatchQueue.global().async {
+                defer { inputGroup.leave() }
+                do {
+                    try standardInput.fileHandleForWriting.write(contentsOf: input)
+                    try standardInput.fileHandleForWriting.close()
+                } catch {
+                    inputFailure.fileHandleForWriting.write(Data([1]))
+                    do {
+                        try inputFailure.fileHandleForWriting.close()
+                    } catch {
+                        // The marker already records this transport failure.
+                    }
+                }
+            }
+        } else {
+            do {
+                try inputFailure.fileHandleForWriting.close()
+            } catch {
+                throw .unreadableSubject(root: root.path)
+            }
+        }
+        let data: Data
+        do {
+            data = try output.fileHandleForReading.readToEnd() ?? Data()
+        } catch {
+            process.terminate()
+            process.waitUntilExit()
+            inputGroup.wait()
+            throw .unreadableSubject(root: root.path)
+        }
         process.waitUntilExit()
-        return process.terminationStatus
+        inputGroup.wait()
+        do {
+            try inputFailure.fileHandleForWriting.close()
+        } catch {
+            // The writer may already have closed the signalling pipe.
+        }
+        let failedInput = inputFailure.fileHandleForReading.readDataToEndOfFile()
+        guard failedInput.isEmpty else { throw .unreadableSubject(root: root.path) }
+        return (process.terminationStatus, data)
+    }
+
+    private static func controlledGitEnvironment(_: [String: String]) -> [String: String] {
+        [
+            "GIT_CONFIG_NOSYSTEM": "1",
+            "HOME": "/dev/null",
+            "LC_ALL": "C",
+            "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
+            "XDG_CONFIG_HOME": "/dev/null",
+        ]
     }
 }
