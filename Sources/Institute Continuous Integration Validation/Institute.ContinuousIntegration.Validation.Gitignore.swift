@@ -520,7 +520,7 @@ extension Institute.ContinuousIntegration.Validation.Gitignore {
         _ arguments: [String], in root: URL, input: Data?,
         environment: [String: String] = ProcessInfo.processInfo.environment
     ) throws(GitHub.ContinuousIntegration.Validation.EnvironmentDefect) -> (status: Int32, output: Data) {
-        guard let executable = gitExecutable(in: environment) else {
+        guard let executable = gitExecutable(in: ProcessInfo.processInfo.environment) else {
             throw .missingSupportFile(path: "git")
         }
         let process = Process()
