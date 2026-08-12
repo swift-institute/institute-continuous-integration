@@ -591,6 +591,16 @@ extension Institute.ContinuousIntegration.Validation.Gitignore {
         }
     }
 
+    /// Which half of a `git` invocation failed, kept distinct through the
+    /// retry so the typed defect on the far side still matches what the
+    /// caller saw before this function was made retryable: a missing
+    /// executable is `missingSupportFile`, everything else touching the
+    /// process's pipes is `unreadableSubject`.
+    private enum GitInvocationFailure: Error {
+        case processLaunch
+        case pipeIO
+    }
+
     static func git(
         _ arguments: [String], in root: URL, input: Data?,
         environment: [String: String] = ProcessInfo.processInfo.environment
@@ -598,71 +608,93 @@ extension Institute.ContinuousIntegration.Validation.Gitignore {
         guard let executable = gitExecutable(in: ProcessInfo.processInfo.environment) else {
             throw .missingSupportFile(path: "git")
         }
-        let process = Process()
-        let output = Pipe()
-        process.executableURL = executable
-        process.arguments = ["-C", root.path] + arguments
-        // Git's ambient control variables can redirect the repository,
-        // work tree, index, object database, configuration, and namespace.
-        // A fixed environment removes that entire input surface rather than
-        // trying to maintain a partial deny-list of Git variables.
-        process.environment = controlledGitEnvironment(environment, executable: executable)
-        process.standardOutput = output
-        process.standardError = FileHandle.nullDevice
-        let standardInput = input.map { _ in Pipe() }
-        process.standardInput = standardInput
-        // `Process.run()` is an untyped cross-module throw; its only
-        // failure here is "git is not on this machine", which is the
-        // defect raised in the catch.
-        do {
-            try process.run()
-        } catch {
-            throw .missingSupportFile(path: "git")
-        }
-        let inputFailure = Pipe()
-        let inputGroup = DispatchGroup()
-        if let input, let standardInput {
-            inputGroup.enter()
-            DispatchQueue.global().async {
-                defer { inputGroup.leave() }
-                do {
-                    try standardInput.fileHandleForWriting.write(contentsOf: input)
-                    try standardInput.fileHandleForWriting.close()
-                } catch {
-                    inputFailure.fileHandleForWriting.write(Data([1]))
+        // The full spawn-and-pipe-I/O sequence is retried as one unit on
+        // Windows — see `retryingTransientWindowsFailures`. `Process` and
+        // `Pipe` are single-use, so a retry must rebuild them and rerun
+        // `git` from scratch rather than resume a stuck pipe; every call
+        // site invokes `git` idempotently (`init`, `check-ignore`,
+        // `ls-files`), so rerunning it is safe.
+        func invoke() throws -> (status: Int32, output: Data) {
+            let process = Process()
+            let output = Pipe()
+            process.executableURL = executable
+            process.arguments = ["-C", root.path] + arguments
+            // Git's ambient control variables can redirect the repository,
+            // work tree, index, object database, configuration, and
+            // namespace. A fixed environment removes that entire input
+            // surface rather than trying to maintain a partial deny-list
+            // of Git variables.
+            process.environment = controlledGitEnvironment(environment, executable: executable)
+            process.standardOutput = output
+            process.standardError = FileHandle.nullDevice
+            let standardInput = input.map { _ in Pipe() }
+            process.standardInput = standardInput
+            // `Process.run()` is an untyped cross-module throw; its only
+            // durable failure here is "git is not on this machine", but on
+            // Windows it can also surface the same transient
+            // `ERROR_SHARING_VIOLATION` race the retry helper exists for
+            // (spawning a process touches filesystem/kernel objects
+            // Defender and the Search Indexer contend for), so it goes
+            // through the same retry as the pipe I/O below.
+            do {
+                try process.run()
+            } catch {
+                throw GitInvocationFailure.processLaunch
+            }
+            let inputFailure = Pipe()
+            let inputGroup = DispatchGroup()
+            if let input, let standardInput {
+                inputGroup.enter()
+                DispatchQueue.global().async {
+                    defer { inputGroup.leave() }
                     do {
-                        try inputFailure.fileHandleForWriting.close()
+                        try standardInput.fileHandleForWriting.write(contentsOf: input)
+                        try standardInput.fileHandleForWriting.close()
                     } catch {
-                        // The marker already records this transport failure.
+                        inputFailure.fileHandleForWriting.write(Data([1]))
+                        do {
+                            try inputFailure.fileHandleForWriting.close()
+                        } catch {
+                            // The marker already records this transport failure.
+                        }
                     }
                 }
+            } else {
+                do {
+                    try inputFailure.fileHandleForWriting.close()
+                } catch {
+                    throw GitInvocationFailure.pipeIO
+                }
             }
-        } else {
+            let data: Data
+            do {
+                data = try output.fileHandleForReading.readToEnd() ?? Data()
+            } catch {
+                process.terminate()
+                process.waitUntilExit()
+                inputGroup.wait()
+                throw GitInvocationFailure.pipeIO
+            }
+            process.waitUntilExit()
+            inputGroup.wait()
             do {
                 try inputFailure.fileHandleForWriting.close()
             } catch {
-                throw .unreadableSubject(root: root.path)
+                // The writer may already have closed the signalling pipe.
             }
+            let failedInput = inputFailure.fileHandleForReading.readDataToEndOfFile()
+            guard failedInput.isEmpty else { throw GitInvocationFailure.pipeIO }
+            return (process.terminationStatus, data)
         }
-        let data: Data
         do {
-            data = try output.fileHandleForReading.readToEnd() ?? Data()
+            return try Self.retryingTransientWindowsFailures {
+                try invoke()
+            }
+        } catch GitInvocationFailure.processLaunch {
+            throw .missingSupportFile(path: "git")
         } catch {
-            process.terminate()
-            process.waitUntilExit()
-            inputGroup.wait()
             throw .unreadableSubject(root: root.path)
         }
-        process.waitUntilExit()
-        inputGroup.wait()
-        do {
-            try inputFailure.fileHandleForWriting.close()
-        } catch {
-            // The writer may already have closed the signalling pipe.
-        }
-        let failedInput = inputFailure.fileHandleForReading.readDataToEndOfFile()
-        guard failedInput.isEmpty else { throw .unreadableSubject(root: root.path) }
-        return (process.terminationStatus, data)
     }
 
     static func gitExecutable(in environment: [String: String]) -> URL? {
