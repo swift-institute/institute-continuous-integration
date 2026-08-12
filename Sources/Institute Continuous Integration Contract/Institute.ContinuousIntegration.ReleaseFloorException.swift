@@ -86,13 +86,13 @@ extension Institute.ContinuousIntegration {
             let components = swiftVersion.split(
                 separator: ".", omittingEmptySubsequences: false)
             guard (2...3).contains(components.count),
-                  components.allSatisfy({ !$0.isEmpty && $0.allSatisfy(\.isNumber) })
+                components.allSatisfy({ !$0.isEmpty && $0.allSatisfy(\.isNumber) })
             else { throw .swiftVersion(swiftVersion) }
 
             let prefix = "swiftlang/swift@sha256:"
             let digest = String(image.dropFirst(prefix.count))
             guard image.hasPrefix(prefix), digest.count == 64,
-                  digest.allSatisfy(\.isHexDigit)
+                digest.allSatisfy(\.isHexDigit)
             else { throw .image(image) }
 
             guard upstreamRelease == Self.releaseCoordinate(swiftVersion: swiftVersion)

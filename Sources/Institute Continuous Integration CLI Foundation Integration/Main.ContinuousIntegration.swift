@@ -31,16 +31,38 @@ extension Main {
     }
 
     static func emit(_ payload: [String: Any]) {
-        guard let data = try? JSONSerialization.data(
-            withJSONObject: payload, options: [.sortedKeys])
-        else { refuse("could not serialize payload") }
+        let data: Data
+        do {
+            data = try JSONSerialization.data(
+                withJSONObject: payload, options: [.sortedKeys])
+        } catch {
+            refuse("could not serialize payload: \(error)")
+        }
         print(String(decoding: data, as: UTF8.self))
+    }
+
+    /// The decoded root object of a JSON document, or a refusal naming
+    /// what could not be read. One reader for both callers below, so a
+    /// malformed document reports the same way wherever it arrives.
+    static func decoded(_ data: Data, _ subject: String) -> [String: Any] {
+        let object: Any
+        do {
+            object = try JSONSerialization.jsonObject(with: data)
+        } catch {
+            refuse("\(subject): malformed JSON: \(error)")
+        }
+        guard let root = object as? [String: Any] else {
+            refuse("\(subject): expected a JSON object at the root")
+        }
+        return root
     }
 
     static func run(_ verb: Verb, _ rest: [String]) {
         switch verb {
         case .plan: plan(rest)
+
         case .aggregate: aggregate(rest)
+
         case .bootstrapIdentity, .bootstrapManifest, .bootstrapVerify:
             bootstrap(verb, rest)
         }
@@ -67,9 +89,11 @@ extension Main {
                     recheck: value("--nightly-main-recheck", in: rest))
                 if case .expired = try nightly.disposition(
                     today: today,
-                    subjectRepository: value("--subject-repository", in: rest)) {
-                    deschedule[Institute.ContinuousIntegration.NightlyException
-                        .classifiedLeg.id] = "nightly-exception-expired"
+                    subjectRepository: value("--subject-repository", in: rest))
+                {
+                    deschedule[
+                        Institute.ContinuousIntegration.NightlyException
+                            .classifiedLeg.id] = "nightly-exception-expired"
                 }
             } catch {
                 refuse("plan refused: \(error)")
@@ -84,7 +108,8 @@ extension Main {
             // state, resolving to the official `swift:<floor>`.
             linuxImage = try Institute.ContinuousIntegration.ReleaseFloorException.resolve(
                 swiftVersion: swiftVersion,
-                exception: floorImage.isEmpty ? nil
+                exception: floorImage.isEmpty
+                    ? nil
                     : Institute.ContinuousIntegration.ReleaseFloorException(
                         swiftVersion: swiftVersion,
                         image: floorImage,
@@ -132,18 +157,19 @@ extension Main {
     // MARK: - aggregate
 
     static func aggregate(_ rest: [String]) {
-        let needsJSON = value("--needs-json", in: rest)
-        guard let data = needsJSON.data(using: .utf8),
-              let needs = (try? JSONSerialization.jsonObject(with: data))
-                  as? [String: [String: Any]]
-        else { refuse("aggregate requires --needs-json '{job: {result: ...}}'") }
-
+        guard let data = value("--needs-json", in: rest).data(using: .utf8) else {
+            refuse("aggregate requires --needs-json '{job: {result: ...}}'")
+        }
+        let needs = decoded(data, "aggregate --needs-json")
+        func result(of job: String) -> String {
+            (needs[job] as? [String: Any])?["result"] as? String ?? ""
+        }
         var results: [String: String] = [:]
-        for (job, object) in needs where job != "plan" {
-            results[job] = object["result"] as? String ?? ""
+        for job in needs.keys where job != "plan" {
+            results[job] = result(of: job)
         }
         let verdict = ContinuousIntegration.AggregateVerdict(
-            planResult: needs["plan"]?["result"] as? String ?? "",
+            planResult: result(of: "plan"),
             results: results,
             gating: value("--gating", in: rest).split(separator: ",").map(String.init),
             subjectRepository: value("--subject-repository", in: rest),
@@ -219,15 +245,17 @@ extension Main {
 
         case .bootstrapVerify:
             let root = value("--root", in: rest)
-            guard let data = FileManager.default.contents(
-                    atPath: value("--manifest", in: rest)),
-                  let object = (try? JSONSerialization.jsonObject(with: data))
-                      as? [String: Any],
-                  let identityObject = object["identity"] as? [String: Any],
-                  let key = object["key"] as? String,
-                  let executableObjects = object["executables"] as? [[String: Any]],
-                  let producerRun = object["producerRun"] as? String
-            else { refuse("bootstrap-verify: unreadable or malformed manifest") }
+            guard
+                let data = FileManager.default.contents(
+                    atPath: value("--manifest", in: rest))
+            else { refuse("bootstrap-verify: unreadable manifest") }
+            let object = decoded(data, "bootstrap-verify manifest")
+            guard
+                let identityObject = object["identity"] as? [String: Any],
+                let key = object["key"] as? String,
+                let executableObjects = object["executables"] as? [[String: Any]],
+                let producerRun = object["producerRun"] as? String
+            else { refuse("bootstrap-verify: malformed manifest") }
 
             let recorded = Institute.ContinuousIntegration.Bootstrap.Identity(
                 workspaceRevision: identityObject["workspaceRevision"] as? String ?? "",
@@ -240,8 +268,9 @@ extension Main {
                 identity: recorded,
                 key: key,
                 executables: executableObjects.map {
-                    .init(path: $0["path"] as? String ?? "",
-                          digest: $0["digest"] as? String ?? "")
+                    .init(
+                        path: $0["path"] as? String ?? "",
+                        digest: $0["digest"] as? String ?? "")
                 },
                 producerRun: producerRun)
             do {
@@ -252,7 +281,8 @@ extension Main {
             } catch {
                 refuse("bootstrap cache entry refused (fail closed): \(error)")
             }
-            print("""
+            print(
+                """
                 verified: key \(identity.digest), \
                 \(executableObjects.count) executable(s), producer run \(producerRun)
                 """)

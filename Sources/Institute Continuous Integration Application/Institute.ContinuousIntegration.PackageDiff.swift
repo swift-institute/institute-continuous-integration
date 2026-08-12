@@ -1,8 +1,8 @@
-import Institute_Continuous_Integration_Contract
 import ContinuousIntegration
 import CoreFoundation
 import Foundation
 import Institute_Continuous_Integration
+import Institute_Continuous_Integration_Contract
 
 extension Institute.ContinuousIntegration {
     /// Complete GitHub event-diff retrieval for package-work planning.

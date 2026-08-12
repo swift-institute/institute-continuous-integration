@@ -1,6 +1,6 @@
+public import Byte_Primitives
 import FIPS_180_4
 import Institute_Continuous_Integration
-public import Byte_Primitives
 
 extension Institute.ContinuousIntegration.Bootstrap {
     /// The provenance manifest stored inside a cache entry: the identity

@@ -84,12 +84,12 @@ extension Institute.ContinuousIntegration {
             let prefix = "swiftlang/swift@sha256:"
             let digest = String(image.dropFirst(prefix.count))
             guard image.hasPrefix(prefix), digest.count == 64,
-                  digest.allSatisfy(\.isHexDigit)
+                digest.allSatisfy(\.isHexDigit)
             else { throw .image(image) }
             let issuePrefix = "https://github.com/swiftlang/swift/issues/"
             let issue = String(upstreamIssue.dropFirst(issuePrefix.count))
             guard upstreamIssue.hasPrefix(issuePrefix), !issue.isEmpty,
-                  issue.allSatisfy(\.isNumber)
+                issue.allSatisfy(\.isNumber)
             else { throw .upstreamIssue(upstreamIssue) }
             guard Self.isDate(recheck), Self.isDate(today)
             else { throw .recheck(recheck) }
