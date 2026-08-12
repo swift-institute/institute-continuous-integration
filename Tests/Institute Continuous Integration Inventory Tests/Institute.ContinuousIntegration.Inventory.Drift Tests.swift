@@ -33,9 +33,15 @@ struct CIInventoryDriftTests {
 
     @Test func `the committed corpus is what the shipped workflow derives to`() throws {
         let derived = try CIInventoryTests.shipped().canonicalJSON + "\n"
+        // `verdict-inventory.json` is the same kind of LF-pinned Git blob
+        // as `swift-ci.yml` (see `String.normalizedToLF()`); a Windows
+        // checkout can materialize its trailing newline as CRLF, which
+        // would fail this byte-for-byte comparison on line-ending noise
+        // the committed corpus never actually carries.
         let committed = try String(
             contentsOf: Self.fixtures.appendingPathComponent("verdict-inventory.json"),
-            encoding: .utf8)
+            encoding: .utf8
+        ).normalizedToLF()
         #expect(
             derived == committed,
             """
@@ -193,5 +199,30 @@ struct CIInventoryDriftTests {
                 .count
             #expect(count <= 1, "non-matrix job '\(job.id)' reported \(count) times")
         }
+    }
+}
+
+extension CIInventoryDriftTests {
+    /// The real `swift-ci.yml` fixture, converted to CRLF exactly as a
+    /// Windows checkout of the same LF-pinned blob would (`core.autocrlf`),
+    /// still derives the same canonical JSON as the LF original — once
+    /// read through `String.normalizedToLF()`. Without that
+    /// normalization the folded `if:` block scalars (`docs`, among
+    /// others) bake a `\r` into their parsed continuation lines, which a
+    /// JSON encoder then escapes as `\r\n` rather than `\n` — a real
+    /// content difference from `verdict-inventory.json`, not merely a
+    /// trailing-newline artifact.
+    @Test func `a simulated Windows CRLF checkout of swift-ci-yml still derives the committed corpus`()
+        throws
+    {
+        let lfText = try String(contentsOfFile: CIInventoryTests.universalPath, encoding: .utf8)
+        let crlfText = lfText.replacingOccurrences(of: "\n", with: "\r\n")
+        let lfDerived = try Institute.ContinuousIntegration.Inventory.Document(
+            universalWorkflow: lfText.normalizedToLF()
+        ).canonicalJSON
+        let crlfDerived = try Institute.ContinuousIntegration.Inventory.Document(
+            universalWorkflow: crlfText.normalizedToLF()
+        ).canonicalJSON
+        #expect(lfDerived == crlfDerived)
     }
 }

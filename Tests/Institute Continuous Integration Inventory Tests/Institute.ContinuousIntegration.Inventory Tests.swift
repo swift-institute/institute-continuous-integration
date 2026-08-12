@@ -13,6 +13,29 @@ import Testing
 /// nest inside the suites below.
 private typealias ContractRequirement = ContinuousIntegration.Requirement
 
+extension String {
+    /// CRLF/CR normalized to LF.
+    ///
+    /// `Fixtures/swift-ci.yml` is a Git-tracked blob pinned to LF, but a
+    /// Windows checkout of it can materialize CRLF (`core.autocrlf`).
+    /// Most of that file's YAML is line-oriented and survives either
+    /// spelling, but its folded block scalars (`if: >-` conditions that
+    /// span physical lines) fold their *more-indented* continuation
+    /// lines into the parsed string verbatim, embedded newline and all.
+    /// Parsing the file with real `\r\n` in those continuations would
+    /// bake a `\r` into the derived job `if:` text that a JSON encoder
+    /// then escapes as `\r\n` rather than `\n` — a genuine content
+    /// difference from `verdict-inventory.json`, generated from an
+    /// LF checkout, not merely a trailing-newline artifact. Normalizing
+    /// before parsing, rather than patching the parser or the derived
+    /// JSON afterward, is the one place this closes for every field at
+    /// once.
+    func normalizedToLF() -> String {
+        replacingOccurrences(of: "\r\n", with: "\n")
+            .replacingOccurrences(of: "\r", with: "\n")
+    }
+}
+
 /// The inventory derived from the **shipped** universal workflow.
 ///
 /// Every assertion here is over the real `swift-ci.yml` — the universal
@@ -30,7 +53,8 @@ struct CIInventoryTests {
 
     static func shipped() throws -> Institute.ContinuousIntegration.Inventory.Document {
         let text = try String(contentsOfFile: universalPath, encoding: .utf8)
-        return try Institute.ContinuousIntegration.Inventory.Document(universalWorkflow: text)
+        return try Institute.ContinuousIntegration.Inventory.Document(
+            universalWorkflow: text.normalizedToLF())
     }
 
     @Suite
