@@ -28,6 +28,13 @@ extension Main {
     }
 
     private static func run() throws(Error) {
+        // The workflow verbs dispatch first and exit on their own verdict;
+        // everything else is the gitignore command's argument grammar.
+        let arguments = Array(CommandLine.arguments.dropFirst())
+        if let first = arguments.first, let verb = Verb(rawValue: first) {
+            run(verb, Array(arguments.dropFirst()))
+            return
+        }
         let action: Institute.ContinuousIntegration.Command.Gitignore.Action
         do throws(Institute.ContinuousIntegration.Command.Gitignore.Error) {
             action = try Institute.ContinuousIntegration.Command.Gitignore.parse(

@@ -146,6 +146,34 @@ let package = Package(
             name: "Repository Policy CLI",
             dependencies: ["Repository Policy"]
         ),
+        // Institute policy over the generic plan: the two typed toolchain
+        // exceptions and the package-content classifier. The generic owner
+        // decides which legs a tier selects; this target decides what
+        // Institute policy makes unschedulable, and why.
+        .target(
+            name: "Institute Continuous Integration Contract",
+            dependencies: [
+                "Institute Continuous Integration",
+                .product(
+                    name: "Continuous Integration",
+                    package: "swift-continuous-integration"),
+            ]
+        ),
+        // The process-boundary half: GitHub event-diff retrieval and the
+        // bootstrap provenance record. Foundation and the network live
+        // here, never in the contract above.
+        .target(
+            name: "Institute Continuous Integration Application",
+            dependencies: [
+                "Institute Continuous Integration",
+                "Institute Continuous Integration Contract",
+                .product(
+                    name: "Continuous Integration",
+                    package: "swift-continuous-integration"),
+                .product(name: "Byte Primitives", package: "swift-byte-primitives"),
+                .product(name: "FIPS 180-4", package: "swift-fips-180-4"),
+            ]
+        ),
         // The narrow process boundary for the portable Gitignore canon and
         // validator. Fleet enumeration and mutation stay in .github.
         .target(
@@ -169,8 +197,13 @@ let package = Package(
             name: "Institute Continuous Integration CLI Foundation Integration",
             dependencies: [
                 .target(name: "Institute Continuous Integration"),
+                .target(name: "Institute Continuous Integration Application"),
                 .target(name: "Institute Continuous Integration Command"),
+                .target(name: "Institute Continuous Integration Contract"),
                 .target(name: "Institute Continuous Integration Validation"),
+                .product(
+                    name: "Continuous Integration",
+                    package: "swift-continuous-integration"),
                 .product(
                     name: "GitHub Standard",
                     package: "swift-github-standard"),
