@@ -360,8 +360,25 @@ extension Institute.ContinuousIntegration.Validation.Gitignore {
     /// lock without weakening what the probe verifies: the same `git`
     /// still answers the same question once its inputs are actually on
     /// disk.
+    ///
+    /// The default budget was tuned against `Gitignore Tests.swift`,
+    /// which calls `ignored(under:probes:)` a handful of times. `Corpus
+    /// Tests.swift` calls the same function through the `Gitignore`
+    /// validator once per corpus scenario — roughly a dozen `gh-ignore-*`
+    /// scenarios, each probing the whitelist with the `work` + `junk` +
+    /// `unadmitted` sets (order twenty probes), so a single run of
+    /// `every owned scenario meets its expectation` drives on the order
+    /// of two hundred scratch-tree mkdir/write pairs back to back with no
+    /// idle time between them. That sustained churn keeps Defender's scan
+    /// queue non-empty for materially longer than the brief, isolated
+    /// contention the original budget (5 attempts, ≤0.5s total backoff)
+    /// was sized for — the failure mode is identical
+    /// (`ERROR_SHARING_VIOLATION`, ephemeral), just outlasting the
+    /// window this call site had to clear it in. Widened rather than
+    /// re-implemented: the fix is a larger budget for the same transient
+    /// class, not a different mechanism.
     static func retryingTransientWindowsFailures<T>(
-        attempts: Int = 5, _ operation: () throws -> T
+        attempts: Int = 10, _ operation: () throws -> T
     ) throws -> T {
         #if os(Windows)
             var lastError: Swift.Error!
@@ -371,7 +388,7 @@ extension Institute.ContinuousIntegration.Validation.Gitignore {
                 } catch {
                     lastError = error
                     if attempt + 1 < attempts {
-                        Thread.sleep(forTimeInterval: 0.05 * Double(attempt + 1))
+                        Thread.sleep(forTimeInterval: min(1.0, 0.05 * pow(2, Double(attempt))))
                     }
                 }
             }
