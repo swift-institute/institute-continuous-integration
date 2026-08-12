@@ -17,9 +17,7 @@ struct CIValidationGitignoreTests {
     /// hand-written stand-in would test the test.
     static func canon(for class: Class) throws -> String {
         let package = try #require(Gitignore.resolvedCanonPath)
-        let path =
-            (package as NSString).deletingLastPathComponent
-            + "/" + (`class`.canonPath as NSString).lastPathComponent
+        let path = Gitignore.siblingCanonPath(of: package, for: `class`)
         return try #require(Gitignore.read(path))
     }
 
@@ -86,6 +84,36 @@ struct CIValidationGitignoreTests {
             repository.write("// swift-tools-version: 6.3", to: "Package.swift")
             repository.write(try CIValidationGitignoreTests.canon(for: .package), to: ".gitignore")
             #expect(try Gitignore().findings(in: repository.subject).isEmpty)
+        }
+
+        @Test func `canon resolution uses a native path hierarchy`() throws {
+            let root = FileManager.default.temporaryDirectory
+                .appending(path: "gitignore-canon-resolution-\(UUID().uuidString)")
+            let canon = root.appending(path: Gitignore.canonPath)
+            let nested = root.appending(path: "nested/support")
+            // Retried on Windows: a hosted runner's real-time scanner can
+            // transiently hold a freshly created path under `%TEMP%`,
+            // which surfaces here as `ERROR_SHARING_VIOLATION` — see
+            // `Gitignore.retryingTransientWindowsFailures`.
+            try Gitignore.retryingTransientWindowsFailures {
+                try FileManager.default.createDirectory(
+                    at: nested, withIntermediateDirectories: true)
+            }
+            try Gitignore.retryingTransientWindowsFailures {
+                try FileManager.default.createDirectory(
+                    at: canon.deletingLastPathComponent(), withIntermediateDirectories: true)
+            }
+            defer { try? FileManager.default.removeItem(at: root) }
+            try Gitignore.retryingTransientWindowsFailures {
+                try "canon".write(to: canon, atomically: true, encoding: .utf8)
+            }
+
+            #expect(Gitignore.resolvedCanonPath(startingAt: nested.path) == canon.path)
+            for `class` in Class.allCases {
+                #expect(
+                    Gitignore.siblingCanonPath(of: canon.path, for: `class`)
+                        == root.appending(path: `class`.canonPath).path)
+            }
         }
 
         @Test func `a conformant scaffold repository is clean`() throws {

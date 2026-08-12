@@ -48,6 +48,17 @@ struct CICanonGitignoreTests {
             let twice = render(over: .init(once))
             #expect(once == twice)
         }
+
+        @Test func `a Windows text checkout retains its closed admissions`() throws {
+            var canon = ""
+            for character in CICanonGitignoreTests.canon {
+                if character == "\n" { canon.append("\r") }
+                canon.append(character)
+            }
+            let rendered = try Institute.ContinuousIntegration.Canon.Gitignore.Render(
+                canon: .init(canon))(over: nil)
+            #expect(rendered == canon)
+        }
     }
 
     @Suite
@@ -130,5 +141,51 @@ struct CICanonGitignoreTests {
             Institute.ContinuousIntegration.Canon.Gitignore.Nested.policies(
                 declarations: ["Tests/Package.swift"]
             ) == ["Tests/.gitignore": ".build/\n.swiftpm/\n.benchmarks/\n"])
+    }
+}
+
+@Suite
+struct CICanonConfigurationTests {
+    typealias Configuration = Institute.ContinuousIntegration.Canon.Configuration
+
+    static let declaration = Configuration.Declaration(repositoryClass: .package)
+
+    @Test func `rendering selects one complete profile per tool deterministically`() throws {
+        let render = try Configuration.Render(declaration: Self.declaration) { baseline, _ in
+            baseline == .swiftFormatV1 ? "format\n" : "lint\n"
+        }
+        #expect(try render.text(for: .swiftFormat) == "format\n")
+        #expect(try render.text(for: .swiftLint) == "lint\n")
+        #expect(Configuration.Render.outputDirectory == ".institute/configuration")
+        #expect(Configuration.Tool.swiftFormat.invocation == "swift format --configuration .institute/configuration/.swift-format")
+        #expect(Configuration.Tool.swiftLint.invocation == "swiftlint --config .institute/configuration/.swiftlint.yml")
+    }
+
+    @Test func `missing profile fails closed`() throws {
+        #expect(throws: Configuration.Error.profileUnavailable(.swiftFormatV1)) {
+            _ = try Configuration.Render(declaration: Self.declaration)
+        }
+    }
+
+    @Test func `unratified typed delta fails closed rather than becoming a local escape hatch`() throws {
+        let withDelta = Configuration.Declaration(repositoryClass: .package, deltas: [.frozenEvidence])
+        #expect(throws: Configuration.Error.unratifiedDeltas([.frozenEvidence])) {
+            // The deltas guard runs before the profile closure is ever
+            // invoked, so an unreachable closure is enough to prove the
+            // fail-closed contract without depending on profile bytes.
+            _ = try Configuration.Render(declaration: withDelta) { _, _ in
+                Issue.record("profile resolution must not run for an unratified delta")
+                return ""
+            }
+        }
+    }
+
+    @Test func `render configuration command accepts only typed selection and explicit output root`() throws {
+        let command = try Configuration.Command(arguments: ["--class", "package", "--root", "."])
+        #expect(command.declaration == Self.declaration)
+        #expect(command.root == ".")
+        #expect(throws: Configuration.Error.unknownCommandArgument("--swift-format-profile")) {
+            _ = try Configuration.Command(arguments: ["--swift-format-profile", "outside", "--class", "package", "--root", "."])
+        }
     }
 }
