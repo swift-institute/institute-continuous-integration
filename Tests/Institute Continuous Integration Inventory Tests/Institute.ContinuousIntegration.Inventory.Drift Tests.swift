@@ -33,9 +33,15 @@ struct CIInventoryDriftTests {
 
     @Test func `the committed corpus is what the shipped workflow derives to`() throws {
         let derived = try CIInventoryTests.shipped().canonicalJSON + "\n"
+        // `verdict-inventory.json` is the same kind of LF-pinned Git blob
+        // as `swift-ci.yml` (see `String.normalizedToLF()`); a Windows
+        // checkout can materialize its trailing newline as CRLF, which
+        // would fail this byte-for-byte comparison on line-ending noise
+        // the committed corpus never actually carries.
         let committed = try String(
             contentsOf: Self.fixtures.appendingPathComponent("verdict-inventory.json"),
-            encoding: .utf8)
+            encoding: .utf8
+        ).normalizedToLF()
         #expect(
             derived == committed,
             """
@@ -193,5 +199,49 @@ struct CIInventoryDriftTests {
                 .count
             #expect(count <= 1, "non-matrix job '\(job.id)' reported \(count) times")
         }
+    }
+}
+
+extension CIInventoryDriftTests {
+    /// The real `swift-ci.yml` fixture, converted to CRLF exactly as a
+    /// Windows checkout of the same LF-pinned blob would (`core.autocrlf`),
+    /// still derives the same canonical JSON as the LF original — once
+    /// read through `String.normalizedToLF()`. Without that
+    /// normalization the folded `if:` block scalars (`docs`, among
+    /// others) bake a `\r` into their parsed continuation lines, which a
+    /// JSON encoder then escapes as `\r\n` rather than `\n` — a real
+    /// content difference from `verdict-inventory.json`, not merely a
+    /// trailing-newline artifact.
+    ///
+    /// The fixture is LF-pinned in the git *object*, not on disk: there
+    /// is no `.gitattributes` forcing `Fixtures/swift-ci.yml` to
+    /// `eol=lf`, so a real Windows checkout's `core.autocrlf` already
+    /// materializes it as CRLF on disk before this test ever reads it.
+    /// Reading the raw working-tree bytes as `lfText` and then
+    /// substituting `\n` → `\r\n` to build `crlfText` would
+    /// double-convert on that platform (`\r\n` → `\r\r\n`) — a corrupted
+    /// simulation, not a reproduction of a real checkout. `\r\r\n` does
+    /// not round-trip through `normalizedToLF()` either: its first pass
+    /// (`\r\n` → `\n`) only consumes the *trailing* `\r\n` of the triple,
+    /// leaving a leading `\r` followed by the freshly-inserted `\n`;
+    /// its second pass (`\r` → `\n`) then turns that pair into `\n\n` —
+    /// a genuine doubled-newline corruption, not merely the CRLF-vs-LF
+    /// difference under test. Normalizing the raw read *before* deriving
+    /// the CRLF simulation closes that gap: the substitution then always
+    /// starts from guaranteed-pure LF, regardless of whether the
+    /// working-tree file itself is LF or already autocrlf-converted CRLF.
+    @Test func `a simulated Windows CRLF checkout of swift-ci-yml still derives the committed corpus`()
+        throws
+    {
+        let lfText = try String(contentsOfFile: CIInventoryTests.universalPath, encoding: .utf8)
+            .normalizedToLF()
+        let crlfText = lfText.replacingOccurrences(of: "\n", with: "\r\n")
+        let lfDerived = try Institute.ContinuousIntegration.Inventory.Document(
+            universalWorkflow: lfText.normalizedToLF()
+        ).canonicalJSON
+        let crlfDerived = try Institute.ContinuousIntegration.Inventory.Document(
+            universalWorkflow: crlfText.normalizedToLF()
+        ).canonicalJSON
+        #expect(lfDerived == crlfDerived)
     }
 }

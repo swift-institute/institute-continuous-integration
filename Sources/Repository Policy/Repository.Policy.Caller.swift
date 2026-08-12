@@ -51,7 +51,7 @@ extension Repository.Policy {
         /// Caller-supplied `with:` keys, in canonical emission order.
         public static let approvedTypedInputs: [String] = [
             "platform-support", "embedded-target", "swift-version",
-            "enable-private-repos", "test-filter",
+            "enable-private-repos", "test-filter", "tier",
             "docs-umbrella-module", "docs-umbrella-display-name",
             "docs-umbrella-bundle-id", "docs-umbrella-docc-path",
             "docs-exclude-modules", "docs-swift-version",

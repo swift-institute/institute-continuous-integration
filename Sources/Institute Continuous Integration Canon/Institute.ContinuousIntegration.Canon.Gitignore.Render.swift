@@ -1,3 +1,4 @@
+import ASCII
 import Institute_Continuous_Integration
 
 extension Institute.ContinuousIntegration.Canon.Gitignore {
@@ -14,7 +15,12 @@ extension Institute.ContinuousIntegration.Canon.Gitignore {
 
         public init(canon: Institute.ContinuousIntegration.Canon.Gitignore) throws(Error) {
             guard canon.isGenerated else { throw .terminatorAbsent }
-            guard canon.text.contains(Institute.ContinuousIntegration.Canon.Gitignore.Capability.block)
+            // Git may materialize a text checkout with CRLF on Windows.
+            // The canon is one Git document whose blob remains LF-pinned;
+            // line-ending conversion must not make its closed admission
+            // vocabulary disappear from the parser.
+            let normalized = canon.text.normalized(to: .lf)
+            guard normalized.contains(Institute.ContinuousIntegration.Canon.Gitignore.Capability.block)
             else { throw .capabilityBlockAbsent }
             self.canon = canon.text
         }

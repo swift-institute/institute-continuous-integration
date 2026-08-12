@@ -46,6 +46,21 @@ struct RepositoryPolicyCallerTests {
     }
 
     @Test
+    func `tier scheduling customization round trips`() throws {
+        let caller = try Repository.Policy.Caller(
+            repository: "swift-institute/institute-continuous-integration",
+            layer: .institute,
+            inputs: [(key: "tier", value: "build")])
+        let text = Repository.Policy.Caller.Render.direct(caller)
+        #expect(text.contains("      tier: build"))
+
+        let parsed = try Repository.Policy.Caller.Parse.caller(
+            text, repository: caller.repository)
+        #expect(parsed.inputs.map(\.key) == caller.inputs.map(\.key))
+        #expect(parsed.inputs.map(\.value) == caller.inputs.map(\.value))
+    }
+
+    @Test
     func directFormHasNoTagTriggerAndCallsUniversal() throws {
         let caller = try Repository.Policy.Caller(
             repository: "swift-primitives/swift-bool-primitives",

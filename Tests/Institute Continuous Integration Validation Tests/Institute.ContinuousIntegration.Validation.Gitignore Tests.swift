@@ -17,9 +17,7 @@ struct CIValidationGitignoreTests {
     /// hand-written stand-in would test the test.
     static func canon(for class: Class) throws -> String {
         let package = try #require(Gitignore.resolvedCanonPath)
-        let path =
-            (package as NSString).deletingLastPathComponent
-            + "/" + (`class`.canonPath as NSString).lastPathComponent
+        let path = Gitignore.siblingCanonPath(of: package, for: `class`)
         return try #require(Gitignore.read(path))
     }
 
@@ -88,6 +86,36 @@ struct CIValidationGitignoreTests {
             #expect(try Gitignore().findings(in: repository.subject).isEmpty)
         }
 
+        @Test func `canon resolution uses a native path hierarchy`() throws {
+            let root = FileManager.default.temporaryDirectory
+                .appending(path: "gitignore-canon-resolution-\(UUID().uuidString)")
+            let canon = root.appending(path: Gitignore.canonPath)
+            let nested = root.appending(path: "nested/support")
+            // Retried on Windows: a hosted runner's real-time scanner can
+            // transiently hold a freshly created path under `%TEMP%`,
+            // which surfaces here as `ERROR_SHARING_VIOLATION` — see
+            // `Gitignore.retryingTransientWindowsFailures`.
+            try Gitignore.retryingTransientWindowsFailures {
+                try FileManager.default.createDirectory(
+                    at: nested, withIntermediateDirectories: true)
+            }
+            try Gitignore.retryingTransientWindowsFailures {
+                try FileManager.default.createDirectory(
+                    at: canon.deletingLastPathComponent(), withIntermediateDirectories: true)
+            }
+            defer { try? FileManager.default.removeItem(at: root) }
+            try Gitignore.retryingTransientWindowsFailures {
+                try "canon".write(to: canon, atomically: true, encoding: .utf8)
+            }
+
+            #expect(Gitignore.resolvedCanonPath(startingAt: nested.path) == canon.path)
+            for `class` in Class.allCases {
+                #expect(
+                    Gitignore.siblingCanonPath(of: canon.path, for: `class`)
+                        == root.appending(path: `class`.canonPath).path)
+            }
+        }
+
         @Test func `a conformant scaffold repository is clean`() throws {
             let repository = try CIValidationGitignoreTests.repository()
             repository.write("# reserved", to: "README.md")
@@ -119,16 +147,27 @@ struct CIValidationGitignoreTests {
                 })
         }
 
-        @Test func `no index is load bearing for a force added ignored path`() throws {
-            let repository = try CIValidationGitignoreTests.repository()
-            repository.write("/*\n", to: ".gitignore")
-            repository.write("evidence", to: "forced path\nwith newline.txt")
-            #expect(try repository.git(["add", "--force", "--", "forced path\nwith newline.txt"]) == 0)
-            let paths = try Gitignore.indexedPaths(in: repository.root)
-            #expect(paths == ["forced path\nwith newline.txt"])
-            #expect(try Gitignore.ignoredIndexedPaths(paths, in: repository.root) == paths)
-            #expect(try Gitignore.ignoredIndexedPaths(paths, in: repository.root, noIndex: false).isEmpty)
-        }
+        // A raw `\n` (0x0A) byte inside a path is not the CRLF class this
+        // suite otherwise chases — it is refused by the Windows Win32
+        // filesystem layer itself (control characters 1-31 are illegal
+        // in a Windows file name, full stop, independent of any git
+        // argument quoting) rather than surviving as `\r\n`. The scenario
+        // this test proves — NUL-delimited `git` transport surviving a
+        // control character no naive newline-split could — has no
+        // Windows-representable input to prove it with, so the property
+        // is untestable there rather than differently-shaped there.
+        #if !os(Windows)
+            @Test func `no index is load bearing for a force added ignored path`() throws {
+                let repository = try CIValidationGitignoreTests.repository()
+                repository.write("/*\n", to: ".gitignore")
+                repository.write("evidence", to: "forced path\nwith newline.txt")
+                #expect(try repository.git(["add", "--force", "--", "forced path\nwith newline.txt"]) == 0)
+                let paths = try Gitignore.indexedPaths(in: repository.root)
+                #expect(paths == ["forced path\nwith newline.txt"])
+                #expect(try Gitignore.ignoredIndexedPaths(paths, in: repository.root) == paths)
+                #expect(try Gitignore.ignoredIndexedPaths(paths, in: repository.root, noIndex: false).isEmpty)
+            }
+        #endif
 
         @Test
         func `an ambient alternate empty index cannot hide the real index`() throws {
@@ -148,7 +187,7 @@ struct CIValidationGitignoreTests {
                 ) == ["tracked.txt"])
         }
 
-        @Test func `ignored index transport exceeds pipe capacity without blocking`() throws {
+        @Test func `large ignored index transport completes beyond pipe capacity`() throws {
             let repository = try CIValidationGitignoreTests.repository()
             repository.write("/*\n!/kept.txt\n", to: ".gitignore")
             let paths = (0..<20_000).map { "generated/path-\($0)-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.txt" }
@@ -316,5 +355,43 @@ struct CIValidationGitignoreTests {
                 }
             }
         }
+    }
+}
+
+extension CIValidationGitignoreTests {
+    /// The real package-class canon, converted to CRLF exactly as a
+    /// Windows checkout of the LF-pinned `canon/gitignore-package.txt`
+    /// blob would (`core.autocrlf`), still reads as the identical
+    /// document `Gitignore.read` returns for the LF original — and the
+    /// "one extra allow" near-miss substitution (`"!/Lint/\n"`) still
+    /// finds its target in it.
+    ///
+    /// The blob is LF-pinned in the git *object*, not on disk: there is
+    /// no `.gitattributes` forcing `canon/*.txt` to `eol=lf`, so a real
+    /// Windows checkout's `core.autocrlf` already materializes this file
+    /// as CRLF on disk before this test ever reads it. Reading the raw
+    /// working-tree bytes and then substituting `\n` → `\r\n` would
+    /// double-convert on that platform (`\r\n` → `\r\r\n`), corrupting
+    /// the simulation rather than reproducing a checkout — the same
+    /// substitution the *pre-existing* CRLF quietly applies a second
+    /// time. Building the simulation from `lfText` — `Gitignore.read`'s
+    /// own LF-normalized text — sidesteps the on-disk line-ending
+    /// question entirely: `lfText` is guaranteed pure LF regardless of
+    /// whether this test runs against an LF or an already-autocrlf'd
+    /// CRLF working-tree file.
+    @Test func `a simulated Windows CRLF checkout of the real canon still reads identically`() throws {
+        let canonPath = try #require(Gitignore.resolvedCanonPath)
+        let lfText = try #require(Gitignore.read(canonPath))
+        let crlfPath = FileManager.default.temporaryDirectory
+            .appending(path: "crlf-canon-\(UUID().uuidString).txt")
+        let rawCRLFText = lfText.replacingOccurrences(of: "\n", with: "\r\n")
+        try Data(rawCRLFText.utf8).write(to: crlfPath)
+        defer { try? FileManager.default.removeItem(at: crlfPath) }
+
+        let crlfRead = try #require(Gitignore.read(crlfPath.path))
+        #expect(crlfRead == lfText)
+
+        let widened = crlfRead.replacingOccurrences(of: "!/Lint/\n", with: "!/Lint/\n!/Extra/\n")
+        #expect(widened != crlfRead)
     }
 }
