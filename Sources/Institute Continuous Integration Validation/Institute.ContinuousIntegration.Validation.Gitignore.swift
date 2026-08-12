@@ -183,9 +183,7 @@ extension Institute.ContinuousIntegration.Validation {
                 repository: subject.repository,
                 manifest: Self.read(subject.path("Package.swift")))
             let path = canon ?? Self.resolvedCanonPath ?? Self.canonPath
-            let classPath =
-                (path as NSString).deletingLastPathComponent
-                + "/" + (`class`.canonPath as NSString).lastPathComponent
+            let classPath = Self.siblingCanonPath(of: path, for: `class`)
             guard let canonText = Self.read(classPath) else {
                 throw .missingSupportFile(path: classPath)
             }
@@ -312,19 +310,74 @@ extension Institute.ContinuousIntegration.Validation.Gitignore {
             // root, so a caller whose working directory is elsewhere —
             // a test runner, a consumer package — still resolves the
             // document this validator was built against.
-            ?? resolvedCanonPath(startingAt: (#filePath as NSString).deletingLastPathComponent)
+            ?? resolvedCanonPath(
+                startingAt: URL(filePath: #filePath).deletingLastPathComponent().path)
     }
 
     /// `canonPath` found by walking up from `directory`, or `nil` when
     /// no ancestor carries it.
     static func resolvedCanonPath(startingAt start: String) -> String? {
-        var directory = start
-        while !directory.isEmpty, directory != "/" {
-            let candidate = "\(directory)/\(canonPath)"
+        var directory = URL(filePath: start, directoryHint: .isDirectory)
+        while true {
+            let candidate = directory.appending(path: canonPath).path
             if read(candidate) != nil { return candidate }
-            directory = (directory as NSString).deletingLastPathComponent
+            let parent = directory.deletingLastPathComponent()
+            guard parent.path != directory.path else { return nil }
+            directory = parent
         }
-        return nil
+    }
+
+    /// The class-specific canon beside a resolved package-canon *file*.
+    /// `canon` is a document path, not the `canon/` directory: take its
+    /// parent once, then append the sibling document's filename. `URL`
+    /// preserves the host platform's separator and root semantics; string
+    /// concatenation produced mixed paths on Windows, and re-appending the
+    /// class's relative `canon/...` path here would compose `canon/canon`.
+    static func siblingCanonPath(of packageCanon: String, for `class`: Class) -> String {
+        URL(filePath: packageCanon)
+            .deletingLastPathComponent()
+            .appending(path: "gitignore-\(`class`.rawValue).txt")
+            .path
+    }
+
+    /// Retries `operation` briefly on Windows when it fails; runs it once
+    /// everywhere else.
+    ///
+    /// GitHub's hosted Windows runners scan every newly created or
+    /// freshly renamed file under `%TEMP%` before it settles — Windows
+    /// Defender real-time protection and the Search Indexer both take a
+    /// short-lived handle on it. `CreateDirectoryW`/`MoveFileExW` racing
+    /// that scan fails with `ERROR_SHARING_VIOLATION` (Win32 code 32),
+    /// which Foundation surfaces as `NSCocoaErrorDomain` 513 ("You
+    /// don't have permission") with the Win32 code nested in
+    /// `NSUnderlyingError` — a permission-shaped message for a lock
+    /// that is not durable and clears within milliseconds. Under
+    /// full-tier CI's heavier parallel file I/O this fires on every
+    /// scratch-tree probe rather than intermittently, which is why it
+    /// now reproduces consistently instead of flaking. Reading the
+    /// scratch tree back with a bounded retry resolves the transient
+    /// lock without weakening what the probe verifies: the same `git`
+    /// still answers the same question once its inputs are actually on
+    /// disk.
+    static func retryingTransientWindowsFailures<T>(
+        attempts: Int = 5, _ operation: () throws -> T
+    ) throws -> T {
+        #if os(Windows)
+            var lastError: Error!
+            for attempt in 0..<attempts {
+                do {
+                    return try operation()
+                } catch {
+                    lastError = error
+                    if attempt + 1 < attempts {
+                        Thread.sleep(forTimeInterval: 0.05 * Double(attempt + 1))
+                    }
+                }
+            }
+            throw lastError!
+        #else
+            return try operation()
+        #endif
     }
 
     /// The text of a file, or `nil` when it is absent or is not a file.
@@ -365,10 +418,13 @@ extension Institute.ContinuousIntegration.Validation.Gitignore {
             let target = root.appending(path: probe.path)
             let directory = probe.isDirectory ? target : target.deletingLastPathComponent()
             // `FileManager.createDirectory` throws untyped; its failure
-            // here is exactly the defect raised in the catch.
+            // here is exactly the defect raised in the catch. Retried
+            // on Windows — see `retryingTransientWindowsFailures`.
             do {
-                try FileManager.default.createDirectory(
-                    at: directory, withIntermediateDirectories: true)
+                try Self.retryingTransientWindowsFailures {
+                    try FileManager.default.createDirectory(
+                        at: directory, withIntermediateDirectories: true)
+                }
             } catch {
                 throw .unreadableSubject(root: root.path)
             }
@@ -385,8 +441,10 @@ extension Institute.ContinuousIntegration.Validation.Gitignore {
         // `Data.write(to:options:)` throws untyped; its failure here is
         // exactly the defect raised in the catch.
         do {
-            try Data(gitignore.utf8).write(
-                to: root.appending(path: ".gitignore"), options: .atomic)
+            try Self.retryingTransientWindowsFailures {
+                try Data(gitignore.utf8).write(
+                    to: root.appending(path: ".gitignore"), options: .atomic)
+            }
         } catch {
             throw .unreadableSubject(root: root.path)
         }
@@ -446,9 +504,11 @@ extension Institute.ContinuousIntegration.Validation.Gitignore {
         while let directory = directories.popLast() {
             let contents: [URL]
             do {
-                contents = try FileManager.default.contentsOfDirectory(
-                    at: directory.url,
-                    includingPropertiesForKeys: [.isDirectoryKey, .isSymbolicLinkKey])
+                contents = try Self.retryingTransientWindowsFailures {
+                    try FileManager.default.contentsOfDirectory(
+                        at: directory.url,
+                        includingPropertiesForKeys: [.isDirectoryKey, .isSymbolicLinkKey])
+                }
             } catch {
                 throw .unreadableSubject(root: root)
             }
@@ -461,7 +521,9 @@ extension Institute.ContinuousIntegration.Validation.Gitignore {
                 if url.lastPathComponent == ".gitignore" { paths.append(relative) }
                 let values: URLResourceValues
                 do {
-                    values = try url.resourceValues(forKeys: [.isDirectoryKey, .isSymbolicLinkKey])
+                    values = try Self.retryingTransientWindowsFailures {
+                        try url.resourceValues(forKeys: [.isDirectoryKey, .isSymbolicLinkKey])
+                    }
                 } catch {
                     throw .unreadableSubject(root: root)
                 }
@@ -516,19 +578,22 @@ extension Institute.ContinuousIntegration.Validation.Gitignore {
         }
     }
 
-    private static func git(
+    static func git(
         _ arguments: [String], in root: URL, input: Data?,
         environment: [String: String] = ProcessInfo.processInfo.environment
     ) throws(GitHub.ContinuousIntegration.Validation.EnvironmentDefect) -> (status: Int32, output: Data) {
+        guard let executable = gitExecutable(in: ProcessInfo.processInfo.environment) else {
+            throw .missingSupportFile(path: "git")
+        }
         let process = Process()
         let output = Pipe()
-        process.executableURL = URL(filePath: "/usr/bin/env")
-        process.arguments = ["git", "-C", root.path] + arguments
+        process.executableURL = executable
+        process.arguments = ["-C", root.path] + arguments
         // Git's ambient control variables can redirect the repository,
         // work tree, index, object database, configuration, and namespace.
         // A fixed environment removes that entire input surface rather than
         // trying to maintain a partial deny-list of Git variables.
-        process.environment = controlledGitEnvironment(environment)
+        process.environment = controlledGitEnvironment(environment, executable: executable)
         process.standardOutput = output
         process.standardError = FileHandle.nullDevice
         let standardInput = input.map { _ in Pipe() }
@@ -587,13 +652,80 @@ extension Institute.ContinuousIntegration.Validation.Gitignore {
         return (process.terminationStatus, data)
     }
 
-    private static func controlledGitEnvironment(_: [String: String]) -> [String: String] {
-        [
+    static func gitExecutable(in environment: [String: String]) -> URL? {
+        #if os(Windows)
+            let separator: Character = ";"
+            let names = ["git.exe"]
+        #else
+            let separator: Character = ":"
+            let names = ["git"]
+        #endif
+        // Windows preserves the host spelling of environment keys. Its
+        // standard `Path` spelling is semantically the same variable as
+        // POSIX `PATH`, but `ProcessInfo.environment` presents it as a
+        // case-sensitive Swift dictionary.
+        guard
+            let path = environment.first(where: {
+                $0.key.caseInsensitiveCompare("PATH") == .orderedSame
+            })?.value
+        else { return nil }
+        let fileManager = FileManager.default
+        for rawDirectory in path.split(separator: separator, omittingEmptySubsequences: false) {
+            let directory = rawDirectory.trimmingCharacters(in: .whitespacesAndNewlines)
+                .trimmingCharacters(in: CharacterSet(charactersIn: "\""))
+            guard !directory.isEmpty else { continue }
+            for name in names {
+                let candidate = URL(filePath: directory).appending(path: name)
+                if fileManager.isExecutableFile(atPath: candidate.path) { return candidate }
+            }
+        }
+        return nil
+    }
+
+    private static func controlledGitEnvironment(
+        _ ambient: [String: String], executable: URL
+    ) -> [String: String] {
+        #if os(Windows)
+            let null = "NUL"
+        #else
+            let null = "/dev/null"
+        #endif
+        var environment: [String: String] = [
             "GIT_CONFIG_NOSYSTEM": "1",
-            "HOME": "/dev/null",
+            "GIT_CONFIG_GLOBAL": null,
+            "HOME": null,
             "LC_ALL": "C",
-            "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
-            "XDG_CONFIG_HOME": "/dev/null",
+            "PATH": executable.deletingLastPathComponent().path,
+            "XDG_CONFIG_HOME": null,
         ]
+        #if os(Windows)
+            // Git for Windows launches through its MSYS/Cygwin POSIX
+            // emulation layer, which bootstraps from the Win32 environment
+            // — including `SystemRoot` — to translate host paths (an 8.3
+            // short-name ancestor such as the hosted runner's `RUNNER~1`
+            // profile directory among them) into the form its runtime
+            // operates on. A `CreateProcess` environment that omits these
+            // is a documented way to break any Win32-hosted program's
+            // startup, not a git-specific quirk: without them the process
+            // can fail before it reaches the repository at all, which
+            // surfaces here as the subject reading as unreadable rather
+            // than as a git exit status. None of these carry the ambient
+            // *git* control surface this isolation exists to remove
+            // (repository, work tree, index, object database,
+            // configuration, or namespace) — they are OS bootstrap
+            // variables, not git variables — so restoring them narrows
+            // nothing this function isolates.
+            for name in [
+                "SystemRoot", "SystemDrive", "windir", "ComSpec",
+                "TEMP", "TMP", "USERPROFILE", "ALLUSERSPROFILE",
+            ] {
+                if let value = ambient.first(where: {
+                    $0.key.caseInsensitiveCompare(name) == .orderedSame
+                })?.value {
+                    environment[name] = value
+                }
+            }
+        #endif
+        return environment
     }
 }

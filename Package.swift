@@ -32,14 +32,26 @@ let package = Package(
             name: "repository-policy",
             targets: ["Repository Policy CLI"]
         ),
+        .executable(
+            name: "institute-continuous-integration",
+            targets: ["Institute Continuous Integration CLI Foundation Integration"]
+        ),
     ],
     dependencies: [
+        .package(
+            url: "https://github.com/swift-foundations/swift-ascii.git",
+            branch: "main"
+        ),
         .package(
             url: "https://github.com/swift-foundations/swift-continuous-integration.git",
             branch: "main"
         ),
         .package(
             url: "https://github.com/swift-foundations/swift-github-continuous-integration.git",
+            branch: "main"
+        ),
+        .package(
+            url: "https://github.com/swift-standards/swift-github-standard.git",
             branch: "main"
         ),
         .package(
@@ -65,7 +77,10 @@ let package = Package(
         // which must never disagree about where canon ends.
         .target(
             name: "Institute Continuous Integration Canon",
-            dependencies: ["Institute Continuous Integration"]
+            dependencies: [
+                "Institute Continuous Integration",
+                .product(name: "ASCII", package: "swift-ascii"),
+            ]
         ),
         // The Institute-policy validators — skill hygiene, gitignore
         // canon, README conventions, schema correspondence, manifest
@@ -134,6 +149,39 @@ let package = Package(
                 .target(name: "Institute Continuous Integration Canon"),
             ]
         ),
+        // The narrow process boundary for the portable Gitignore canon and
+        // validator. Fleet enumeration and mutation stay in .github.
+        .target(
+            name: "Institute Continuous Integration Command",
+            dependencies: [
+                .target(name: "Institute Continuous Integration"),
+                .target(name: "Institute Continuous Integration Canon"),
+                .target(name: "Institute Continuous Integration Validation"),
+                .product(
+                    name: "GitHub Continuous Integration",
+                    package: "swift-github-continuous-integration"),
+                .product(
+                    name: "GitHub Standard",
+                    package: "swift-github-standard"),
+                .product(
+                    name: "GitHub Continuous Integration Validation",
+                    package: "swift-github-continuous-integration"),
+            ]
+        ),
+        .executableTarget(
+            name: "Institute Continuous Integration CLI Foundation Integration",
+            dependencies: [
+                .target(name: "Institute Continuous Integration"),
+                .target(name: "Institute Continuous Integration Command"),
+                .target(name: "Institute Continuous Integration Validation"),
+                .product(
+                    name: "GitHub Standard",
+                    package: "swift-github-standard"),
+                .product(
+                    name: "GitHub Continuous Integration Validation",
+                    package: "swift-github-continuous-integration"),
+            ]
+        ),
         .testTarget(
             name: "Repository Policy Tests",
             dependencies: ["Repository Policy"],
@@ -160,6 +208,14 @@ let package = Package(
             // recorded run and regenerated expectation are evidence, not
             // resources.
             exclude: ["Fixtures"]
+        ),
+        .testTarget(
+            name: "Institute Continuous Integration Command Tests",
+            dependencies: [
+                .target(name: "Institute Continuous Integration"),
+                .target(name: "Institute Continuous Integration Command"),
+                .target(name: "Institute Continuous Integration Validation"),
+            ]
         ),
     ],
     swiftLanguageModes: [.v6]

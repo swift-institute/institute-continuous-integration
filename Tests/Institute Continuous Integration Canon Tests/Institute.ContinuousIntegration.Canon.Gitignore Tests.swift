@@ -48,6 +48,17 @@ struct CICanonGitignoreTests {
             let twice = render(over: .init(once))
             #expect(once == twice)
         }
+
+        @Test func `a Windows text checkout retains its closed admissions`() throws {
+            var canon = ""
+            for character in CICanonGitignoreTests.canon {
+                if character == "\n" { canon.append("\r") }
+                canon.append(character)
+            }
+            let rendered = try Institute.ContinuousIntegration.Canon.Gitignore.Render(
+                canon: .init(canon))(over: nil)
+            #expect(rendered == canon)
+        }
     }
 
     @Suite
