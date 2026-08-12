@@ -24,3 +24,4 @@ jobs:
     uses: swift-institute/.github/.github/workflows/swift-ci.yml@main
     with:
       lint-bundle: institute
+      platform-support: linux
