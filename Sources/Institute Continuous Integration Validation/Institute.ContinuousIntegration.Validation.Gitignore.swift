@@ -364,7 +364,7 @@ extension Institute.ContinuousIntegration.Validation.Gitignore {
         attempts: Int = 5, _ operation: () throws -> T
     ) throws -> T {
         #if os(Windows)
-            var lastError: Error!
+            var lastError: Swift.Error!
             for attempt in 0..<attempts {
                 do {
                     return try operation()
@@ -596,7 +596,7 @@ extension Institute.ContinuousIntegration.Validation.Gitignore {
     /// caller saw before this function was made retryable: a missing
     /// executable is `missingSupportFile`, everything else touching the
     /// process's pipes is `unreadableSubject`.
-    private enum GitInvocationFailure: Error {
+    private enum GitInvocationFailure: Swift.Error {
         case processLaunch
         case pipeIO
     }
@@ -614,7 +614,7 @@ extension Institute.ContinuousIntegration.Validation.Gitignore {
         // `git` from scratch rather than resume a stuck pipe; every call
         // site invokes `git` idempotently (`init`, `check-ignore`,
         // `ls-files`), so rerunning it is safe.
-        func invoke() throws -> (status: Int32, output: Data) {
+        func invoke() throws(GitInvocationFailure) -> (status: Int32, output: Data) {
             let process = Process()
             let output = Pipe()
             process.executableURL = executable
