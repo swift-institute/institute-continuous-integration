@@ -36,11 +36,22 @@ struct TemporaryRepository: ~Copyable {
     /// intermediate directories.
     func write(_ contents: String, to relative: String) {
         let path = root + "/" + relative
-        try? FileManager.default.createDirectory(
-            atPath: (path as NSString).deletingLastPathComponent,
-            withIntermediateDirectories: true
-        )
-        try? Data(contents.utf8).write(to: URL(fileURLWithPath: path))
+        // Retried on Windows: a hosted runner's real-time scanner can
+        // transiently hold a freshly created path under the temporary
+        // root, which surfaces as `ERROR_SHARING_VIOLATION` — see
+        // `Gitignore.retryingTransientWindowsFailures`. `write` returns
+        // `Void` and this fixture's callers already assume success, so
+        // a still-losing retry fails the same way it always has
+        // (silently) rather than gaining new behavior.
+        try? Institute.ContinuousIntegration.Validation.Gitignore.retryingTransientWindowsFailures {
+            try FileManager.default.createDirectory(
+                atPath: (path as NSString).deletingLastPathComponent,
+                withIntermediateDirectories: true
+            )
+        }
+        try? Institute.ContinuousIntegration.Validation.Gitignore.retryingTransientWindowsFailures {
+            try Data(contents.utf8).write(to: URL(fileURLWithPath: path))
+        }
     }
 
     /// The absolute path of a file written into this repository.

@@ -91,12 +91,22 @@ struct CIValidationGitignoreTests {
                 .appending(path: "gitignore-canon-resolution-\(UUID().uuidString)")
             let canon = root.appending(path: Gitignore.canonPath)
             let nested = root.appending(path: "nested/support")
-            try FileManager.default.createDirectory(
-                at: nested, withIntermediateDirectories: true)
-            try FileManager.default.createDirectory(
-                at: canon.deletingLastPathComponent(), withIntermediateDirectories: true)
+            // Retried on Windows: a hosted runner's real-time scanner can
+            // transiently hold a freshly created path under `%TEMP%`,
+            // which surfaces here as `ERROR_SHARING_VIOLATION` — see
+            // `Gitignore.retryingTransientWindowsFailures`.
+            try Gitignore.retryingTransientWindowsFailures {
+                try FileManager.default.createDirectory(
+                    at: nested, withIntermediateDirectories: true)
+            }
+            try Gitignore.retryingTransientWindowsFailures {
+                try FileManager.default.createDirectory(
+                    at: canon.deletingLastPathComponent(), withIntermediateDirectories: true)
+            }
             defer { try? FileManager.default.removeItem(at: root) }
-            try "canon".write(to: canon, atomically: true, encoding: .utf8)
+            try Gitignore.retryingTransientWindowsFailures {
+                try "canon".write(to: canon, atomically: true, encoding: .utf8)
+            }
 
             #expect(Gitignore.resolvedCanonPath(startingAt: nested.path) == canon.path)
             for `class` in Class.allCases {

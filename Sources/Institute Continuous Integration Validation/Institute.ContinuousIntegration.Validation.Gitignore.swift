@@ -340,6 +340,46 @@ extension Institute.ContinuousIntegration.Validation.Gitignore {
             .path
     }
 
+    /// Retries `operation` briefly on Windows when it fails; runs it once
+    /// everywhere else.
+    ///
+    /// GitHub's hosted Windows runners scan every newly created or
+    /// freshly renamed file under `%TEMP%` before it settles — Windows
+    /// Defender real-time protection and the Search Indexer both take a
+    /// short-lived handle on it. `CreateDirectoryW`/`MoveFileExW` racing
+    /// that scan fails with `ERROR_SHARING_VIOLATION` (Win32 code 32),
+    /// which Foundation surfaces as `NSCocoaErrorDomain` 513 ("You
+    /// don't have permission") with the Win32 code nested in
+    /// `NSUnderlyingError` — a permission-shaped message for a lock
+    /// that is not durable and clears within milliseconds. Under
+    /// full-tier CI's heavier parallel file I/O this fires on every
+    /// scratch-tree probe rather than intermittently, which is why it
+    /// now reproduces consistently instead of flaking. Reading the
+    /// scratch tree back with a bounded retry resolves the transient
+    /// lock without weakening what the probe verifies: the same `git`
+    /// still answers the same question once its inputs are actually on
+    /// disk.
+    static func retryingTransientWindowsFailures<T>(
+        attempts: Int = 5, _ operation: () throws -> T
+    ) throws -> T {
+        #if os(Windows)
+            var lastError: Error!
+            for attempt in 0..<attempts {
+                do {
+                    return try operation()
+                } catch {
+                    lastError = error
+                    if attempt + 1 < attempts {
+                        Thread.sleep(forTimeInterval: 0.05 * Double(attempt + 1))
+                    }
+                }
+            }
+            throw lastError!
+        #else
+            return try operation()
+        #endif
+    }
+
     /// The text of a file, or `nil` when it is absent or is not a file.
     static func read(_ path: String) -> String? {
         var isDirectory: ObjCBool = false
@@ -378,10 +418,13 @@ extension Institute.ContinuousIntegration.Validation.Gitignore {
             let target = root.appending(path: probe.path)
             let directory = probe.isDirectory ? target : target.deletingLastPathComponent()
             // `FileManager.createDirectory` throws untyped; its failure
-            // here is exactly the defect raised in the catch.
+            // here is exactly the defect raised in the catch. Retried
+            // on Windows — see `retryingTransientWindowsFailures`.
             do {
-                try FileManager.default.createDirectory(
-                    at: directory, withIntermediateDirectories: true)
+                try Self.retryingTransientWindowsFailures {
+                    try FileManager.default.createDirectory(
+                        at: directory, withIntermediateDirectories: true)
+                }
             } catch {
                 throw .unreadableSubject(root: root.path)
             }
@@ -398,8 +441,10 @@ extension Institute.ContinuousIntegration.Validation.Gitignore {
         // `Data.write(to:options:)` throws untyped; its failure here is
         // exactly the defect raised in the catch.
         do {
-            try Data(gitignore.utf8).write(
-                to: root.appending(path: ".gitignore"), options: .atomic)
+            try Self.retryingTransientWindowsFailures {
+                try Data(gitignore.utf8).write(
+                    to: root.appending(path: ".gitignore"), options: .atomic)
+            }
         } catch {
             throw .unreadableSubject(root: root.path)
         }
@@ -459,9 +504,11 @@ extension Institute.ContinuousIntegration.Validation.Gitignore {
         while let directory = directories.popLast() {
             let contents: [URL]
             do {
-                contents = try FileManager.default.contentsOfDirectory(
-                    at: directory.url,
-                    includingPropertiesForKeys: [.isDirectoryKey, .isSymbolicLinkKey])
+                contents = try Self.retryingTransientWindowsFailures {
+                    try FileManager.default.contentsOfDirectory(
+                        at: directory.url,
+                        includingPropertiesForKeys: [.isDirectoryKey, .isSymbolicLinkKey])
+                }
             } catch {
                 throw .unreadableSubject(root: root)
             }
@@ -474,7 +521,9 @@ extension Institute.ContinuousIntegration.Validation.Gitignore {
                 if url.lastPathComponent == ".gitignore" { paths.append(relative) }
                 let values: URLResourceValues
                 do {
-                    values = try url.resourceValues(forKeys: [.isDirectoryKey, .isSymbolicLinkKey])
+                    values = try Self.retryingTransientWindowsFailures {
+                        try url.resourceValues(forKeys: [.isDirectoryKey, .isSymbolicLinkKey])
+                    }
                 } catch {
                     throw .unreadableSubject(root: root)
                 }
