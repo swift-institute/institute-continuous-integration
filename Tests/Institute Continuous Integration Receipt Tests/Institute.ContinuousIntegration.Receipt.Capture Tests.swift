@@ -22,7 +22,9 @@ extension Institute.ContinuousIntegration.Receipt.Capture {
         static let subjectSha = String(repeating: "a", count: 40)
         static let gating = ["plan", "macos-release"]
 
-        static func run(referencedWorkflows: [[String: Any]]? = nil, headSha: String? = nil)
+        static func run(
+            referencedWorkflows: [[String: Any]]? = nil, headSha: String? = nil
+        )
             -> [String: Any]
         {
             [
@@ -49,10 +51,14 @@ extension Institute.ContinuousIntegration.Receipt.Capture {
         static var jobs: [[String: Any]] {
             [
                 ["id": 1, "name": "plan", "conclusion": "success", "labels": ["ubuntu-latest"]],
-                ["id": 2, "name": "macos-release build+test", "conclusion": NSNull(),
-                 "labels": ["macos-26"]],
-                ["id": 3, "name": "lint-yaml advisory", "conclusion": "skipped",
-                 "labels": ["ubuntu-latest"]],
+                [
+                    "id": 2, "name": "macos-release build+test", "conclusion": NSNull(),
+                    "labels": ["macos-26"],
+                ],
+                [
+                    "id": 3, "name": "lint-yaml advisory", "conclusion": "skipped",
+                    "labels": ["ubuntu-latest"],
+                ],
             ]
         }
 

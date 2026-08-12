@@ -52,7 +52,8 @@ extension Institute.ContinuousIntegration.Receipt {
                     findings.append(.nullTerminalField(field: "jobs[\(job.identifier)]"))
                 }
                 if let conclusion = job.conclusion,
-                   conclusion == .skipped || conclusion == .cancelled {
+                    conclusion == .skipped || conclusion == .cancelled
+                {
                     findings.append(
                         .mandatoryJobNotSuccess(job: job.identifier, conclusion: conclusion))
                 }

@@ -62,12 +62,14 @@ extension Rulebook.Citation {
                 // `per [RES-019` — a token matching no grammar — and
                 // report the file as clean.
                 open = index
+
             case "]":
                 if let start = open {
                     brackets.append(
                         (inner: String(characters[start + 1..<index]), start: start, end: index))
                     open = nil
                 }
+
             default:
                 break
             }

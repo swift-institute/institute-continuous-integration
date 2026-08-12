@@ -44,14 +44,22 @@ extension Institute.ContinuousIntegration.Receipt.Capture {
     /// The reserved-empty families of version 1, each with the reason it
     /// is not resolvable from the run and jobs objects at in-run capture.
     static let reservedFamilies: [(String, String)] = [
-        ("actions",
-         "selected action coordinates are not resolvable from the run/jobs objects at in-run capture; terminal resolution is collector scope"),
-        ("containers",
-         "container image digests are not resolvable from the run/jobs objects at in-run capture"),
-        ("linter",
-         "linter release/authority/checksum identity is not exposed to the aggregate at in-run capture"),
-        ("revisions",
-         "workspace/policy/fixture revisions and the effective-inventory digest await the TX1/TX3 typed adapters"),
+        (
+            "actions",
+            "selected action coordinates are not resolvable from the run/jobs objects at in-run capture; terminal resolution is collector scope"
+        ),
+        (
+            "containers",
+            "container image digests are not resolvable from the run/jobs objects at in-run capture"
+        ),
+        (
+            "linter",
+            "linter release/authority/checksum identity is not exposed to the aggregate at in-run capture"
+        ),
+        (
+            "revisions",
+            "workspace/policy/fixture revisions and the effective-inventory digest await the TX1/TX3 typed adapters"
+        ),
     ]
 
     /// The preterminal attestation for a run, from the two documents the
@@ -184,6 +192,9 @@ extension Institute.ContinuousIntegration.Receipt.Capture {
         let data = Data(payload.map(\.underlying))
         // swift-linter:disable:next try optional
         // REASON: JSONSerialization.jsonObject throws untyped; the refusal it maps to is this function's own typed error.
+        // swift-linter:disable:next try optional
+        // REASON: JSONSerialization throws untyped; a payload that does not decode is refused by the guard below, which is the only disposition this call has.
+        // swiftlint:disable:next no_try_optional
         guard let decoded = try? JSONSerialization.jsonObject(with: data) else {
             throw .malformed(document: document, reason: "not valid JSON")
         }
@@ -199,6 +210,9 @@ extension Institute.ContinuousIntegration.Receipt.Capture {
         let data = Data(payload.map(\.underlying))
         // swift-linter:disable:next try optional
         // REASON: JSONSerialization.jsonObject throws untyped; the refusal it maps to is this function's own typed error.
+        // swift-linter:disable:next try optional
+        // REASON: JSONSerialization throws untyped; a payload that does not decode is refused by the guard below, which is the only disposition this call has.
+        // swiftlint:disable:next no_try_optional
         guard let decoded = try? JSONSerialization.jsonObject(with: data) else {
             throw .malformed(document: "jobs", reason: "not valid JSON")
         }

@@ -1,7 +1,7 @@
-import GitHub_Continuous_Integration
-import GitHub_Standard
-import GitHub_Continuous_Integration_Workflow
 import Foundation
+import GitHub_Continuous_Integration
+import GitHub_Continuous_Integration_Workflow
+import GitHub_Standard
 
 /// A `run:` body extracted from a shipped workflow or composite action,
 /// and run under a synthetic Actions environment.
@@ -15,7 +15,7 @@ struct EmbeddedShell {
     let script: String
     let shell: String?
 
-    enum ExtractionFailure: Error, CustomStringConvertible {
+    enum ExtractionFailure: Swift.Error, CustomStringConvertible {
         case unreadable(String)
         case malformed(String, String)
         case noJob(String, String)
@@ -26,11 +26,14 @@ struct EmbeddedShell {
             switch self {
             case .unreadable(let file): "\(file): unreadable"
             case .malformed(let file, let message): "\(file): \(message)"
+
             case .noJob(let file, let job):
                 "\(file): no job '\(job)' — extraction target gone"
+
             case .noStep(let file, let step):
                 "\(file): no step named '\(step)'. This suite tests the shipped "
                     + "bytes by name; rename it here too."
+
             case .noBody(let file, let step): "\(file): step '\(step)' has no run: body"
             }
         }
@@ -96,7 +99,8 @@ struct EmbeddedShell {
     /// The `run:` body of a named step of a composite action.
     static func actionStep(_ path: String, step stepName: String) throws -> EmbeddedShell {
         let document = try document(at: path)
-        let steps = document.body?["runs"]?.mapping?["steps"]?.sequence?
+        let steps =
+            document.body?["runs"]?.mapping?["steps"]?.sequence?
             .compactMap(\.mapping) ?? []
         return try shell(in: steps, named: stepName, of: path)
     }
@@ -132,9 +136,11 @@ struct EmbeddedShell {
         path prefix: String? = nil,
         in directory: URL? = nil
     ) throws -> Result {
-        let root = directory ?? URL(
-            fileURLWithPath: NSTemporaryDirectory()
-                + "embedded-shell-" + UUID().uuidString)
+        let root =
+            directory
+            ?? URL(
+                fileURLWithPath: NSTemporaryDirectory()
+                    + "embedded-shell-" + UUID().uuidString)
         try FileManager.default.createDirectory(
             at: root, withIntermediateDirectories: true)
         defer { if directory == nil { try? FileManager.default.removeItem(at: root) } }

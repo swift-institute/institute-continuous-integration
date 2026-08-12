@@ -200,8 +200,9 @@ extension Main {
             atPath: (output as NSString).deletingLastPathComponent,
             withIntermediateDirectories: true)
         let terminalPayload = Receipt.Canonical.bytes(of: outcome.attestation)
-        guard FileManager.default.createFile(
-            atPath: output, contents: Data(terminalPayload.map(\.underlying)))
+        guard
+            FileManager.default.createFile(
+                atPath: output, contents: Data(terminalPayload.map(\.underlying)))
         else { fail("runtime-receipt-augment: could not write \(output)") }
         for job in outcome.mandatoryFailures {
             FileHandle.standardError.write(

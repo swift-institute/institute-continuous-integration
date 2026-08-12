@@ -103,8 +103,9 @@ struct CISymbolGraphTests {
 
         @Test func `an excluded module donates nothing`() throws {
             let isolation = try Institute.ContinuousIntegration.SymbolGraph.Umbrella(
-                module: "Umbrella", excludedModules: ["Donor"])
-                .isolate(from: Self.pool)
+                module: "Umbrella", excludedModules: ["Donor"]
+            )
+            .isolate(from: Self.pool)
             // Only the extension graph's symbol is left unpatched too:
             // both its donors were excluded.
             #expect(isolation.patchedSymbols == 0)
@@ -196,10 +197,10 @@ struct CISymbolGraphTests {
     struct DocumentPreservation {
         @Test func `members the step knows nothing about survive the round trip`() throws {
             let text = """
-            {"metadata":{"formatVersion":{"major":0,"minor":6,"patch":0}},\
-            "module":{"name":"Umbrella","platform":{"architecture":"arm64"}},\
-            "symbols":[],"relationships":[{"kind":"memberOf","source":"s:A","target":"s:B"}]}
-            """
+                {"metadata":{"formatVersion":{"major":0,"minor":6,"patch":0}},\
+                "module":{"name":"Umbrella","platform":{"architecture":"arm64"}},\
+                "symbols":[],"relationships":[{"kind":"memberOf","source":"s:A","target":"s:B"}]}
+                """
             var graph = try Institute.ContinuousIntegration.SymbolGraph.Graph(name: "Umbrella.symbols.json", text: text)
             #expect(graph.patch(from: [:]) == 0)
             let rendered = try graph.document.text()

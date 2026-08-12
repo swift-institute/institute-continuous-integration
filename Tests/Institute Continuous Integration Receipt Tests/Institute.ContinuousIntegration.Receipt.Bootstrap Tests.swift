@@ -146,14 +146,15 @@ struct InstituteReceiptBootstrapTests {
             let identity = InstituteReceiptBootstrapTests.identity()
             let canonical = String(
                 decoding: identity.canonicalBytes.map(UInt8.init), as: UTF8.self)
-            #expect(canonical == """
-                workspaceRevision=\(String(repeating: "a", count: 40))
-                sourcesRevision=\(String(repeating: "b", count: 40))
-                toolchain=Swift 6.3.3 RELEASE
-                operatingSystem=linux
-                architecture=x86_64
-                provisioning=uuid-dev
-                """)
+            #expect(
+                canonical == """
+                    workspaceRevision=\(String(repeating: "a", count: 40))
+                    sourcesRevision=\(String(repeating: "b", count: 40))
+                    toolchain=Swift 6.3.3 RELEASE
+                    operatingSystem=linux
+                    architecture=x86_64
+                    provisioning=uuid-dev
+                    """)
         }
     }
 }

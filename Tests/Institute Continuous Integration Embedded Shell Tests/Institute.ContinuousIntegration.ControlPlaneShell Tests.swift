@@ -1,7 +1,7 @@
-import GitHub_Continuous_Integration
-import GitHub_Standard
-import GitHub_Continuous_Integration_Workflow
 import Foundation
+import GitHub_Continuous_Integration
+import GitHub_Continuous_Integration_Workflow
+import GitHub_Standard
 import Testing
 
 /// Positive controls for `swift-ci.yml`'s embedded control-plane shell.
@@ -242,7 +242,9 @@ struct ControlPlaneShellTests {
     /// Fast tier compiles release; full qualification keeps release tests.
     @Suite
     struct ReleaseMode {
-        static func run(job: String, tier: String, filter: String = "") throws
+        static func run(
+            job: String, tier: String, filter: String = ""
+        ) throws
             -> EmbeddedShell.Result
         {
             let shell = try EmbeddedShell.workflowStep(
@@ -347,15 +349,15 @@ struct ControlPlaneShellTests {
             defer { try? manager.removeItem(at: directory) }
 
             try """
-                // swift-tools-version: 6.0
-                import PackageDescription
+            // swift-tools-version: 6.0
+            import PackageDescription
 
-                let package = Package(
-                    name: "Example",
-                    targets: [.target(name: "Example")])
-                """.write(
-                    to: directory.appendingPathComponent("Package.swift"),
-                    atomically: true, encoding: .utf8)
+            let package = Package(
+                name: "Example",
+                targets: [.target(name: "Example")])
+            """.write(
+                to: directory.appendingPathComponent("Package.swift"),
+                atomically: true, encoding: .utf8)
             try "#error(\"selected Embedded build ran before manifest classification\")\n".write(
                 to: directory.appendingPathComponent("Sources/Example/Example.swift"),
                 atomically: true, encoding: .utf8)
@@ -370,8 +372,9 @@ struct ControlPlaneShellTests {
                 in: directory, command: "bash build-target.sh")
             #expect(missingProvisioning.status != 0, "\(missingProvisioning.log)")
             #expect(missingProvisioning.log.contains("jq: command not found"))
-            #expect(!missingProvisioning.log.contains(
-                "selected Embedded build ran before manifest classification"))
+            #expect(
+                !missingProvisioning.log.contains(
+                    "selected Embedded build ran before manifest classification"))
 
             try "public struct Example {}\n".write(
                 to: directory.appendingPathComponent("Sources/Example/Example.swift"),
@@ -499,8 +502,9 @@ struct ControlPlaneShellTests {
                 at: URL(fileURLWithPath: EmbeddedShell.repositoryRoot + "/.swiftlint.yml"), to: checkedOut)
             let copiedConfiguration = try String(contentsOf: checkedOut, encoding: .utf8)
             try copiedConfiguration.replacingOccurrences(
-                of: "opt_in_rules:\n", with: "opt_in_rules:\n  - force_unwrapping\n")
-                .write(to: checkedOut, atomically: true, encoding: .utf8)
+                of: "opt_in_rules:\n", with: "opt_in_rules:\n  - force_unwrapping\n"
+            )
+            .write(to: checkedOut, atomically: true, encoding: .utf8)
 
             let shell = try EmbeddedShell.workflowStep(
                 ControlPlaneShellTests.workflow, job: "lint", step: "Lint")
@@ -522,15 +526,18 @@ struct ControlPlaneShellTests {
         @Test func `a consumer root config retains the existing resolution path`() throws {
             let result = try Self.run(hasRootConfig: true)
             #expect(result.status == 0, "\(result.log)")
-            #expect(result.log.contains(
-                "SWIFTLINT_CALL=lint --strict --reporter github-actions-logging"))
+            #expect(
+                result.log.contains(
+                    "SWIFTLINT_CALL=lint --strict --reporter github-actions-logging"))
             #expect(!result.log.contains("--config"))
         }
 
         /// The release URL and digest are the workflow's pinned Linux
         /// SwiftLint input. The real binary runs inside Ubuntu rather than
         /// borrowing a host-installed version.
-        static func pinnedSwiftLint(_ shell: EmbeddedShell, in directory: URL)
+        static func pinnedSwiftLint(
+            _ shell: EmbeddedShell, in directory: URL
+        )
             throws -> EmbeddedShell.Result
         {
             let script = directory.appendingPathComponent("lint.sh")
@@ -601,8 +608,8 @@ struct ControlPlaneShellTests {
             let name = line[line.startIndex..<assignment]
                 .drop(while: { $0 == " " || $0 == "\t" })
             guard !name.isEmpty,
-                  name.allSatisfy({ $0.isLetter || $0.isNumber || $0 == "_" }),
-                  name.uppercased().contains("SUBJECT")
+                name.allSatisfy({ $0.isLetter || $0.isNumber || $0 == "_" }),
+                name.uppercased().contains("SUBJECT")
             else { return false }
             var rest = line[line.index(after: assignment)...]
             if rest.first == "\"" { rest = rest.dropFirst() }
@@ -627,10 +634,13 @@ struct ControlPlaneShellTests {
         static func shipped() throws -> [(job: String, steps: [(name: String, run: String)])] {
             let document = try EmbeddedShell.document(at: ControlPlaneShellTests.workflow)
             return document.jobs.map { job in
-                (job.name, job.steps.compactMap { step in
-                    guard let run = step["run"]?.text else { return nil }
-                    return (step["name"]?.text ?? "", run)
-                })
+                (
+                    job.name,
+                    job.steps.compactMap { step in
+                        guard let run = step["run"]?.text else { return nil }
+                        return (step["name"]?.text ?? "", run)
+                    }
+                )
             }
         }
 
@@ -652,22 +662,32 @@ struct ControlPlaneShellTests {
             // nothing. This is what the control above failing looks like.
             let sites = Self.offendingSites(in: [
                 ("plan", [(ControlPlaneShellTests.resolveSubjectStep, "echo ok\n")]),
-                ("ci-ok", [
-                    ("Aggregate required-job results",
-                     "EXPECTED_SUBJECT_SHA=\"$(gh api repos/x/commits/main --jq .sha)\"\n")
-                ]),
+                (
+                    "ci-ok",
+                    [
+                        (
+                            "Aggregate required-job results",
+                            "EXPECTED_SUBJECT_SHA=\"$(gh api repos/x/commits/main --jq .sha)\"\n"
+                        )
+                    ]
+                ),
             ])
             #expect(sites == ["ci-ok/Aggregate required-job results"])
         }
 
         @Test func `the detector does not flag a pure consumer`() {
             let sites = Self.offendingSites(in: [
-                ("plan", [
-                    (ControlPlaneShellTests.resolveSubjectStep, "echo ok\n"),
-                    ("Verify checked-out subject HEAD",
-                     "ACTUAL=\"$(git rev-parse HEAD)\"\n"
-                        + "if [ \"$ACTUAL\" != \"$SUBJECT_SHA\" ]; then exit 1; fi\n"),
-                ])
+                (
+                    "plan",
+                    [
+                        (ControlPlaneShellTests.resolveSubjectStep, "echo ok\n"),
+                        (
+                            "Verify checked-out subject HEAD",
+                            "ACTUAL=\"$(git rev-parse HEAD)\"\n"
+                                + "if [ \"$ACTUAL\" != \"$SUBJECT_SHA\" ]; then exit 1; fi\n"
+                        ),
+                    ]
+                )
             ])
             #expect(sites.isEmpty)
         }

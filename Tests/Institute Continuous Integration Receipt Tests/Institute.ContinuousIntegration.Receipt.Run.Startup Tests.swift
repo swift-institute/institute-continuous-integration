@@ -61,8 +61,10 @@ extension Institute.ContinuousIntegration.Receipt.Run.Startup {
             @Test func `the REST object shape and a bare array read the same`() throws {
                 let rows: [[String: Any]] = [
                     ["conclusion": "success", "name": "swift-ci", "id": 1, "html_url": "u1"],
-                    ["conclusion": "startup_failure", "name": "swift-docs", "id": 2,
-                     "html_url": "u2"],
+                    [
+                        "conclusion": "startup_failure", "name": "swift-docs", "id": 2,
+                        "html_url": "u2",
+                    ],
                 ]
                 let wrapped = try Institute.ContinuousIntegration.Receipt.Run.Summary.collection(
                     Institute.ContinuousIntegration.Receipt.Run.Startup.Test.payload(["workflow_runs": rows]))

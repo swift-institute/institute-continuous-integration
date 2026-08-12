@@ -33,15 +33,17 @@ extension Main {
         var validator: any Validation.Validator
         if script.isEmpty {
             let rule = Validation.Rule(value("--rule", in: rest))
-            guard let registered = Institute.ContinuousIntegration.Application.Registry
-                .validator(for: rule)
+            guard
+                let registered = Institute.ContinuousIntegration.Application.Registry
+                    .validator(for: rule)
             else {
                 fail("validate: no Swift validator is registered for rule '\(rule)'")
             }
             validator = registered
         } else {
-            guard let registered = Institute.ContinuousIntegration.Application.Registry
-                .validator(replacing: script)
+            guard
+                let registered = Institute.ContinuousIntegration.Application.Registry
+                    .validator(replacing: script)
             else {
                 exit(unportedScript)
             }
@@ -137,8 +139,9 @@ extension Main {
                 // callers/` and `fixtures/wrappers/` are read by other
                 // suites.
                 if scenarios.isEmpty { continue }
-                guard let script = Institute.ContinuousIntegration.Application
-                    .RetiredValidator.scripts[directory]
+                guard
+                    let script = Institute.ContinuousIntegration.Application
+                        .RetiredValidator.scripts[directory]
                 else {
                     unresolved.append(directory)
                     continue

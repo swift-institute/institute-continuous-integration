@@ -29,12 +29,15 @@ extension Institute.ContinuousIntegration.Receipt.Augmentation {
                         .init(path: "swift-ci.yml", ref: "refs/heads/main", sha: headSha)
                     ],
                     jobs: [
-                        .init(id: 1, name: "plan", conclusion: .success, selected: true,
-                              mandatory: true),
-                        .init(id: 2, name: "macos-release", conclusion: nil, selected: true,
-                              mandatory: true),
-                        .init(id: 3, name: "lint-yaml", conclusion: .skipped, selected: false,
-                              mandatory: false),
+                        .init(
+                            id: 1, name: "plan", conclusion: .success, selected: true,
+                            mandatory: true),
+                        .init(
+                            id: 2, name: "macos-release", conclusion: nil, selected: true,
+                            mandatory: true),
+                        .init(
+                            id: 3, name: "lint-yaml", conclusion: .skipped, selected: false,
+                            mandatory: false),
                     ],
                     jobsTotalCount: nil,
                     unmeasured: [
@@ -128,16 +131,18 @@ extension Institute.ContinuousIntegration.Receipt.Augmentation {
             }
 
             @Test func `a run that is not completed is refused`() {
-                #expect(throws: Institute.ContinuousIntegration.Receipt.Augmentation.Refusal.runNotCompleted(
-                    status: "in_progress")
+                #expect(
+                    throws: Institute.ContinuousIntegration.Receipt.Augmentation.Refusal.runNotCompleted(
+                        status: "in_progress")
                 ) {
                     try Institute.ContinuousIntegration.Receipt.Augmentation.Test.outcome(status: "in_progress")
                 }
             }
 
             @Test func `the wrong attempt is refused`() {
-                #expect(throws: Institute.ContinuousIntegration.Receipt.Augmentation.Refusal.attemptMismatch(
-                    requested: 2, live: 1)
+                #expect(
+                    throws: Institute.ContinuousIntegration.Receipt.Augmentation.Refusal.attemptMismatch(
+                        requested: 2, live: 1)
                 ) {
                     try Institute.ContinuousIntegration.Receipt.Augmentation.Test.outcome(attempt: 2)
                 }
@@ -148,10 +153,11 @@ extension Institute.ContinuousIntegration.Receipt.Augmentation {
             /// digest verifies and which attests nothing.
             @Test func `an immutable identity mismatch is refused`() {
                 let other = String(repeating: "c", count: 40)
-                #expect(throws: Institute.ContinuousIntegration.Receipt.Augmentation.Refusal.identityMismatch(
-                    field: "run.headSha",
-                    base: Institute.ContinuousIntegration.Receipt.Augmentation.Test.headSha,
-                    live: other)
+                #expect(
+                    throws: Institute.ContinuousIntegration.Receipt.Augmentation.Refusal.identityMismatch(
+                        field: "run.headSha",
+                        base: Institute.ContinuousIntegration.Receipt.Augmentation.Test.headSha,
+                        live: other)
                 ) {
                     try Institute.ContinuousIntegration.Receipt.Augmentation.Test.outcome(
                         run: Institute.ContinuousIntegration.Receipt.Augmentation.Test.live(headSha: other))

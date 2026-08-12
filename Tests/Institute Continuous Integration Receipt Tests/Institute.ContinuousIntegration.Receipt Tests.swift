@@ -14,13 +14,15 @@ struct InstituteReceiptTests {
         totalCount: Int? = nil,
         unmeasured: [Institute.ContinuousIntegration.Receipt.Unmeasured] = []
     ) -> Institute.ContinuousIntegration.Receipt.Preterminal {
-        let defaultJobs = jobs ?? [
-            .init(id: 1, name: "ci-ok", conclusion: "success", selected: true, mandatory: true),
-            .init(id: 2, name: "linux-release", conclusion: "success", selected: true, mandatory: true),
-        ]
+        let defaultJobs =
+            jobs ?? [
+                .init(id: 1, name: "ci-ok", conclusion: "success", selected: true, mandatory: true),
+                .init(id: 2, name: "linux-release", conclusion: "success", selected: true, mandatory: true),
+            ]
         return .init(
-            run: .init(id: 31010155651, attempt: 1, headSha: Self.sha,
-                       event: "workflow_dispatch", conclusion: conclusion),
+            run: .init(
+                id: 31_010_155_651, attempt: 1, headSha: Self.sha,
+                event: "workflow_dispatch", conclusion: conclusion),
             subjectRepository: "swift-foundations/swift-copy-on-write",
             subjectSha: Self.sha,
             referencedWorkflows: referenced ?? [
@@ -59,8 +61,11 @@ struct InstituteReceiptTests {
         let typed = Institute.ContinuousIntegration.Receipt.Terminal(
             base: preterminal(
                 referenced: [],
-                unmeasured: [.init(field: "referencedWorkflows",
-                                   reason: "empty referenced_workflows collection at capture")]),
+                unmeasured: [
+                    .init(
+                        field: "referencedWorkflows",
+                        reason: "empty referenced_workflows collection at capture")
+                ]),
             baseReceiptDigest: Self.digest)
         #expect(!typed.validate().contains(.emptyIdentityFamily(field: "referencedWorkflows")))
     }
@@ -70,28 +75,35 @@ struct InstituteReceiptTests {
         for conclusion: Institute.ContinuousIntegration.Receipt.Conclusion in [.skipped, .cancelled] {
             let terminal = Institute.ContinuousIntegration.Receipt.Terminal(
                 base: preterminal(jobs: [
-                    .init(id: 1, name: "linux-release", conclusion: conclusion,
-                          selected: true, mandatory: true)
+                    .init(
+                        id: 1, name: "linux-release", conclusion: conclusion,
+                        selected: true, mandatory: true)
                 ]),
                 baseReceiptDigest: Self.digest)
-            #expect(terminal.validate().contains(
-                .mandatoryJobNotSuccess(job: "1", conclusion: conclusion)))
+            #expect(
+                terminal.validate().contains(
+                    .mandatoryJobNotSuccess(job: "1", conclusion: conclusion)))
         }
     }
 
     @Test
     func zeroMandatoryJobsRefusesUnlessTyped() {
-        let advisoryOnly = [Institute.ContinuousIntegration.Receipt.Job(
-            id: 3, name: "advisory", conclusion: "success",
-            selected: true, mandatory: false)]
+        let advisoryOnly = [
+            Institute.ContinuousIntegration.Receipt.Job(
+                id: 3, name: "advisory", conclusion: "success",
+                selected: true, mandatory: false)
+        ]
         let bare = Institute.ContinuousIntegration.Receipt.Terminal(
             base: preterminal(jobs: advisoryOnly), baseReceiptDigest: Self.digest)
         #expect(bare.validate().contains(.zeroMandatoryJobs))
         let typed = Institute.ContinuousIntegration.Receipt.Terminal(
             base: preterminal(
                 jobs: advisoryOnly,
-                unmeasured: [.init(field: "jobs.mandatory",
-                                   reason: "typed inapplicability per R35")]),
+                unmeasured: [
+                    .init(
+                        field: "jobs.mandatory",
+                        reason: "typed inapplicability per R35")
+                ]),
             baseReceiptDigest: Self.digest)
         #expect(!typed.validate().contains(.zeroMandatoryJobs))
     }
@@ -100,8 +112,9 @@ struct InstituteReceiptTests {
     func incompletePaginationRefuses() {
         let terminal = Institute.ContinuousIntegration.Receipt.Terminal(
             base: preterminal(totalCount: 50), baseReceiptDigest: Self.digest)
-        #expect(terminal.validate().contains(
-            .jobsPaginationIncomplete(total: 50, present: 2)))
+        #expect(
+            terminal.validate().contains(
+                .jobsPaginationIncomplete(total: 50, present: 2)))
     }
 
     @Test
@@ -111,19 +124,24 @@ struct InstituteReceiptTests {
                 .init(path: "w.yml", ref: "main", sha: "abc123")
             ]),
             baseReceiptDigest: Self.digest)
-        #expect(terminal.validate().contains(
-            .shortSha(field: "referencedWorkflows[w.yml]", value: "abc123")))
+        #expect(
+            terminal.validate().contains(
+                .shortSha(field: "referencedWorkflows[w.yml]", value: "abc123")))
     }
 
     @Test
     func emptySubjectRefuses() {
         let base = Institute.ContinuousIntegration.Receipt.Preterminal(
-            run: .init(id: 1, attempt: 1, headSha: Self.sha, event: "push",
-                       conclusion: "success"),
+            run: .init(
+                id: 1, attempt: 1, headSha: Self.sha, event: "push",
+                conclusion: "success"),
             subjectRepository: "", subjectSha: "",
             referencedWorkflows: [.init(path: "w", ref: "main", sha: Self.sha)],
-            jobs: [.init(id: 1, name: "linux-release", conclusion: "success",
-                         selected: true, mandatory: true)],
+            jobs: [
+                .init(
+                    id: 1, name: "linux-release", conclusion: "success",
+                    selected: true, mandatory: true)
+            ],
             jobsTotalCount: nil, unmeasured: [])
         let terminal = Institute.ContinuousIntegration.Receipt.Terminal(base: base, baseReceiptDigest: Self.digest)
         #expect(terminal.validate().contains(.emptySubject))

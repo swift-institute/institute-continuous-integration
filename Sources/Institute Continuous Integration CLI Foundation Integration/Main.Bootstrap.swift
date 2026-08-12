@@ -64,6 +64,9 @@ extension Main {
             let root = value("--root", in: rest)
             let manifestPath = value("--manifest", in: rest)
             guard let manifestData = FileManager.default.contents(atPath: manifestPath),
+                // swift-linter:disable:next try optional
+                // REASON: JSONSerialization throws untyped; an unreadable and a malformed manifest are the same fail-closed refusal below.
+                // swiftlint:disable:next no_try_optional
                 let object = (try? JSONSerialization.jsonObject(with: manifestData))
                     as? [String: Any],
                 let identityObject = object["identity"] as? [String: Any],
@@ -124,8 +127,12 @@ extension Main {
     /// validated values cannot fail to serialize; a failure here is a
     /// defect in this file, not an input.
     private static func emit(_ payload: [String: Any]) {
-        guard let data = try? JSONSerialization.data(
-            withJSONObject: payload, options: [.sortedKeys])
+        guard
+            // swift-linter:disable:next try optional
+            // REASON: JSONSerialization throws untyped; a payload this command assembled from validated values cannot fail to serialize, and the guard refuses rather than emitting a partial manifest.
+            // swiftlint:disable:next no_try_optional
+            let data = try? JSONSerialization.data(
+                withJSONObject: payload, options: [.sortedKeys])
         else { fail("could not serialize the bootstrap payload") }
         print(String(decoding: data, as: UTF8.self))
     }

@@ -25,8 +25,10 @@ extension Main {
 
         case "plan": plan(Array(arguments.dropFirst()))
         case "aggregate": aggregate(Array(arguments.dropFirst()))
+
         case "bootstrap-identity", "bootstrap-manifest", "bootstrap-verify":
             bootstrap(face: arguments[0], Array(arguments.dropFirst()))
+
         case "validate": validate(Array(arguments.dropFirst()))
         case "validate-fixtures": validateFixtures(Array(arguments.dropFirst()))
         case "workflow-json": workflowJSON(Array(arguments.dropFirst()))

@@ -33,8 +33,8 @@ extension Institute.ContinuousIntegration.SymbolGraph {
             var documented: [String: JSON] = [:]
             for symbol in document["symbols"]?.array ?? [] {
                 guard let comment = symbol["docComment"],
-                      let lines = comment["lines"]?.array, !lines.isEmpty,
-                      let usr = symbol["identifier"]?["precise"]?.string
+                    let lines = comment["lines"]?.array, !lines.isEmpty,
+                    let usr = symbol["identifier"]?["precise"]?.string
                 else { continue }
                 if documented[usr] == nil { documented[usr] = comment }
             }
@@ -46,9 +46,9 @@ extension Institute.ContinuousIntegration.SymbolGraph {
             var documented: [String: JSON] = [:]
             for symbol in document["symbols"]?.array ?? [] {
                 guard let comment = symbol["docComment"],
-                      let lines = comment["lines"]?.array, !lines.isEmpty,
-                      let identifier = symbol["identifier"]?["precise"]?.string,
-                      identifiers.contains(identifier)
+                    let lines = comment["lines"]?.array, !lines.isEmpty,
+                    let identifier = symbol["identifier"]?["precise"]?.string,
+                    identifiers.contains(identifier)
                 else { continue }
                 if documented[identifier] == nil { documented[identifier] = comment }
             }
@@ -61,7 +61,7 @@ extension Institute.ContinuousIntegration.SymbolGraph {
             for symbol in document["symbols"]?.array ?? [] {
                 let lines = symbol["docComment"]?["lines"]?.array ?? []
                 guard lines.isEmpty,
-                      let identifier = symbol["identifier"]?["precise"]?.string
+                    let identifier = symbol["identifier"]?["precise"]?.string
                 else { continue }
                 identifiers.insert(identifier)
             }
@@ -86,8 +86,9 @@ extension Institute.ContinuousIntegration.SymbolGraph {
                 var symbol = symbol
                 let hasComment = !(symbol["docComment"]?["lines"]?.array ?? []).isEmpty
                 if !hasComment,
-                   let usr = symbol["identifier"]?["precise"]?.string,
-                   let replacement = documented[usr] {
+                    let usr = symbol["identifier"]?["precise"]?.string,
+                    let replacement = documented[usr]
+                {
                     symbol.set("docComment", to: replacement)
                     patched += 1
                 }

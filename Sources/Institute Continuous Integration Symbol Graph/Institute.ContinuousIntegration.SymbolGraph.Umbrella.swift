@@ -71,8 +71,10 @@ extension Institute.ContinuousIntegration.SymbolGraph {
             if umbrellaGraphs.isEmpty { throw .noGraphForUmbrella(module) }
 
             var documented: [String: JSON] = [:]
-            for graph in pool where graph.module != module
-                && !excludedModules.contains(graph.module) {
+            for graph in pool
+            where graph.module != module
+                && !excludedModules.contains(graph.module)
+            {
                 for (usr, comment) in graph.documentedSymbols where documented[usr] == nil {
                     documented[usr] = comment
                 }
@@ -118,9 +120,11 @@ extension Institute.ContinuousIntegration.SymbolGraph {
             }
 
             var documented: [String: JSON] = [:]
-            for name in names where !owns(file: name)
+            for name in names
+            where !owns(file: name)
                 && !excludedModules.contains(Graph.module(ofFile: name))
-                && !needed.isEmpty {
+                && !needed.isEmpty
+            {
                 guard let donor = graph(name) else { throw .unreadable(name) }
                 for (identifier, comment) in donor.documented(matching: needed) {
                     documented[identifier] = comment

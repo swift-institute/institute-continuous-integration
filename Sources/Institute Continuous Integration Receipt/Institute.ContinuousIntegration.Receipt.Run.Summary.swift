@@ -45,6 +45,9 @@ extension Institute.ContinuousIntegration.Receipt.Run.Summary {
         let data = Data(payload.map(\.underlying))
         // swift-linter:disable:next try optional
         // REASON: JSONSerialization.jsonObject throws untyped; the refusal it maps to is this function's own typed error.
+        // swift-linter:disable:next try optional
+        // REASON: JSONSerialization throws untyped; a payload that does not decode is refused by the guard below, which is the only disposition this call has.
+        // swiftlint:disable:next no_try_optional
         guard let decoded = try? JSONSerialization.jsonObject(with: data) else {
             throw .malformed("invalid JSON input")
         }

@@ -35,10 +35,12 @@ extension Institute.ContinuousIntegration.Receipt.Canonical {
                         .init(path: "a.yml", ref: "main", sha: String(repeating: "d", count: 40)),
                     ],
                     jobs: [
-                        .init(id: 2, name: jobName, conclusion: nil, selected: true,
-                              mandatory: true, runnerLabels: ["ubuntu-latest"]),
-                        .init(id: 1, name: "plan", conclusion: .success, selected: true,
-                              mandatory: true, runnerLabels: ["ubuntu-latest"]),
+                        .init(
+                            id: 2, name: jobName, conclusion: nil, selected: true,
+                            mandatory: true, runnerLabels: ["ubuntu-latest"]),
+                        .init(
+                            id: 1, name: "plan", conclusion: .success, selected: true,
+                            mandatory: true, runnerLabels: ["ubuntu-latest"]),
                     ],
                     jobsTotalCount: nil,
                     unmeasured: [.init(field: "linter", reason: "not exposed at capture")]),

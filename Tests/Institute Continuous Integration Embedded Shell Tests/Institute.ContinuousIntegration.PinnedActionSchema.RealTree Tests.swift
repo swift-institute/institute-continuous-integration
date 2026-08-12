@@ -30,6 +30,6 @@ struct PinnedActionSchemaRealTreeTests {
             root: EmbeddedShell.repositoryRoot)
         let findings = try GitHub.ContinuousIntegration.Validation.PinnedActionSchema()
             .findings(in: subject)
-        #expect(findings.filter { $0.rule == "CI-118" }.isEmpty)
+        #expect(!findings.contains { $0.rule == "CI-118" })
     }
 }

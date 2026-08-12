@@ -60,15 +60,22 @@ extension Institute.ContinuousIntegration.Receipt.Canonical {
             ("containers", "[]"),
             ("jobs", array(ordered(base.jobs).map(job))),
             ("linter", "null"),
-            ("referencedWorkflows",
-             array(base.referencedWorkflows.sorted { $0.path < $1.path }
-                .map(referencedWorkflow))),
+            (
+                "referencedWorkflows",
+                array(
+                    base.referencedWorkflows.sorted { $0.path < $1.path }
+                        .map(referencedWorkflow))
+            ),
             ("revisions", "null"),
             ("run", run(base.run)),
             ("schemaVersion", String(schemaVersion)),
             ("subject", subject(base)),
-            ("unmeasured", array(base.unmeasured.sorted { $0.field < $1.field }
-                .map(unmeasured))),
+            (
+                "unmeasured",
+                array(
+                    base.unmeasured.sorted { $0.field < $1.field }
+                        .map(unmeasured))
+            ),
             ("verdict", string(attestation.verdict.rawValue)),
         ])
         return record + "\n"
@@ -83,6 +90,7 @@ extension Institute.ContinuousIntegration.Receipt.Canonical {
                 switch (left.element.id, right.element.id) {
                 case (let first?, let second?):
                     first == second ? left.offset < right.offset : first < second
+
                 case (nil, _?): false
                 case (_?, nil): true
                 case (nil, nil): left.offset < right.offset
@@ -175,8 +183,10 @@ extension Institute.ContinuousIntegration.Receipt.Canonical {
             case "\t": result += "\\t"
             case "\u{08}": result += "\\b"
             case "\u{0C}": result += "\\f"
+
             case let scalar where scalar.value < 0x20:
                 result += "\\u" + hexadecimal(scalar.value)
+
             case let scalar:
                 result.unicodeScalars.append(scalar)
             }
@@ -214,14 +224,17 @@ extension Institute.ContinuousIntegration.Receipt.Canonical {
         let data = Data(payload.map(\.underlying))
         // swift-linter:disable:next try optional
         // REASON: JSONSerialization.jsonObject throws untyped; the refusal it maps to is this function's own typed error.
+        // swift-linter:disable:next try optional
+        // REASON: JSONSerialization throws untyped; a payload that does not decode is refused by the guard below, which is the only disposition this call has.
+        // swiftlint:disable:next no_try_optional
         guard let object = try? JSONSerialization.jsonObject(with: data),
-              let record = object as? [String: Any]
+            let record = object as? [String: Any]
         else { throw .malformed("record is not a JSON object") }
         guard let stageName = record["attestationStage"] as? String,
-              let stage = Institute.ContinuousIntegration.Receipt.Stage(rawValue: stageName)
+            let stage = Institute.ContinuousIntegration.Receipt.Stage(rawValue: stageName)
         else { throw .malformed("attestationStage is absent or unrecognised") }
         guard let verdictName = record["verdict"] as? String,
-              let verdict = Institute.ContinuousIntegration.Receipt.Verdict(rawValue: verdictName)
+            let verdict = Institute.ContinuousIntegration.Receipt.Verdict(rawValue: verdictName)
         else { throw .malformed("verdict is absent or unrecognised") }
         guard let runObject = record["run"] as? [String: Any] else {
             throw .malformed("run is absent")

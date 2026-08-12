@@ -26,9 +26,11 @@ struct `Package Diff Tests` {
 
     @Test func `valid non-package files do not select package work`() throws {
         try withWorkspace { workspace in
-            let response = try JSONSerialization.data(withJSONObject: [[
-                ["filename": "Research/receipt.md"],
-            ]])
+            let response = try JSONSerialization.data(withJSONObject: [
+                [
+                    ["filename": "Research/receipt.md"]
+                ]
+            ])
             let changed = Institute.ContinuousIntegration.Application.PackageDiff.packageContentChanged(
                 event: "pull_request",
                 payload: ["number": 1, "pull_request": ["changed_files": 1]],
@@ -61,10 +63,12 @@ struct `Package Diff Tests` {
 
     @Test func `incomplete comparison enumeration selects package work`() throws {
         try withWorkspace { workspace in
-            let response = try JSONSerialization.data(withJSONObject: [[
-                "total_commits": 2,
-                "commits": [["sha": "a"]],
-            ]])
+            let response = try JSONSerialization.data(withJSONObject: [
+                [
+                    "total_commits": 2,
+                    "commits": [["sha": "a"]],
+                ]
+            ])
             let changed = Institute.ContinuousIntegration.Application.PackageDiff.packageContentChanged(
                 event: "push",
                 payload: [
@@ -81,9 +85,11 @@ struct `Package Diff Tests` {
 
     @Test func `missing invalid or capped pull request count selects package work`() throws {
         try withWorkspace { workspace in
-            let response = try JSONSerialization.data(withJSONObject: [[
-                ["filename": "Research/receipt.md"],
-            ]])
+            let response = try JSONSerialization.data(withJSONObject: [
+                [
+                    ["filename": "Research/receipt.md"]
+                ]
+            ])
             for pullRequest: [String: Any] in [
                 [:],
                 ["changed_files": "1"],
@@ -107,10 +113,13 @@ struct `Package Diff Tests` {
     @Test(arguments: [
         (1, [["filename": "Research/receipt.md"], ["filename": "Research/other.md"]]),
         (2, [["filename": "Research/receipt.md"], ["filename": "Research/receipt.md"]]),
-        (2, [
-            ["filename": "Research/receipt.md", "previous_filename": "Research/old-a.md"],
-            ["filename": "Research/receipt.md", "previous_filename": "Research/old-b.md"],
-        ]),
+        (
+            2,
+            [
+                ["filename": "Research/receipt.md", "previous_filename": "Research/old-a.md"],
+                ["filename": "Research/receipt.md", "previous_filename": "Research/old-b.md"],
+            ]
+        ),
     ])
     func `mismatched or duplicate pull request records select package work`(
         expected: Int,
@@ -151,7 +160,6 @@ struct `Package Diff Tests` {
         try FileManager.default.createDirectory(at: workspace, withIntermediateDirectories: true)
         // swift-linter:disable:next try optional
         // REASON: FileManager cleanup reports an untyped error and cannot mask the test result.
-        // swiftlint:disable:next no_try_optional
         defer { try? FileManager.default.removeItem(at: workspace) }
         try Data().write(to: workspace.appending(path: "Package.swift"))
         try body(workspace.path())

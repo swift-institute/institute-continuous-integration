@@ -55,8 +55,7 @@ extension Rulebook {
 
 extension Rulebook.Audit {
     /// Every identifier the corpus defines, and where.
-    public static func definitions(in corpus: Rulebook.Corpus) -> [Rulebook.Identifier: [Rulebook.Definition]]
-    {
+    public static func definitions(in corpus: Rulebook.Corpus) -> [Rulebook.Identifier: [Rulebook.Definition]] {
         var definitions: [Rulebook.Identifier: [Rulebook.Definition]] = [:]
         for document in corpus.documents {
             for line in document.prose {
@@ -87,8 +86,10 @@ extension Rulebook.Audit {
                 switch citation.form {
                 case .crossRange(let start, let end), .inBracketRange(let start, let end):
                     identifiers.formUnion(Rulebook.Identifier.range(from: start, to: end))
+
                 case .single(let identifier):
                     identifiers.insert(identifier)
+
                 case .wildcard:
                     continue
                 }
@@ -144,16 +145,19 @@ extension Rulebook.Audit {
                                 endpoint.rawValue,
                                 "range endpoint [\(endpoint)] unresolved")
                         }
+
                     case .inBracketRange(let start, let end):
                         for endpoint in [start, end] where !defined.contains(endpoint) {
                             report(
                                 endpoint.rawValue,
                                 "in-bracket range endpoint [\(endpoint)] unresolved")
                         }
+
                     case .wildcard(let family):
                         guard !Self.placeholderPrefixes.contains(family) else { continue }
                         guard !isFamily(family) else { continue }
                         report("\(family)-*", "wildcard [\(family)-*] matches no defined id")
+
                     case .single(let identifier):
                         guard !Self.isPlaceholder(identifier.rawValue) else { continue }
                         guard !defined.contains(identifier) else { continue }
@@ -205,7 +209,9 @@ extension Rulebook.Audit {
                 let tail = characters[(start + markerCharacters.count)...]
                 if marker == "N", let next = tail.first,
                     next.isLetter || next.isNumber || next == "_"
-                { continue }
+                {
+                    continue
+                }
                 guard
                     tail.allSatisfy({
                         $0.isLetter || $0.isNumber || $0 == "+" || $0 == "." || $0 == "-"

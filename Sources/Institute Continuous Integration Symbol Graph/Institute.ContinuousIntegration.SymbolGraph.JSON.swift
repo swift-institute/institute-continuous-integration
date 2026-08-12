@@ -45,7 +45,10 @@ extension Institute.ContinuousIntegration.SymbolGraph {
 
         public init(text: String) throws(Error) {
             guard let data = text.data(using: .utf8),
-                  let any = try? JSONSerialization.jsonObject(
+                // swift-linter:disable:next try optional
+                // REASON: JSONSerialization throws untyped; a graph that does not decode is refused as a malformed document by the guard this belongs to.
+                // swiftlint:disable:next no_try_optional
+                let any = try? JSONSerialization.jsonObject(
                     with: data, options: [.fragmentsAllowed])
             else { throw .malformed("not JSON") }
             self = Self(any)
@@ -54,6 +57,7 @@ extension Institute.ContinuousIntegration.SymbolGraph {
         init(_ any: Any) {
             switch any {
             case is NSNull: self = .null
+
             case let number as NSNumber:
                 // JSONSerialization models `true`/`false` as an NSNumber
                 // whose Objective-C type encoding is "c" (a CFBoolean on
@@ -65,10 +69,13 @@ extension Institute.ContinuousIntegration.SymbolGraph {
                 } else {
                     self = .number(number.doubleValue)
                 }
+
             case let text as String: self = .string(text)
             case let elements as [Any]: self = .array(elements.map(Self.init))
+
             case let members as [String: Any]:
                 self = .object(members.mapValues(Self.init))
+
             default: self = .null
             }
         }
@@ -77,8 +84,11 @@ extension Institute.ContinuousIntegration.SymbolGraph {
             switch self {
             case .null: NSNull()
             case .bool(let value): value
-            case .number(let value): value == value.rounded() && abs(value) < 1e15
-                ? Int(value) as Any : value as Any
+
+            case .number(let value):
+                value == value.rounded() && abs(value) < 1e15
+                    ? Int(value) as Any : value as Any
+
             case .string(let value): value
             case .array(let elements): elements.map(\.foundation)
             case .object(let members): members.mapValues(\.foundation)
@@ -89,9 +99,13 @@ extension Institute.ContinuousIntegration.SymbolGraph {
         /// dictionary has no order to preserve and DocC has no opinion
         /// about one — and a sorted rendering is comparable.
         public func text() throws(Error) -> String {
-            guard let data = try? JSONSerialization.data(
-                withJSONObject: foundation,
-                options: [.sortedKeys, .withoutEscapingSlashes, .fragmentsAllowed])
+            guard
+                // swift-linter:disable:next try optional
+                // REASON: JSONSerialization throws untyped; an unencodable value is reported as a nil document by the caller, which is this function's contract.
+                // swiftlint:disable:next no_try_optional
+                let data = try? JSONSerialization.data(
+                    withJSONObject: foundation,
+                    options: [.sortedKeys, .withoutEscapingSlashes, .fragmentsAllowed])
             else { throw .malformed("not serialisable") }
             return String(decoding: data, as: UTF8.self)
         }

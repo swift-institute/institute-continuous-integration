@@ -34,7 +34,7 @@ struct SystemDependencyDerivationTests {
         try "// nested graph\n".write(
             to: root.appendingPathComponent("Tests/Package.swift"),
             atomically: true, encoding: .utf8)
-        try #".linkedLibrary("uuid", .when(platforms: [.linux]))"# .appending("\n")
+        try #".linkedLibrary("uuid", .when(platforms: [.linux]))"#.appending("\n")
             .write(
                 to: dependency.appendingPathComponent("Package.swift"),
                 atomically: true, encoding: .utf8)

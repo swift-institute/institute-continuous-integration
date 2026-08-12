@@ -85,6 +85,9 @@ extension Main {
     static func aggregate(_ rest: [String]) {
         let needsJSON = value("--needs-json", in: rest)
         guard let needsData = needsJSON.data(using: .utf8),
+            // swift-linter:disable:next try optional
+            // REASON: JSONSerialization throws untyped; a needs payload that does not decode is refused by the guard as a malformed argument.
+            // swiftlint:disable:next no_try_optional
             let needs = (try? JSONSerialization.jsonObject(with: needsData))
                 as? [String: [String: Any]]
         else {

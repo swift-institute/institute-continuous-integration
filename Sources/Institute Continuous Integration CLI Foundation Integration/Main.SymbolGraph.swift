@@ -38,8 +38,9 @@ extension Main {
         let isolation: SymbolGraph.Umbrella.Isolation
         do throws(SymbolGraph.Umbrella.Error) {
             isolation = try umbrella.isolate(files: names) { name in
-                guard let data = FileManager.default.contents(
-                    atPath: sourceDirectory + "/" + name)
+                guard
+                    let data = FileManager.default.contents(
+                        atPath: sourceDirectory + "/" + name)
                 else { return nil }
                 do throws(SymbolGraph.JSON.Error) {
                     return try SymbolGraph.Graph(
@@ -72,12 +73,15 @@ extension Main {
         for graph in isolation.graphs {
             // swift-linter:disable:next try optional
             // REASON: both calls throw untyped; either failure is the same unwritable-graph refusal.
-            // swiftlint:disable:next no_try_optional
+            // Region, not `disable:next`: the guard holds two optional-try
+            // calls across two lines and `next` reaches only the first.
+            // swiftlint:disable no_try_optional
             guard let text = try? graph.document.text(),
                 (try? text.write(
                     toFile: outputDirectory + "/" + graph.name,
                     atomically: true, encoding: .utf8)) != nil
             else { fail("symbol-graph-umbrella: cannot write \(graph.name)") }
+            // swiftlint:enable no_try_optional
         }
         print(isolation.summary(outputDirectory: outputDirectory))
     }

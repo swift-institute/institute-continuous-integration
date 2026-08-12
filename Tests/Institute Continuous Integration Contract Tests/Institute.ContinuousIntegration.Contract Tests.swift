@@ -12,9 +12,10 @@ struct InstituteContinuousIntegrationContractPlanTests {
         recheck: "2026-09-14")
 
     @Test func mainNightlyExceptionRefusesMutableOrMalformedIdentity() throws {
-        #expect(try Self.currentNightlyException.disposition(
-            today: "2026-08-09", subjectRepository: "swift-standards/swift-fips-180-4")
-            == .active)
+        #expect(
+            try Self.currentNightlyException.disposition(
+                today: "2026-08-09", subjectRepository: "swift-standards/swift-fips-180-4")
+                == .active)
         // Malformed fields refuse EVERYWHERE, owner and fleet alike —
         // authoring defects are not calendar events.
         for subject in [Institute.ContinuousIntegration.NightlyException.owner, "o/r"] {
@@ -22,7 +23,8 @@ struct InstituteContinuousIntegrationContractPlanTests {
                 try Institute.ContinuousIntegration.NightlyException(
                     image: "swiftlang/swift:nightly-main-jammy",
                     upstreamIssue: "https://github.com/swiftlang/swift/issues/90275",
-                    recheck: "2026-09-14").disposition(today: "2026-08-09", subjectRepository: subject)
+                    recheck: "2026-09-14"
+                ).disposition(today: "2026-08-09", subjectRepository: subject)
             }
         }
     }
@@ -37,9 +39,10 @@ struct InstituteContinuousIntegrationContractPlanTests {
                 today: "2026-09-15",
                 subjectRepository: Institute.ContinuousIntegration.NightlyException.owner)
         }
-        #expect(try Self.currentNightlyException.disposition(
-            today: "2026-09-15", subjectRepository: "swift-standards/swift-fips-180-4")
-            == .expired(recheck: "2026-09-14", today: "2026-09-15"))
+        #expect(
+            try Self.currentNightlyException.disposition(
+                today: "2026-09-15", subjectRepository: "swift-standards/swift-fips-180-4")
+                == .expired(recheck: "2026-09-14", today: "2026-09-15"))
     }
 
     /// The class is derived from the leg's mechanical facts, never
@@ -60,9 +63,10 @@ struct InstituteContinuousIntegrationContractPlanTests {
             lintBundle: "standards",
             nightlyDisposition: .expired(recheck: "2026-09-14", today: "2026-09-15"))
         #expect(!full.legs.map(\.id).contains("linux-nightly"))
-        #expect(full.descheduled == [
-            .init(leg: .init("linux-nightly"), reason: .nightlyExceptionExpired)
-        ])
+        #expect(
+            full.descheduled == [
+                .init(leg: .init("linux-nightly"), reason: .nightlyExceptionExpired)
+            ])
         #expect(full.gating.map(\.id).contains("linux-release"))
 
         // The build tier never schedules linux-nightly, so there is
@@ -108,7 +112,8 @@ struct InstituteContinuousIntegrationContractPlanTests {
                 image: "swiftlang/swift:nightly-6.4.x-jammy",
                 upstreamRelease:
                     "https://github.com/swiftlang/swift/releases/tag/swift-6.4-RELEASE",
-                recheck: "2026-09-09").validate(today: "2026-08-09")
+                recheck: "2026-09-09"
+            ).validate(today: "2026-08-09")
         }
 
         // An upstream coordinate for a different release cannot justify
@@ -123,7 +128,8 @@ struct InstituteContinuousIntegrationContractPlanTests {
                     "swiftlang/swift@sha256:28424ece0fa465ad87d8cf55be685fc89f8286e91e86ebb7503418561c0a71d1",
                 upstreamRelease:
                     "https://github.com/swiftlang/swift/releases/tag/swift-6.3-RELEASE",
-                recheck: "2026-09-09").validate(today: "2026-08-09")
+                recheck: "2026-09-09"
+            ).validate(today: "2026-08-09")
         }
 
         // Past the RC/stable boundary: refused at authoring time, not merely
@@ -138,7 +144,8 @@ struct InstituteContinuousIntegrationContractPlanTests {
                     "swiftlang/swift@sha256:28424ece0fa465ad87d8cf55be685fc89f8286e91e86ebb7503418561c0a71d1",
                 upstreamRelease:
                     "https://github.com/swiftlang/swift/releases/tag/swift-6.4-RELEASE",
-                recheck: "2026-10-01").validate(today: "2026-08-09")
+                recheck: "2026-10-01"
+            ).validate(today: "2026-08-09")
         }
 
         // Expired: the run fails closed rather than pulling on unexamined.
@@ -157,7 +164,8 @@ struct InstituteContinuousIntegrationContractPlanTests {
                     "swiftlang/swift@sha256:28424ece0fa465ad87d8cf55be685fc89f8286e91e86ebb7503418561c0a71d1",
                 upstreamRelease:
                     "https://github.com/swiftlang/swift/releases/tag/swift-main-RELEASE",
-                recheck: "2026-09-09").validate(today: "2026-08-09")
+                recheck: "2026-09-09"
+            ).validate(today: "2026-08-09")
         }
     }
 
@@ -172,9 +180,11 @@ struct InstituteContinuousIntegrationContractPlanTests {
 
     @Test
     func tagRefAndDispatchAndMainForceFullTier() throws {
-        for (ref, event) in [("refs/tags/1.0.0", "push"),
-                             ("refs/heads/x", "workflow_dispatch"),
-                             ("refs/heads/main", "push")] {
+        for (ref, event) in [
+            ("refs/tags/1.0.0", "push"),
+            ("refs/heads/x", "workflow_dispatch"),
+            ("refs/heads/main", "push"),
+        ] {
             let plan = try Institute.ContinuousIntegration.Application.Plan.run(ref: ref, event: event, lintBundle: "institute")
             #expect(plan.tier == .full, "\(ref)/\(event)")
         }
@@ -182,12 +192,16 @@ struct InstituteContinuousIntegrationContractPlanTests {
 
     @Test
     func commitTokensSteerTier() throws {
-        #expect(try Institute.ContinuousIntegration.Application.Plan.run(
-            ref: "refs/heads/x", headMessage: "wip [ci full]", event: "push",
-            lintBundle: "standards").tier == .full)
-        #expect(try Institute.ContinuousIntegration.Application.Plan.run(
-            ref: "refs/heads/x", headMessage: "wip [ci build]", event: "workflow_dispatch",
-            lintBundle: "standards").tier == .build)
+        #expect(
+            try Institute.ContinuousIntegration.Application.Plan.run(
+                ref: "refs/heads/x", headMessage: "wip [ci full]", event: "push",
+                lintBundle: "standards"
+            ).tier == .full)
+        #expect(
+            try Institute.ContinuousIntegration.Application.Plan.run(
+                ref: "refs/heads/x", headMessage: "wip [ci build]", event: "workflow_dispatch",
+                lintBundle: "standards"
+            ).tier == .build)
     }
 
     @Test
@@ -225,9 +239,11 @@ struct InstituteContinuousIntegrationContractPlanTests {
 
     @Test
     func buildTierPrimarySelectionFollowsPriority() throws {
-        #expect(try Institute.ContinuousIntegration.Application.Plan.run(
-            ref: "refs/heads/x", event: "push", platformSupport: "windows,apple",
-            lintBundle: "standards").legs.map(\.id).contains("windows-release"))
+        #expect(
+            try Institute.ContinuousIntegration.Application.Plan.run(
+                ref: "refs/heads/x", event: "push", platformSupport: "windows,apple",
+                lintBundle: "standards"
+            ).legs.map(\.id).contains("windows-release"))
         let appleOnly = try Institute.ContinuousIntegration.Application.Plan.run(
             ref: "refs/heads/x", event: "push", platformSupport: "apple",
             lintBundle: "standards")
@@ -283,19 +299,21 @@ struct InstituteContinuousIntegrationContractPackageContentTests {
     }
 
     @Test func researchExperimentsAndOrdinaryDocumentationDoNotSelectPackageWork() {
-        #expect(!content.changed([
-            .init(path: "Research/path-planning.md"),
-            .init(path: "Experiments/comparison.json"),
-            .init(path: "Documentation/migration.md"),
-            .init(path: "README.md"),
-            .init(path: "Provenance/receipt.json"),
-        ]))
+        #expect(
+            !content.changed([
+                .init(path: "Research/path-planning.md"),
+                .init(path: "Experiments/comparison.json"),
+                .init(path: "Documentation/migration.md"),
+                .init(path: "README.md"),
+                .init(path: "Provenance/receipt.json"),
+            ]))
     }
 
     @Test func renamedPackageInputUsesBothSidesOfTheRename() {
-        #expect(content.changed([
-            .init(path: "Research/moved.md", previousPath: "Sources/Library/Value.swift")
-        ]))
+        #expect(
+            content.changed([
+                .init(path: "Research/moved.md", previousPath: "Sources/Library/Value.swift")
+            ]))
     }
 
     @Test func removingTheLastPackageInputFromMixedDiffChangesOnlyTheBuildSelection() throws {
@@ -324,8 +342,10 @@ struct InstituteContinuousIntegrationContractPackageContentTests {
 
 @Suite
 struct InstituteContinuousIntegrationContractAggregateTests {
-    static let participants = ["macos-release", "linux-release", "windows-release",
-                               "format", "lint", "swift-linter"]
+    static let participants = [
+        "macos-release", "linux-release", "windows-release",
+        "format", "lint", "swift-linter",
+    ]
 
     func needs(_ overrides: [String: String]) -> [String: String] {
         var results: [String: String] = [:]
@@ -337,8 +357,10 @@ struct InstituteContinuousIntegrationContractAggregateTests {
     func selectedTierPasses() {
         let verdict = ContinuousIntegration.AggregateVerdict(
             planResult: "success",
-            results: needs(["format": "success", "lint": "success",
-                            "swift-linter": "success", "linux-release": "success"]),
+            results: needs([
+                "format": "success", "lint": "success",
+                "swift-linter": "success", "linux-release": "success",
+            ]),
             gating: ["format", "lint", "swift-linter", "linux-release"],
             subjectRepository: "o/r", subjectSha: "abc", tier: "build",
             requireFullTier: false)
@@ -350,29 +372,35 @@ struct InstituteContinuousIntegrationContractAggregateTests {
     func skippedGatingLegFails() {
         let verdict = ContinuousIntegration.AggregateVerdict(
             planResult: "success",
-            results: needs(["format": "success", "lint": "success",
-                            "swift-linter": "skipped", "linux-release": "success"]),
+            results: needs([
+                "format": "success", "lint": "success",
+                "swift-linter": "skipped", "linux-release": "success",
+            ]),
             gating: ["format", "lint", "swift-linter", "linux-release"],
             subjectRepository: "o/r", subjectSha: "abc", tier: "build",
             requireFullTier: false)
         #expect(!verdict.pass)
-        #expect(verdict.findings.contains(
-            .selectedLegNotSuccessful(job: "swift-linter", result: "skipped")))
+        #expect(
+            verdict.findings.contains(
+                .selectedLegNotSuccessful(job: "swift-linter", result: "skipped")))
     }
 
     @Test
     func unselectedLegThatRanFails() {
         let verdict = ContinuousIntegration.AggregateVerdict(
             planResult: "success",
-            results: needs(["format": "success", "lint": "success",
-                            "swift-linter": "success", "linux-release": "success",
-                            "macos-release": "success"]),
+            results: needs([
+                "format": "success", "lint": "success",
+                "swift-linter": "success", "linux-release": "success",
+                "macos-release": "success",
+            ]),
             gating: ["format", "lint", "swift-linter", "linux-release"],
             subjectRepository: "o/r", subjectSha: "abc", tier: "build",
             requireFullTier: false)
         #expect(!verdict.pass)
-        #expect(verdict.findings.contains(
-            .unselectedLegRan(job: "macos-release", result: "success")))
+        #expect(
+            verdict.findings.contains(
+                .unselectedLegRan(job: "macos-release", result: "success")))
     }
 
     @Test
@@ -392,8 +420,10 @@ struct InstituteContinuousIntegrationContractAggregateTests {
     func mainRequiresFullTier() {
         let verdict = ContinuousIntegration.AggregateVerdict(
             planResult: "success",
-            results: needs(["format": "success", "lint": "success",
-                            "swift-linter": "success", "linux-release": "success"]),
+            results: needs([
+                "format": "success", "lint": "success",
+                "swift-linter": "success", "linux-release": "success",
+            ]),
             gating: ["format", "lint", "swift-linter", "linux-release"],
             subjectRepository: "o/r", subjectSha: "abc", tier: "build",
             requireFullTier: true)
@@ -405,8 +435,10 @@ struct InstituteContinuousIntegrationContractAggregateTests {
     func lintOnlySuccessWithoutBuildFails() {
         let verdict = ContinuousIntegration.AggregateVerdict(
             planResult: "success",
-            results: needs(["format": "success", "lint": "success",
-                            "swift-linter": "success"]),
+            results: needs([
+                "format": "success", "lint": "success",
+                "swift-linter": "success",
+            ]),
             gating: ["format", "lint", "swift-linter"],
             subjectRepository: "o/r", subjectSha: "abc", tier: "build",
             requireFullTier: false)
@@ -430,8 +462,10 @@ struct InstituteContinuousIntegrationContractAggregateTests {
     /// must have skipped, and it can never be gating.
     @Test
     func descheduledLegsAreAuditedNotAssumed() {
-        var results = needs(["format": "success", "lint": "success",
-                             "swift-linter": "success", "linux-release": "success"])
+        var results = needs([
+            "format": "success", "lint": "success",
+            "swift-linter": "success", "linux-release": "success",
+        ])
         let gating = ["format", "lint", "swift-linter", "linux-release"]
         let clean = ContinuousIntegration.AggregateVerdict(
             planResult: "success", results: results, gating: gating,
@@ -446,20 +480,24 @@ struct InstituteContinuousIntegrationContractAggregateTests {
             subjectRepository: "o/r", subjectSha: "abc", tier: "full",
             requireFullTier: false, descheduled: ["linux-nightly"])
         #expect(!ran.pass)
-        #expect(ran.findings.contains(
-            .descheduledLegRan(job: "linux-nightly", result: "success")))
+        #expect(
+            ran.findings.contains(
+                .descheduledLegRan(job: "linux-nightly", result: "success")))
 
         // A gating leg can never be accounted for by descheduling.
         let gamed = ContinuousIntegration.AggregateVerdict(
             planResult: "success",
-            results: needs(["format": "success", "lint": "success",
-                            "swift-linter": "success", "linux-release": "success"]),
+            results: needs([
+                "format": "success", "lint": "success",
+                "swift-linter": "success", "linux-release": "success",
+            ]),
             gating: gating,
             subjectRepository: "o/r", subjectSha: "abc", tier: "full",
             requireFullTier: false, descheduled: ["windows-release"])
         #expect(!gamed.pass)
-        #expect(gamed.findings.contains(
-            .descheduledGatingLeg(job: "windows-release")))
+        #expect(
+            gamed.findings.contains(
+                .descheduledGatingLeg(job: "windows-release")))
     }
 
     @Test

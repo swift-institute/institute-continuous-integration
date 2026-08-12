@@ -113,6 +113,6 @@ extension Array where Element == String {
     /// produces for a text ending in a newline, matching Python's
     /// `splitlines()`.
     fileprivate func dropLastIfEmpty() -> [String] {
-        last == "" ? Array(dropLast()) : self
+        last?.isEmpty == true ? Array(dropLast()) : self
     }
 }

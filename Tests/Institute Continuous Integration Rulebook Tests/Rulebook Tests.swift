@@ -35,7 +35,7 @@ extension Rulebook {
                 let parts = try #require(Rulebook.Identifier("API-NAME-001").parts)
                 #expect(parts.family == "API-NAME")
                 #expect(parts.number == 1)
-                #expect(parts.suffix == "")
+                #expect(parts.suffix.isEmpty)
             }
 
             @Test func `a letter suffix is part of the identifier, not of the number`() throws {
@@ -81,8 +81,9 @@ extension Rulebook {
             }
 
             @Test func `a cross-bracket range yields both endpoints`() {
-                guard case .crossRange(let start, let end) =
-                    Rulebook.Citation.scan("[A-001]–[A-005]").first?.form
+                guard
+                    case .crossRange(let start, let end) =
+                        Rulebook.Citation.scan("[A-001]–[A-005]").first?.form
                 else {
                     Issue.record("expected a cross range")
                     return
@@ -98,8 +99,9 @@ extension Rulebook {
             }
 
             @Test func `an in-bracket range completes the end from the start's family`() {
-                guard case .inBracketRange(let start, let end) =
-                    Rulebook.Citation.scan("[PATTERN-012–062]").first?.form
+                guard
+                    case .inBracketRange(let start, let end) =
+                        Rulebook.Citation.scan("[PATTERN-012–062]").first?.form
                 else {
                     Issue.record("expected an in-bracket range")
                     return
@@ -109,8 +111,9 @@ extension Rulebook {
             }
 
             @Test func `a wildcard names its family`() {
-                guard case .wildcard(let family) =
-                    Rulebook.Citation.scan("the [MEM-COPY-*] family").first?.form
+                guard
+                    case .wildcard(let family) =
+                        Rulebook.Citation.scan("the [MEM-COPY-*] family").first?.form
                 else {
                     Issue.record("expected a wildcard")
                     return
