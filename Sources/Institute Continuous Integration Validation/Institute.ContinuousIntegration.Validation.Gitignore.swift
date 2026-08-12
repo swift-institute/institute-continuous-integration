@@ -651,6 +651,22 @@ extension Institute.ContinuousIntegration.Validation.Gitignore {
                         try standardInput.fileHandleForWriting.write(contentsOf: input)
                         try standardInput.fileHandleForWriting.close()
                     } catch {
+                        // `process.standardInput` keeps this pipe alive for
+                        // `invoke()`'s whole scope, so ARC dealloc will not
+                        // close the write end until after
+                        // `output.fileHandleForReading.readToEnd()` returns
+                        // below — and if `git` is still waiting on more
+                        // stdin, that read never returns. An unclosed write
+                        // end here is a real deadlock, not just a leak, so
+                        // it is closed explicitly rather than left to
+                        // whichever cleanup happens to run first.
+                        do {
+                            try standardInput.fileHandleForWriting.close()
+                        } catch {
+                            // Already closed, or the fd is unrecoverable
+                            // either way; the marker below still records
+                            // the failure for the caller.
+                        }
                         inputFailure.fileHandleForWriting.write(Data([1]))
                         do {
                             try inputFailure.fileHandleForWriting.close()
