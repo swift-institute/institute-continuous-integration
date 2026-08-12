@@ -612,10 +612,10 @@ extension Institute.ContinuousIntegration.Validation.Gitignore {
     /// retry so the typed defect on the far side still matches what the
     /// caller saw before this function was made retryable: a missing
     /// executable is `missingSupportFile`, everything else touching the
-    /// process's pipes is `unreadableSubject`.
+    /// process transport is `unreadableSubject`.
     private enum GitInvocationFailure: Swift.Error {
         case processLaunch
-        case pipeIO
+        case transportIO
     }
 
     static func git(
@@ -625,9 +625,9 @@ extension Institute.ContinuousIntegration.Validation.Gitignore {
         guard let executable = gitExecutable(in: ProcessInfo.processInfo.environment) else {
             throw .missingSupportFile(path: "git")
         }
-        // The full spawn-and-pipe-I/O sequence is retried as one unit on
+        // The full spawn-and-transport-I/O sequence is retried as one unit on
         // Windows — see `retryingTransientWindowsFailures`. `Process` and
-        // `Pipe` are single-use, so a retry must rebuild them and rerun
+        // its I/O handles are single-use, so a retry must rebuild them and rerun
         // `git` from scratch rather than resume a stuck pipe; every call
         // site invokes `git` idempotently (`init`, `check-ignore`,
         // `ls-files`), so rerunning it is safe.
@@ -644,7 +644,57 @@ extension Institute.ContinuousIntegration.Validation.Gitignore {
             process.environment = controlledGitEnvironment(environment, executable: executable)
             process.standardOutput = output
             process.standardError = FileHandle.nullDevice
-            let standardInput = input.map { _ in Pipe() }
+
+            // `git check-ignore --stdin` consumes a finite, already-materialized
+            // path list. Give it a regular file rather than an asynchronously
+            // written pipe: the child can never backpressure a producer while
+            // this thread is draining stdout, so there is no bidirectional-pipe
+            // deadlock and no dispatch work whose completion must be joined.
+            let standardInput: FileHandle?
+            let standardInputLocation: URL?
+            if let input {
+                let location = FileManager.default.temporaryDirectory
+                    .appending(path: "institute-ci-git-stdin-\(UUID().uuidString)")
+                // swift-linter:disable:next do throws for typed catch
+                // REASON: Data.write and FileHandle.init expose untyped Foundation errors.
+                do {
+                    try input.write(to: location)
+                    standardInput = try FileHandle(forReadingFrom: location)
+                    standardInputLocation = location
+                } catch {
+                    // swift-linter:disable:next do throws for typed catch
+                    // REASON: FileManager.removeItem exposes an untyped Foundation error.
+                    do {
+                        try FileManager.default.removeItem(at: location)
+                    } catch {
+                        // The original transport failure is authoritative.
+                    }
+                    throw GitInvocationFailure.transportIO
+                }
+            } else {
+                standardInput = nil
+                standardInputLocation = nil
+            }
+            defer {
+                if let standardInput {
+                    // swift-linter:disable:next do throws for typed catch
+                    // REASON: FileHandle.close exposes an untyped Foundation error.
+                    do {
+                        try standardInput.close()
+                    } catch {
+                        // The process has already finished or been terminated.
+                    }
+                }
+                if let standardInputLocation {
+                    // swift-linter:disable:next do throws for typed catch
+                    // REASON: FileManager.removeItem exposes an untyped Foundation error.
+                    do {
+                        try FileManager.default.removeItem(at: standardInputLocation)
+                    } catch {
+                        // Cleanup cannot change the invocation's observed result.
+                    }
+                }
+            }
             process.standardInput = standardInput
             // `Process.run()` is an untyped cross-module throw; its only
             // durable failure here is "git is not on this machine", but on
@@ -652,52 +702,11 @@ extension Institute.ContinuousIntegration.Validation.Gitignore {
             // `ERROR_SHARING_VIOLATION` race the retry helper exists for
             // (spawning a process touches filesystem/kernel objects
             // Defender and the Search Indexer contend for), so it goes
-            // through the same retry as the pipe I/O below.
+            // through the same retry as the transport I/O below.
             do {
                 try process.run()
             } catch {
                 throw GitInvocationFailure.processLaunch
-            }
-            let inputFailure = Pipe()
-            let inputGroup = DispatchGroup()
-            if let input, let standardInput {
-                inputGroup.enter()
-                DispatchQueue.global().async {
-                    defer { inputGroup.leave() }
-                    do {
-                        try standardInput.fileHandleForWriting.write(contentsOf: input)
-                        try standardInput.fileHandleForWriting.close()
-                    } catch {
-                        // `process.standardInput` keeps this pipe alive for
-                        // `invoke()`'s whole scope, so ARC dealloc will not
-                        // close the write end until after
-                        // `output.fileHandleForReading.readToEnd()` returns
-                        // below — and if `git` is still waiting on more
-                        // stdin, that read never returns. An unclosed write
-                        // end here is a real deadlock, not just a leak, so
-                        // it is closed explicitly rather than left to
-                        // whichever cleanup happens to run first.
-                        do {
-                            try standardInput.fileHandleForWriting.close()
-                        } catch {
-                            // Already closed, or the fd is unrecoverable
-                            // either way; the marker below still records
-                            // the failure for the caller.
-                        }
-                        inputFailure.fileHandleForWriting.write(Data([1]))
-                        do {
-                            try inputFailure.fileHandleForWriting.close()
-                        } catch {
-                            // The marker already records this transport failure.
-                        }
-                    }
-                }
-            } else {
-                do {
-                    try inputFailure.fileHandleForWriting.close()
-                } catch {
-                    throw GitInvocationFailure.pipeIO
-                }
             }
             let data: Data
             do {
@@ -705,18 +714,9 @@ extension Institute.ContinuousIntegration.Validation.Gitignore {
             } catch {
                 process.terminate()
                 process.waitUntilExit()
-                inputGroup.wait()
-                throw GitInvocationFailure.pipeIO
+                throw GitInvocationFailure.transportIO
             }
             process.waitUntilExit()
-            inputGroup.wait()
-            do {
-                try inputFailure.fileHandleForWriting.close()
-            } catch {
-                // The writer may already have closed the signalling pipe.
-            }
-            let failedInput = inputFailure.fileHandleForReading.readDataToEndOfFile()
-            guard failedInput.isEmpty else { throw GitInvocationFailure.pipeIO }
             return (process.terminationStatus, data)
         }
         do {
