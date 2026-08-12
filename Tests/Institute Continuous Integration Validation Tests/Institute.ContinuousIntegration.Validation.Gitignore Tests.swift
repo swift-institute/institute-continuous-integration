@@ -365,14 +365,26 @@ extension CIValidationGitignoreTests {
     /// document `Gitignore.read` returns for the LF original — and the
     /// "one extra allow" near-miss substitution (`"!/Lint/\n"`) still
     /// finds its target in it.
+    ///
+    /// The blob is LF-pinned in the git *object*, not on disk: there is
+    /// no `.gitattributes` forcing `canon/*.txt` to `eol=lf`, so a real
+    /// Windows checkout's `core.autocrlf` already materializes this file
+    /// as CRLF on disk before this test ever reads it. Reading the raw
+    /// working-tree bytes and then substituting `\n` → `\r\n` would
+    /// double-convert on that platform (`\r\n` → `\r\r\n`), corrupting
+    /// the simulation rather than reproducing a checkout — the same
+    /// substitution the *pre-existing* CRLF quietly applies a second
+    /// time. Building the simulation from `lfText` — `Gitignore.read`'s
+    /// own LF-normalized text — sidesteps the on-disk line-ending
+    /// question entirely: `lfText` is guaranteed pure LF regardless of
+    /// whether this test runs against an LF or an already-autocrlf'd
+    /// CRLF working-tree file.
     @Test func `a simulated Windows CRLF checkout of the real canon still reads identically`() throws {
         let canonPath = try #require(Gitignore.resolvedCanonPath)
         let lfText = try #require(Gitignore.read(canonPath))
         let crlfPath = FileManager.default.temporaryDirectory
             .appending(path: "crlf-canon-\(UUID().uuidString).txt")
-        let rawLFBytes = try #require(FileManager.default.contents(atPath: canonPath))
-        let rawLFText = try #require(String(data: rawLFBytes, encoding: .utf8))
-        let rawCRLFText = rawLFText.replacingOccurrences(of: "\n", with: "\r\n")
+        let rawCRLFText = lfText.replacingOccurrences(of: "\n", with: "\r\n")
         try Data(rawCRLFText.utf8).write(to: crlfPath)
         defer { try? FileManager.default.removeItem(at: crlfPath) }
 
