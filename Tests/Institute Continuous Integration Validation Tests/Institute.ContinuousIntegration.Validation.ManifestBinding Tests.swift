@@ -39,7 +39,13 @@ struct CIValidationManifestBindingTests {
                     (FileManager.default
                     .enumerator(atPath: root.path)?
                     .compactMap { $0 as? String }
-                    .filter { $0.hasSuffix(".py") } ?? [])
+                    .filter { $0.hasSuffix(".py") }
+                    // `FileManager.enumerator(atPath:)` yields relative
+                    // paths joined with the platform's native separator —
+                    // `\` on Windows. The corpus spelling this asserts is
+                    // the repository-relative form, which is always
+                    // `/`-joined regardless of host platform.
+                    .map { $0.replacingOccurrences(of: "\\", with: "/") } ?? [])
                     .sorted()
             }
 
