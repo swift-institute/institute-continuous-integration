@@ -326,6 +326,26 @@ let package = Package(
                 .product(name: "Byte Primitives", package: "swift-byte-primitives"),
             ]
         ),
+        // Positive controls over the shell embedded in the control
+        // plane's shipped workflows and composite actions. The subject is
+        // swift-institute/.github's bytes, which this package does not
+        // contain: the caller names its checkout through
+        // INSTITUTE_CONTROL_PLANE_ROOT, and the suites decline rather than
+        // report green against a root they guessed.
+        .testTarget(
+            name: "Institute Continuous Integration Embedded Shell Tests",
+            dependencies: [
+                "Institute Continuous Integration",
+                "Institute Continuous Integration Receipt",
+                .product(
+                    name: "GitHub Continuous Integration",
+                    package: "swift-github-continuous-integration"),
+                .product(
+                    name: "GitHub Continuous Integration Workflow",
+                    package: "swift-github-continuous-integration"),
+                .product(name: "GitHub Standard", package: "swift-github-standard"),
+            ]
+        ),
         .testTarget(
             name: "Institute Continuous Integration Rulebook Tests",
             dependencies: ["Institute Continuous Integration Rulebook"]

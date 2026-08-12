@@ -109,16 +109,89 @@ extension Main {
         }
         for outcome in report.outcomes { print("  " + outcome.summary) }
 
+        // Transitional: every rule directory the registries do not own yet
+        // is run through its retired script, so the corpus gate does not
+        // narrow while the port is in progress. `--scripts` names the
+        // directory holding them; omitting it declines the fallback, which
+        // is what the end state does.
+        //
+        // A directory that is neither owned by a registry nor covered by
+        // the table is a hard failure, not a skip: an unowned corpus is
+        // indistinguishable from a clean one.
+        var residue = report.unownedRuleDirectories
+        var fallbackFailures = 0
+        var fallbackPassed = 0
+        let scriptsDirectory = value("--scripts", in: rest)
+        if !scriptsDirectory.isEmpty {
+            var unresolved: [String] = []
+            for directory in residue {
+                let corpus = GitHub.ContinuousIntegration.Validation.Corpus(root: root)
+                let scenarios: [GitHub.ContinuousIntegration.Validation.Corpus.Scenario]
+                do throws(GitHub.ContinuousIntegration.Validation.EnvironmentDefect) {
+                    scenarios = try corpus.scenarios(in: directory)
+                } catch {
+                    fail(error.message)
+                }
+                // A directory with no `pass/`, `fail/` or `edge/` scenarios
+                // is shared fixture data, not a rule corpus — `fixtures/
+                // callers/` and `fixtures/wrappers/` are read by other
+                // suites.
+                if scenarios.isEmpty { continue }
+                guard let script = Institute.ContinuousIntegration.Application
+                    .RetiredValidator.scripts[directory]
+                else {
+                    unresolved.append(directory)
+                    continue
+                }
+                let rule = Institute.ContinuousIntegration.Application.RetiredValidator
+                    .rule(forDirectory: directory)
+                for scenario in scenarios {
+                    let output = Institute.ContinuousIntegration.Application.RetiredValidator
+                        .run(
+                            script: "\(scriptsDirectory)/\(script)",
+                            repository: scenario.repository, root: scenario.root)
+                    let found = output.split(separator: "\n").filter { line in
+                        line.split(separator: "\t", omittingEmptySubsequences: false)
+                            .dropFirst().first == rule[...]
+                    }
+                    let satisfied =
+                        scenario.expectation == .violating ? !found.isEmpty : found.isEmpty
+                    if satisfied { fallbackPassed += 1 } else { fallbackFailures += 1 }
+                    print(
+                        "  \(satisfied ? "PASS" : "FAIL") \(rule) (python3) "
+                            + "\(scenario.expectation.rawValue)/\(scenario.name)"
+                            + " (\(found.count) finding(s))")
+                }
+            }
+            residue = unresolved
+        }
+
         print("")
-        print("Total: \(report.satisfied.count) passed, \(report.unsatisfied.count) failed")
-        let residue = report.unownedRuleDirectories
+        print(
+            "Total: \(report.satisfied.count + fallbackPassed) passed, "
+                + "\(report.unsatisfied.count + fallbackFailures) failed")
         if !residue.isEmpty {
+            // Named, not silently skipped. During the port this residue is
+            // expected, so it is reported and gated by --require-complete.
             print(
                 "Awaiting a Swift validator (\(residue.count)): "
                     + residue.joined(separator: ", "))
         }
-        let unowned = rest.contains("--require-complete") && !residue.isEmpty
-        exit(!report.isSatisfied || unowned ? 1 : 0)
+        // With the fallback armed a residue entry means *nothing* ran for
+        // that rule — neither engine owns it — which is the condition the
+        // retired harness refused to pass. Without it, residue is the
+        // ordinary in-progress state and only `--require-complete` gates.
+        let unowned =
+            scriptsDirectory.isEmpty
+            ? (rest.contains("--require-complete") ? !residue.isEmpty : false)
+            : !residue.isEmpty
+        if !scriptsDirectory.isEmpty && !residue.isEmpty {
+            // Qualified: `report` is the harness result in this scope.
+            Main.report(
+                "no engine owns \(residue.count) rule "
+                    + "director(ies): \(residue.joined(separator: ", "))")
+        }
+        exit(!report.isSatisfied || fallbackFailures > 0 || unowned ? 1 : 0)
     }
 
     /// Canonical JSON of one workflow document, as the reader sees it.
