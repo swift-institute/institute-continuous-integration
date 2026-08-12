@@ -1,0 +1,177 @@
+# Build the `institute-continuous-integration` executable once, here, and
+# publish it. Every consumer downloads it verified instead of compiling it.
+#
+# The retired mechanism had each consumer cold-build this package through the
+# Workspace coordinate — a ~30 minute step on the critical path of the `plan`
+# job, which is the first job of every run of every package in the fleet. It
+# was invisible only because an actions/cache entry had survived long enough
+# to keep being restored; the cold path underneath it had not been executed in
+# months, and when a key change finally forced it, it failed to link.
+#
+# A cache entry that nobody can reproduce is not a build. This is the same
+# shape swift-linter's publish-ci-binaries.yml already uses, and the same
+# evidence class: the consumer never pins a tag, and verifies a published
+# manifest before trusting the bytes.
+#
+# RELEASE SHAPE
+# One fixed tag `ci-binaries`, created once and never moved — its commit is
+# not meaningful, provenance lives in MANIFEST.txt. Prerelease, never latest,
+# non-semver, so SwiftPM version resolution and SPI do not see it and the
+# package stays untagged in the release sense.
+#
+# FRESHNESS
+# Every dependency is resolved at `branch: "main"`, so this package's own
+# commit does not determine what gets built. The composite digest below
+# covers the source commit and each dependency's main HEAD; the cron rebuilds
+# only when it moves, and push and dispatch always rebuild.
+
+name: publish-ci-binaries
+
+permissions: {}
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '41 */6 * * *'
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    # The image the binary must run under. Consumers execute it on bare
+    # ubuntu-latest and inside the release-floor image, so it is linked
+    # statically below rather than against this container's runtime.
+    container: swift:6.3
+    timeout-minutes: 45
+    permissions:
+      contents: write
+    steps:
+      - uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # swift:6.3 ships neither gh nor curl. uuid-dev is the typed F2/F10
+      # provisioning input — swift-linux-standard's CLinuxKernelShim includes
+      # uuid/uuid.h and it is absent from the image.
+      - name: Provision
+        shell: bash
+        run: |
+          set -euo pipefail
+          apt-get update -qq
+          apt-get install -qq -y curl ca-certificates gnupg git uuid-dev
+          mkdir -p -m 755 /etc/apt/keyrings
+          curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg -o /tmp/gh-keyring.gpg
+          echo "6084d5d7bd8e288441e0e94fc6275570895da18e6751f70f057485dc2d1a811b  /tmp/gh-keyring.gpg" | sha256sum -c -
+          mv /tmp/gh-keyring.gpg /etc/apt/keyrings/githubcli-archive-keyring.gpg
+          chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg
+          echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" > /etc/apt/sources.list.d/github-cli.list
+          apt-get update -qq && apt-get install -qq -y gh
+
+      # Identity of what this build actually contains: this commit plus the
+      # main HEAD of every branch-resolved dependency. The commit alone would
+      # name a build that changes underneath it.
+      - name: Compute composite digest
+        id: digest
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config --global --add safe.directory '*'
+          : > /tmp/heads
+          for dep in \
+            swift-foundations/swift-ascii \
+            swift-foundations/swift-continuous-integration \
+            swift-foundations/swift-github-continuous-integration \
+            swift-standards/swift-github-standard \
+            swift-primitives/swift-byte-primitives \
+            swift-standards/swift-fips-180-4
+          do
+            head="$(git ls-remote "https://github.com/${dep}.git" main | cut -f1)"
+            [ -n "$head" ] || { echo "::error::no main HEAD for $dep"; exit 1; }
+            echo "${dep}=${head}" >> /tmp/heads
+          done
+          digest="$( { echo "$GITHUB_SHA"; cut -d= -f2 /tmp/heads; } | sort | sha256sum | cut -d' ' -f1)"
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+          {
+            echo "digest=$digest"
+            echo "sources-revision=$GITHUB_SHA"
+            echo "toolchain=swift-6.3"
+            echo "os=linux"
+            echo "arch=x86_64"
+            echo "provisioning=static-swift-stdlib,uuid-dev"
+            echo "built-at=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            cat /tmp/heads
+          } > /tmp/MANIFEST.txt
+          cat /tmp/MANIFEST.txt
+
+      # The cron is a safety net for a dependency HEAD that moved without a
+      # push here. push and workflow_dispatch always rebuild.
+      - name: Check published digest (schedule only)
+        id: fresh
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DIGEST: ${{ steps.digest.outputs.digest }}
+        run: |
+          set -euo pipefail
+          stale=true
+          if [ "$GITHUB_EVENT_NAME" = "schedule" ]; then
+            published="$(gh release download ci-binaries --pattern MANIFEST.txt --output - 2>/dev/null | sed -n 's/^digest=//p' || true)"
+            if [ "$published" = "$DIGEST" ]; then
+              stale=false
+              echo "Published digest is current; skipping rebuild."
+            fi
+          fi
+          echo "stale=$stale" >> "$GITHUB_OUTPUT"
+
+      # Static, because the consumers do not share this container: the `plan`
+      # job runs on bare ubuntu-latest and the validators run inside the
+      # release-floor image.
+      - name: Build
+        if: ${{ steps.fresh.outputs.stale == 'true' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          swift build -c release --product institute-continuous-integration --static-swift-stdlib
+          install -m 0755 .build/release/institute-continuous-integration /tmp/stage-binary
+
+      # A binary that cannot answer is not a binary. This is the positive
+      # control on the build step, run before anything is published.
+      - name: Prove the published binary runs
+        if: ${{ steps.fresh.outputs.stale == 'true' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          /tmp/stage-binary bootstrap-identity \
+            --workspace-revision 0000000000000000000000000000000000000000 \
+            --sources-revision "$GITHUB_SHA" \
+            --toolchain swift-6.3 --os linux --arch x86_64 \
+            --provisioning static-swift-stdlib,uuid-dev
+
+      - name: Publish
+        if: ${{ steps.fresh.outputs.stale == 'true' }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DIGEST: ${{ steps.digest.outputs.digest }}
+        run: |
+          set -euo pipefail
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          stage="$(mktemp -d)"
+          cp /tmp/stage-binary "$stage/institute-continuous-integration"
+          cp /tmp/MANIFEST.txt "$stage/MANIFEST.txt"
+          (cd "$stage" && sha256sum institute-continuous-integration MANIFEST.txt > SHA256SUMS)
+          if ! gh release view ci-binaries >/dev/null 2>&1; then
+            gh release create ci-binaries --prerelease --latest=false \
+              --title "CI binaries (rolling)" \
+              --notes "Rolling prebuilt Institute CI binary for the universal swift-ci.yml. Non-semver tag: not a package release. MANIFEST.txt carries the exact source revision and dependency HEADs of this build." \
+              --target "$GITHUB_SHA"
+          fi
+          gh release upload ci-binaries \
+            "$stage/institute-continuous-integration" "$stage/MANIFEST.txt" "$stage/SHA256SUMS" --clobber
+          gh release edit ci-binaries --notes "Rolling prebuilt Institute CI binary for the universal swift-ci.yml (updated $(date -u +%Y-%m-%dT%H:%M:%SZ)). Non-semver tag: not a package release. digest=${DIGEST}"
+          echo "Published ${GITHUB_SHA} (digest ${DIGEST})."
