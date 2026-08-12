@@ -247,7 +247,18 @@ extension Institute.ContinuousIntegration.Validation.SchemaCorrespondence {
         var found: [String: [String]?] = [:]
         for name in names { found[name] = .some(nil) }
 
-        let lines = source.split(separator: "\n", omittingEmptySubsequences: false)
+        // `"\r\n"` is a single extended grapheme cluster in Swift — one
+        // `Character`, distinct from the bare `"\n"` split below —  so a
+        // CRLF checkout of this LF-pinned consumer source (Windows'
+        // `core.autocrlf`) would not leave a stray `\r` per line, it
+        // would remove every split point and read as one line. Normalize
+        // before splitting rather than trying to tolerate both grapheme
+        // shapes in the splitter.
+        let normalized =
+            source
+            .replacingOccurrences(of: "\r\n", with: "\n")
+            .replacingOccurrences(of: "\r", with: "\n")
+        let lines = normalized.split(separator: "\n", omittingEmptySubsequences: false)
         var index = 0
         while index < lines.count {
             let line = lines[index]

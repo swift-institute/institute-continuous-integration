@@ -117,6 +117,22 @@ struct CIValidationSchemaCorrespondenceTests {
             #expect(constants["FAMILIES"] == ["A", "C"])
         }
 
+        /// A CRLF checkout of the same module: `"\r\n"` is one extended
+        /// grapheme cluster in Swift, distinct from the bare `"\n"`
+        /// `Character` `moduleLevelStringSequences` splits on — so a
+        /// Windows checkout of this Git-LF-pinned fixture does not
+        /// leave a stray `\r` per line, it removes every split point
+        /// entirely and the whole source reads as one line. This is
+        /// the reading decision the corpus's `pass/consistent` scenario
+        /// cannot express while its fixture stays LF on disk here.
+        @Test func `a CRLF checkout still splits into lines`() {
+            let source = "\"\"\"doc\"\"\"\r\nEXEMPTIONS = ('vendored-upstream',)\r\n\r\nFAMILIES = ('A', 'E')\r\n"
+            let constants = Validator.moduleLevelStringSequences(
+                in: source, names: ["EXEMPTIONS", "FAMILIES"])
+            #expect(constants["EXEMPTIONS"] == ["vendored-upstream"])
+            #expect(constants["FAMILIES"] == ["A", "E"])
+        }
+
         /// A partially-literal sequence is rejected whole: half an
         /// answer is indistinguishable from agreement.
         @Test func `non-literal sequences read as not established`() {
