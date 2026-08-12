@@ -25,6 +25,26 @@ let package = Package(
             targets: ["Institute Continuous Integration Inventory"]
         ),
         .library(
+            name: "Institute Continuous Integration Contract",
+            targets: ["Institute Continuous Integration Contract"]
+        ),
+        .library(
+            name: "Institute Continuous Integration Receipt",
+            targets: ["Institute Continuous Integration Receipt"]
+        ),
+        .library(
+            name: "Institute Continuous Integration Symbol Graph",
+            targets: ["Institute Continuous Integration Symbol Graph"]
+        ),
+        .library(
+            name: "Institute Continuous Integration Rulebook",
+            targets: ["Institute Continuous Integration Rulebook"]
+        ),
+        .library(
+            name: "Institute Continuous Integration Application",
+            targets: ["Institute Continuous Integration Application"]
+        ),
+        .library(
             name: "Repository Policy",
             targets: ["Repository Policy"]
         ),
@@ -146,6 +166,73 @@ let package = Package(
             name: "Repository Policy CLI",
             dependencies: ["Repository Policy"]
         ),
+        // The Institute's own CI contract residue: the two typed image
+        // exceptions (nightly, release floor), the calendar-date shape
+        // they both bound themselves with, and the package-content
+        // classifier. The vendor-neutral half of the contract — tier, leg,
+        // plan, requirement, aggregate verdict — is owned by
+        // swift-foundations/swift-continuous-integration; what is here is
+        // the part that encodes Institute policy about which toolchains
+        // this fleet tolerates and when an exception lapses.
+        .target(
+            name: "Institute Continuous Integration Contract",
+            dependencies: [
+                "Institute Continuous Integration",
+                .product(
+                    name: "Continuous Integration",
+                    package: "swift-continuous-integration"),
+            ]
+        ),
+        // Canonical evidence: the bootstrap identity that binds a built
+        // binary to the sources and toolchain it claims, the manifest a
+        // producing run writes, and the run attestation the aggregate
+        // canonicalizes and a later collector augments to a terminal
+        // verdict.
+        .target(
+            name: "Institute Continuous Integration Receipt",
+            dependencies: [
+                "Institute Continuous Integration",
+                .product(name: "FIPS 180-4", package: "swift-fips-180-4"),
+                .product(name: "Byte Primitives", package: "swift-byte-primitives"),
+            ]
+        ),
+        // Umbrella symbol-graph preparation for the DocC pipeline.
+        .target(
+            name: "Institute Continuous Integration Symbol Graph",
+            dependencies: ["Institute Continuous Integration"]
+        ),
+        // The rulebook checking itself: referential integrity of the
+        // markdown skill corpus. Not `Institute.ContinuousIntegration
+        // .Canon`, which owns the canonical documents this control plane
+        // distributes — a different domain that happens to share the
+        // retired script's word. No dependency on the CI contract: the
+        // subject is prose, not workflows, so it keeps its own top-level
+        // nest.
+        .target(
+            name: "Institute Continuous Integration Rulebook"
+        ),
+        // The layer that composes and owns no predicate: which policy
+        // applies to which mechanism for one run, the union of the two
+        // validator registries, and the process boundaries (event
+        // payloads, the GitHub API client) a predicate may not hold.
+        .target(
+            name: "Institute Continuous Integration Application",
+            dependencies: [
+                "Institute Continuous Integration",
+                "Institute Continuous Integration Contract",
+                "Institute Continuous Integration Validation",
+                .product(
+                    name: "Continuous Integration",
+                    package: "swift-continuous-integration"),
+                .product(
+                    name: "GitHub Continuous Integration",
+                    package: "swift-github-continuous-integration"),
+                .product(
+                    name: "GitHub Continuous Integration Validation",
+                    package: "swift-github-continuous-integration"),
+                .product(name: "GitHub Standard", package: "swift-github-standard"),
+            ]
+        ),
         // The narrow process boundary for the portable Gitignore canon and
         // validator. Fleet enumeration and mutation stay in .github.
         .target(
@@ -169,13 +256,29 @@ let package = Package(
             name: "Institute Continuous Integration CLI Foundation Integration",
             dependencies: [
                 .target(name: "Institute Continuous Integration"),
+                .target(name: "Institute Continuous Integration Application"),
                 .target(name: "Institute Continuous Integration Command"),
+                .target(name: "Institute Continuous Integration Contract"),
+                .target(name: "Institute Continuous Integration Inventory"),
+                .target(name: "Institute Continuous Integration Receipt"),
+                .target(name: "Institute Continuous Integration Rulebook"),
+                .target(name: "Institute Continuous Integration Symbol Graph"),
                 .target(name: "Institute Continuous Integration Validation"),
+                .product(name: "Byte Primitives", package: "swift-byte-primitives"),
+                .product(
+                    name: "Continuous Integration",
+                    package: "swift-continuous-integration"),
                 .product(
                     name: "GitHub Standard",
                     package: "swift-github-standard"),
                 .product(
+                    name: "GitHub Continuous Integration",
+                    package: "swift-github-continuous-integration"),
+                .product(
                     name: "GitHub Continuous Integration Validation",
+                    package: "swift-github-continuous-integration"),
+                .product(
+                    name: "GitHub Continuous Integration Workflow",
                     package: "swift-github-continuous-integration"),
             ]
         ),
@@ -205,6 +308,38 @@ let package = Package(
             // recorded run and regenerated expectation are evidence, not
             // resources.
             exclude: ["Fixtures"]
+        ),
+        .testTarget(
+            name: "Institute Continuous Integration Contract Tests",
+            dependencies: [
+                "Institute Continuous Integration Contract",
+                "Institute Continuous Integration Application",
+                .product(
+                    name: "Continuous Integration",
+                    package: "swift-continuous-integration"),
+            ]
+        ),
+        .testTarget(
+            name: "Institute Continuous Integration Receipt Tests",
+            dependencies: [
+                "Institute Continuous Integration Receipt",
+                .product(name: "Byte Primitives", package: "swift-byte-primitives"),
+            ]
+        ),
+        .testTarget(
+            name: "Institute Continuous Integration Rulebook Tests",
+            dependencies: ["Institute Continuous Integration Rulebook"]
+        ),
+        .testTarget(
+            name: "Institute Continuous Integration Symbol Graph Tests",
+            dependencies: ["Institute Continuous Integration Symbol Graph"]
+        ),
+        .testTarget(
+            name: "Institute Continuous Integration Application Tests",
+            dependencies: [
+                "Institute Continuous Integration Application",
+                "Institute Continuous Integration Contract",
+            ]
         ),
         .testTarget(
             name: "Institute Continuous Integration Command Tests",

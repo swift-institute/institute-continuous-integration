@@ -1,11 +1,7 @@
 // Licensed under the Apache License, Version 2.0.
 
 import Foundation
-import GitHub_Continuous_Integration_Validation
-import GitHub_Standard
 import Institute_Continuous_Integration
-import Institute_Continuous_Integration_Command
-import Institute_Continuous_Integration_Validation
 
 #if canImport(Darwin)
     import Darwin
@@ -13,69 +9,93 @@ import Institute_Continuous_Integration_Validation
     import Glibc
 #endif
 
+// The thin CLI mapping. It owns argument grammar and wire encoding only;
+// every predicate belongs to a library target and is called, never
+// re-derived here.
 @main
 enum Main {}
 
 extension Main {
     static func main() {
-        do throws(Error) {
-            try run()
-        } catch {
-            FileHandle.standardError.write(
-                Data("institute-continuous-integration: \(error.message)\n".utf8))
-            exit(2)
+        let arguments = Array(CommandLine.arguments.dropFirst())
+        switch arguments.first {
+        // The Gitignore faces keep their typed command grammar.
+        case "render-gitignore", "validate-gitignore", "validate-gitignore-fixtures":
+            gitignore(arguments)
+
+        case "plan": plan(Array(arguments.dropFirst()))
+        case "aggregate": aggregate(Array(arguments.dropFirst()))
+        case "bootstrap-identity", "bootstrap-manifest", "bootstrap-verify":
+            bootstrap(face: arguments[0], Array(arguments.dropFirst()))
+        case "validate": validate(Array(arguments.dropFirst()))
+        case "validate-fixtures": validateFixtures(Array(arguments.dropFirst()))
+        case "workflow-json": workflowJSON(Array(arguments.dropFirst()))
+        case "verdict-inventory": verdictInventory(Array(arguments.dropFirst()))
+        case "check-canon": checkCanon(Array(arguments.dropFirst()))
+        case "canon-rule-count": canonRuleCount(Array(arguments.dropFirst()))
+        case "runtime-receipt": runtimeReceipt(Array(arguments.dropFirst()))
+        case "runtime-receipt-augment": runtimeReceiptAugment(Array(arguments.dropFirst()))
+        case "startup-failures": startupFailures(Array(arguments.dropFirst()))
+        case "symbol-graph-umbrella": symbolGraphUmbrella(Array(arguments.dropFirst()))
+
+        default:
+            fail(
+                "usage: institute-continuous-integration "
+                    + "plan|aggregate|validate|validate-fixtures|workflow-json"
+                    + "|verdict-inventory|check-canon|canon-rule-count"
+                    + "|render-gitignore|validate-gitignore|validate-gitignore-fixtures"
+                    + "|symbol-graph-umbrella|bootstrap-identity|bootstrap-manifest"
+                    + "|bootstrap-verify|runtime-receipt|runtime-receipt-augment"
+                    + "|startup-failures ...")
         }
     }
 
-    private static func run() throws(Error) {
-        let action: Institute.ContinuousIntegration.Command.Gitignore.Action
-        do throws(Institute.ContinuousIntegration.Command.Gitignore.Error) {
-            action = try Institute.ContinuousIntegration.Command.Gitignore.parse(
-                Array(CommandLine.arguments.dropFirst()))
-        } catch {
-            throw .command(error)
-        }
-        switch action {
-        case .render(let canon, let target):
-            guard let canon = read(canon) else { throw .unreadable(canon) }
-            let existing = target.flatMap(read)
-            let rendered: String
-            do throws(Institute.ContinuousIntegration.Command.Gitignore.Error) {
-                rendered = try Institute.ContinuousIntegration.Command.Gitignore.render(
-                    canon: canon, target: existing)
-            } catch {
-                throw .command(error)
-            }
-            print(rendered, terminator: "")
+    /// The tool name every diagnostic is prefixed with. It is the
+    /// executable's own name, so a log line names the binary a reader can
+    /// run.
+    static let tool = "institute-continuous-integration"
 
-        case .validate(let repository, let root, let canon):
-            let findings: [Institute.ContinuousIntegration.Validation.Finding]
-            do throws(Institute.ContinuousIntegration.Validation.EnvironmentDefect) {
-                findings = try Institute.ContinuousIntegration.Command.Gitignore.findings(
-                    repository: repository, root: root, canon: canon)
-            } catch {
-                throw .environment(error)
-            }
-            print(
-                Institute.ContinuousIntegration.Command.Gitignore.encoded(findings: findings),
-                terminator: "")
-
-        case .fixtures(let corpus):
-            let report: GitHub.ContinuousIntegration.Validation.Harness.Report
-            do throws(Institute.ContinuousIntegration.Validation.EnvironmentDefect) {
-                report = try Institute.ContinuousIntegration.Command.Gitignore.fixtures(corpus: corpus)
-            } catch {
-                throw .environment(error)
-            }
-            for outcome in report.outcomes { print(outcome.summary) }
-            guard report.unownedRuleDirectories.isEmpty else {
-                throw .unowned(report.unownedRuleDirectories)
-            }
-            guard report.isSatisfied else { exit(1) }
-        }
+    static func fail(_ message: String) -> Never {
+        FileHandle.standardError.write(Data("\(tool): \(message)\n".utf8))
+        exit(2)
     }
 
-    private static func read(_ path: String) -> String? {
+    static func report(_ message: String) {
+        FileHandle.standardError.write(Data("\(tool): \(message)\n".utf8))
+    }
+
+    /// `validate --script` found no Swift owner for that retired script.
+    ///
+    /// A third code, distinct from `0` (ran) and `2` (could not run),
+    /// because "this file has no Swift owner" is a normal, expected answer
+    /// and must not be readable as either a clean scan or a broken
+    /// machine.
+    static let unportedScript: Int32 = 3
+
+    /// Every value of a repeatable flag, in the order given.
+    static func values(_ flag: String, in arguments: [String]) -> [String] {
+        var found: [String] = []
+        for (index, argument) in arguments.enumerated()
+        where argument == flag && index + 1 < arguments.count {
+            found.append(arguments[index + 1])
+        }
+        return found
+    }
+
+    /// An `alias=path` pair, as the canon roots are given.
+    static func aliased(_ text: String) -> (alias: String, path: String)? {
+        guard let split = text.firstIndex(of: "=") else { return nil }
+        return (String(text[..<split]), String(text[text.index(after: split)...]))
+    }
+
+    static func value(_ flag: String, in arguments: [String]) -> String {
+        guard let index = arguments.firstIndex(of: flag),
+            index + 1 < arguments.count
+        else { return "" }
+        return arguments[index + 1]
+    }
+
+    static func read(_ path: String) -> String? {
         guard let data = FileManager.default.contents(atPath: path) else { return nil }
         return String(data: data, encoding: .utf8)
     }
