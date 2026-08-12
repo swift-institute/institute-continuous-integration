@@ -1,3 +1,4 @@
+import ASCII
 import Foundation
 import GitHub_Continuous_Integration
 import GitHub_Continuous_Integration_Validation
@@ -381,13 +382,25 @@ extension Institute.ContinuousIntegration.Validation.Gitignore {
     }
 
     /// The text of a file, or `nil` when it is absent or is not a file.
+    ///
+    /// Normalized to LF. Every canon document and every subject
+    /// `.gitignore` this validator reads is a Git-tracked blob pinned to
+    /// LF; a Windows checkout of the *same* blob can materialize CRLF
+    /// line endings on disk (`core.autocrlf`), which would otherwise
+    /// make byte-for-byte comparisons against the in-memory canon (whose
+    /// literals are LF) — and substring searches like `!/Lint/\n` —
+    /// diverge on line-ending noise the source blob never had. Reading
+    /// is the one place both this validator and its tests reach a
+    /// canon/`.gitignore` file from, so normalizing here (rather than at
+    /// each comparison site) closes the whole class at once.
     static func read(_ path: String) -> String? {
         var isDirectory: ObjCBool = false
         guard FileManager.default.fileExists(atPath: path, isDirectory: &isDirectory),
             !isDirectory.boolValue,
-            let data = FileManager.default.contents(atPath: path)
+            let data = FileManager.default.contents(atPath: path),
+            let text = String(data: data, encoding: .utf8)
         else { return nil }
-        return String(data: data, encoding: .utf8)
+        return text.normalized(to: .lf)
     }
 
     /// Which probes the given `.gitignore` ignores, asked of git itself

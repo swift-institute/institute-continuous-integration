@@ -147,16 +147,27 @@ struct CIValidationGitignoreTests {
                 })
         }
 
-        @Test func `no index is load bearing for a force added ignored path`() throws {
-            let repository = try CIValidationGitignoreTests.repository()
-            repository.write("/*\n", to: ".gitignore")
-            repository.write("evidence", to: "forced path\nwith newline.txt")
-            #expect(try repository.git(["add", "--force", "--", "forced path\nwith newline.txt"]) == 0)
-            let paths = try Gitignore.indexedPaths(in: repository.root)
-            #expect(paths == ["forced path\nwith newline.txt"])
-            #expect(try Gitignore.ignoredIndexedPaths(paths, in: repository.root) == paths)
-            #expect(try Gitignore.ignoredIndexedPaths(paths, in: repository.root, noIndex: false).isEmpty)
-        }
+        // A raw `\n` (0x0A) byte inside a path is not the CRLF class this
+        // suite otherwise chases — it is refused by the Windows Win32
+        // filesystem layer itself (control characters 1-31 are illegal
+        // in a Windows file name, full stop, independent of any git
+        // argument quoting) rather than surviving as `\r\n`. The scenario
+        // this test proves — NUL-delimited `git` transport surviving a
+        // control character no naive newline-split could — has no
+        // Windows-representable input to prove it with, so the property
+        // is untestable there rather than differently-shaped there.
+        #if !os(Windows)
+            @Test func `no index is load bearing for a force added ignored path`() throws {
+                let repository = try CIValidationGitignoreTests.repository()
+                repository.write("/*\n", to: ".gitignore")
+                repository.write("evidence", to: "forced path\nwith newline.txt")
+                #expect(try repository.git(["add", "--force", "--", "forced path\nwith newline.txt"]) == 0)
+                let paths = try Gitignore.indexedPaths(in: repository.root)
+                #expect(paths == ["forced path\nwith newline.txt"])
+                #expect(try Gitignore.ignoredIndexedPaths(paths, in: repository.root) == paths)
+                #expect(try Gitignore.ignoredIndexedPaths(paths, in: repository.root, noIndex: false).isEmpty)
+            }
+        #endif
 
         @Test
         func `an ambient alternate empty index cannot hide the real index`() throws {
@@ -344,5 +355,31 @@ struct CIValidationGitignoreTests {
                 }
             }
         }
+    }
+}
+
+extension CIValidationGitignoreTests {
+    /// The real package-class canon, converted to CRLF exactly as a
+    /// Windows checkout of the LF-pinned `canon/gitignore-package.txt`
+    /// blob would (`core.autocrlf`), still reads as the identical
+    /// document `Gitignore.read` returns for the LF original — and the
+    /// "one extra allow" near-miss substitution (`"!/Lint/\n"`) still
+    /// finds its target in it.
+    @Test func `a simulated Windows CRLF checkout of the real canon still reads identically`() throws {
+        let canonPath = try #require(Gitignore.resolvedCanonPath)
+        let lfText = try #require(Gitignore.read(canonPath))
+        let crlfPath = FileManager.default.temporaryDirectory
+            .appending(path: "crlf-canon-\(UUID().uuidString).txt")
+        let rawLFBytes = try #require(FileManager.default.contents(atPath: canonPath))
+        let rawLFText = try #require(String(data: rawLFBytes, encoding: .utf8))
+        let rawCRLFText = rawLFText.replacingOccurrences(of: "\n", with: "\r\n")
+        try Data(rawCRLFText.utf8).write(to: crlfPath)
+        defer { try? FileManager.default.removeItem(at: crlfPath) }
+
+        let crlfRead = try #require(Gitignore.read(crlfPath.path))
+        #expect(crlfRead == lfText)
+
+        let widened = crlfRead.replacingOccurrences(of: "!/Lint/\n", with: "!/Lint/\n!/Extra/\n")
+        #expect(widened != crlfRead)
     }
 }

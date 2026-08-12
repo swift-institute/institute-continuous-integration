@@ -98,6 +98,7 @@ let package = Package(
                 // second copy of it here is the drift the rule exists to
                 // catch.
                 "Institute Continuous Integration Inventory",
+                .product(name: "ASCII", package: "swift-ascii"),
                 .product(
                     name: "GitHub Continuous Integration",
                     package: "swift-github-continuous-integration"),
