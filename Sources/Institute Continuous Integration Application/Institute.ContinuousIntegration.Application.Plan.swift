@@ -1,10 +1,15 @@
 import ContinuousIntegration
 import Institute_Continuous_Integration
+import Institute_Continuous_Integration_Contract
 
-// Bound at file scope: inside `extension Institute.ContinuousIntegration…`
-// the bare name `ContinuousIntegration` resolves to the enclosing nested
-// namespace, not the module.
-private typealias ContractPlan = ContinuousIntegration.Plan
+/// The vendor-neutral plan type, bound where it can still be named.
+///
+/// Inside `extension Institute.ContinuousIntegration…` the bare token
+/// `ContinuousIntegration` resolves to the enclosing nested namespace
+/// rather than to the module of the same name. File scope is outside that
+/// shadow, and the binding is `public` because it appears in the public
+/// signature of ``Plan/run(forcedTier:ref:headMessage:event:platformSupport:lintBundle:packageContentChanged:nightlyDisposition:)``.
+public typealias ContinuousIntegrationPlan = ContinuousIntegration.Plan
 
 extension ContinuousIntegration.Plan.Descheduled.Reason {
     /// The Institute's advisory-class expiry vocabulary. The mechanism —
@@ -35,8 +40,8 @@ extension Institute.ContinuousIntegration.Application {
             packageContentChanged: Bool = true,
             nightlyDisposition: Institute.ContinuousIntegration.NightlyException.Disposition =
                 .active
-        ) throws(ContractPlan.Error) -> ContractPlan {
-            try ContractPlan(
+        ) throws(ContinuousIntegrationPlan.Error) -> ContinuousIntegrationPlan {
+            try ContinuousIntegrationPlan(
                 forcedTier: forcedTier,
                 ref: ref,
                 headMessage: headMessage,
@@ -52,7 +57,7 @@ extension Institute.ContinuousIntegration.Application {
         /// schedules the leg as it always did.
         static func descheduling(
             for disposition: Institute.ContinuousIntegration.NightlyException.Disposition
-        ) -> [ContractPlan.Descheduled] {
+        ) -> [ContinuousIntegrationPlan.Descheduled] {
             guard case .expired = disposition else { return [] }
             return [
                 .init(

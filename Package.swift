@@ -343,6 +343,9 @@ let package = Package(
                 .product(
                     name: "GitHub Continuous Integration Workflow",
                     package: "swift-github-continuous-integration"),
+                .product(
+                    name: "GitHub Continuous Integration Validation",
+                    package: "swift-github-continuous-integration"),
                 .product(name: "GitHub Standard", package: "swift-github-standard"),
             ]
         ),

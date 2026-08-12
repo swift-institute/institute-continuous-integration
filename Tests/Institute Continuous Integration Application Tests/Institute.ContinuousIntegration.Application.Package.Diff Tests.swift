@@ -1,9 +1,9 @@
-@testable import Institute_CI_Application
 import Foundation
 import Institute_Continuous_Integration
-import Institute_Continuous_Integration_Application
 import Institute_Continuous_Integration_Contract
 import Testing
+
+@testable import Institute_Continuous_Integration_Application
 
 @Suite
 struct `Package Diff Tests` {

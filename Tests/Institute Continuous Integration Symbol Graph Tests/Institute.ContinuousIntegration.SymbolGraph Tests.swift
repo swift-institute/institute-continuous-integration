@@ -1,8 +1,7 @@
 import Institute_Continuous_Integration
-import Institute_Continuous_Integration_Symbol_Graph
 import Testing
 
-@testable import CI_Symbol_Graph
+@testable import Institute_Continuous_Integration_Symbol_Graph
 
 /// The umbrella symbol-graph step, over recorded graphs.
 @Suite

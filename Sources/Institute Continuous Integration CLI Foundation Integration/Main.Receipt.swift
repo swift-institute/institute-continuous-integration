@@ -84,10 +84,15 @@ extension Main {
             "FLAGGED: \(probe.flagged.count) startup_failure run(s) in "
                 + "\(probe.inspected.count) recent run(s):")
         for run in probe.flagged {
-            let line =
-                "  - \(run.name ?? "?") (run \(run.id.map(String.init) ?? "?")) "
-                + (run.htmlURL ?? "")
-            print(String(line.reversed().drop { $0 == " " }.reversed()))
+            // Spelled out rather than chained: `String.init` is heavily
+            // overloaded, and folding the optionals into one interpolated
+            // expression defeats the type checker outright.
+            let name = run.name ?? "?"
+            let identifier: String = run.id.map { String($0) } ?? "?"
+            let url = run.htmlURL ?? ""
+            // A run with no html_url leaves a trailing separator space.
+            let line = "  - \(name) (run \(identifier)) " + url
+            print(url.isEmpty ? String(line.dropLast()) : line)
         }
         exit(1)
     }

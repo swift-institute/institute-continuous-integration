@@ -1,6 +1,6 @@
 import Testing
 
-@testable import Rulebook
+@testable import Institute_Continuous_Integration_Rulebook
 
 /// The canon guard, checked against the shapes the corpus actually
 /// contains.

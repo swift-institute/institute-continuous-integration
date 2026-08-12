@@ -211,15 +211,24 @@ extension Institute.ContinuousIntegration.Application {
             return pages
         }
 
+        /// The subject's own package roots, relative to the workspace.
+        ///
+        /// Every dot-directory is pruned, not just the three SwiftPM and git
+        /// ones. A workflow may stage tooling checkouts beside the subject —
+        /// `actions/checkout` cannot place a `path:` outside the workspace —
+        /// and a foreign `Package.swift` found there would be reported as a
+        /// declared root of the repository under test. Nothing downstream
+        /// would currently mistake one, because the changes being classified
+        /// come from the subject's own diff and cannot be prefixed by a
+        /// sibling checkout's directory; the prune is here so that stays true
+        /// by construction rather than by coincidence.
         static func packageRoots(in workspace: String) -> [String] {
             guard let enumerator = FileManager.default.enumerator(atPath: workspace) else {
                 return []
             }
             var roots: [String] = []
             for case let path as String in enumerator {
-                if path.hasPrefix(".git/") || path.hasPrefix(".build/")
-                    || path.hasPrefix(".swiftpm/")
-                {
+                if (path as NSString).lastPathComponent.hasPrefix(".") {
                     enumerator.skipDescendants()
                 } else if path == "Package.swift" {
                     roots.append("")

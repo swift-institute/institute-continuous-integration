@@ -1,10 +1,15 @@
 import ContinuousIntegration
 import Institute_Continuous_Integration
 
-// Bound at file scope: inside `extension Institute.ContinuousIntegration`
-// the bare name `ContinuousIntegration` resolves to the enclosing nested
-// namespace, not the module.
-private typealias ContractLeg = ContinuousIntegration.Leg
+/// The vendor-neutral leg type, bound where it can still be named.
+///
+/// Inside `extension Institute.ContinuousIntegration` the bare token
+/// `ContinuousIntegration` resolves to the enclosing nested namespace
+/// rather than to the module of the same name, and Swift offers no
+/// module-qualification syntax to break the tie. File scope is outside
+/// that shadow, so the binding is made here — and it is `public` because
+/// it appears in the public signature of ``NightlyException/classifiedLeg``.
+public typealias ContinuousIntegrationLeg = ContinuousIntegration.Leg
 
 extension Institute.ContinuousIntegration {
     /// A temporary, external-defect classification for the Swift main nightly.
@@ -59,7 +64,7 @@ extension Institute.ContinuousIntegration {
         public static let owner = "swift-institute/.github"
 
         /// The advisory leg this exception classifies.
-        public static let classifiedLeg = ContractLeg("linux-nightly")
+        public static let classifiedLeg = ContinuousIntegrationLeg("linux-nightly")
 
         public let image: String
         public let upstreamIssue: String
