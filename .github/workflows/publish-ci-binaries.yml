@@ -86,6 +86,7 @@ jobs:
             swift-foundations/swift-ascii \
             swift-foundations/swift-continuous-integration \
             swift-foundations/swift-github-continuous-integration \
+            swift-foundations/swift-package-manager \
             swift-standards/swift-github-standard \
             swift-primitives/swift-byte-primitives \
             swift-standards/swift-fips-180-4
@@ -151,6 +152,9 @@ jobs:
             --sources-revision "$GITHUB_SHA" \
             --toolchain swift-6.3 --os linux --arch x86_64 \
             --provisioning static-swift-stdlib,uuid-dev
+          /tmp/stage-binary control validate \
+            --repository swift-institute/institute-continuous-integration \
+            --root "$GITHUB_WORKSPACE"
 
       - name: Publish
         if: ${{ steps.fresh.outputs.stale == 'true' }}
