@@ -55,6 +55,7 @@ extension Main {
                     )
                 }
                 form = value
+
             case "--private-dependency-closure": privateClosure = true
 
             default:
