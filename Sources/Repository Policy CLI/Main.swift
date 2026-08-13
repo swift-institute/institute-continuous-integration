@@ -25,12 +25,19 @@ enum Main {
         var description: String {
             switch self {
             case .configuration(let error): return error.description
+
             case .issue(let error): return String(describing: error)
+
             case .client(let error): return error.description
+
             case .policy(let error): return error.description
+
             case .census(let error): return String(describing: error)
+
             case .metadata(let error): return String(describing: error)
+
             case .caller(let error): return String(describing: error)
+
             case .io(let message): return message
             }
         }
