@@ -13,6 +13,7 @@ extension Main {
     enum Verb: String {
         case plan
         case aggregate
+        case control
         case bootstrapManifest = "bootstrap-manifest"
         case bootstrapVerify = "bootstrap-verify"
         case bootstrapIdentity = "bootstrap-identity"
@@ -62,6 +63,8 @@ extension Main {
         case .plan: plan(rest)
 
         case .aggregate: aggregate(rest)
+
+        case .control: control(rest)
 
         case .bootstrapIdentity, .bootstrapManifest, .bootstrapVerify:
             bootstrap(verb, rest)
@@ -287,7 +290,7 @@ extension Main {
                 \(executableObjects.count) executable(s), producer run \(producerRun)
                 """)
 
-        case .plan, .aggregate:
+        case .plan, .aggregate, .control:
             refuse("unreachable")
         }
     }

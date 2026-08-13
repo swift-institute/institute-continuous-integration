@@ -51,6 +51,10 @@ let package = Package(
             branch: "main"
         ),
         .package(
+            url: "https://github.com/swift-foundations/swift-package-manager.git",
+            branch: "main"
+        ),
+        .package(
             url: "https://github.com/swift-standards/swift-github-standard.git",
             branch: "main"
         ),
@@ -108,6 +112,7 @@ let package = Package(
                 .product(
                     name: "GitHub Continuous Integration Validation",
                     package: "swift-github-continuous-integration"),
+                .product(name: "Package Manager", package: "swift-package-manager"),
             ]
         ),
         // Describes the shipped verdict: the universal workflow's jobs,
