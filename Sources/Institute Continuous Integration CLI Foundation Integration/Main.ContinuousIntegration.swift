@@ -102,7 +102,6 @@ extension Main {
             supportRoot =
                 URL(fileURLWithPath: legacyScripts)
                 .deletingLastPathComponent()
-                .deletingLastPathComponent()
                 .path
         } else {
             unmeasured("validate-fixtures requires --support-root <support-root>")
