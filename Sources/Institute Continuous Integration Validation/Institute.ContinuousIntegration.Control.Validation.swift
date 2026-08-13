@@ -34,7 +34,7 @@ extension Institute.ContinuousIntegration.Control {
         // Historical correspondence checks do not become control-plane policy by proximity.
         // swiftlint:disable:next no_any_protocol_existential
         private static let institute: [any GitHub.ContinuousIntegration.Validation.Validator] = [
-            Institute.ContinuousIntegration.Validation.Anchor(),
+            Institute.ContinuousIntegration.Validation.Anchor()
         ]
 
         /// Reads `root` strictly as data; it never executes candidate code, actions, or workflows.
@@ -44,12 +44,12 @@ extension Institute.ContinuousIntegration.Control {
         ) -> GitHub.ContinuousIntegration.Validation.Run {
             var isDirectory: ObjCBool = false
             guard FileManager.default.fileExists(atPath: root, isDirectory: &isDirectory),
-                  isDirectory.boolValue
+                isDirectory.boolValue
             else {
                 return .init(findings: [], defect: .unreadableSubject(root: root))
             }
-            guard let entries = try? FileManager.default.contentsOfDirectory(atPath: root),
-                  !entries.isEmpty
+            guard let entries = FileManager.default.enumerator(atPath: root),
+                entries.nextObject() != nil
             else {
                 return .init(findings: [], defect: .missingSupportFile(path: root))
             }
