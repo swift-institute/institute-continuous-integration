@@ -36,11 +36,12 @@ struct RepositoryPolicyBranchPinTests {
             in: dependencies,
             organizations: ["swift-foundations"])
 
-        #expect(findings == [
-            .init(
-                document: "Package.swift",
-                url: "https://github.com/swift-foundations/swift-alpha.git",
-                branch: "feature/x")
-        ])
+        #expect(
+            findings == [
+                .init(
+                    document: "Package.swift",
+                    url: "https://github.com/swift-foundations/swift-alpha.git",
+                    branch: "feature/x")
+            ])
     }
 }
