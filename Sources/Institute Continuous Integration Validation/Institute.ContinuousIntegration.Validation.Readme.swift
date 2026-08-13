@@ -72,8 +72,6 @@ extension Institute.ContinuousIntegration.Validation {
             "README-presence",
             "README-read-failed",
         ]
-        public let retiredScript: String? = ".github/scripts/validate-readme.py"
-
         /// Declared exemptions from family routing, per
         /// `metadata-schema.json` `readme.exempt`.
         public static let exemptions: Set<String> = ["vendored-upstream"]

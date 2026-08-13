@@ -53,8 +53,6 @@ extension Institute.ContinuousIntegration.Validation {
         /// pre-Swift implementation. The arrangement it replaces was an
         /// in-repository checkout at `job.workflow_sha`, which needed no
         /// script because it needed no pin.
-        public let retiredScript: String? = nil
-
         /// Where the recorded generator inputs live, by default.
         public static let manifestPath = ".github/trust-anchor.json"
 

@@ -14,7 +14,6 @@ extension Institute.ContinuousIntegration.Validation {
     /// terminal aggregate.
     public struct UniversalWorkflow: Validator {
         public let rules: [Rule] = ["CI-010", "CI-099"]
-        public let retiredScript: String? = ".github/scripts/validate-ci-matrix.py"
 
         public init() {}
 

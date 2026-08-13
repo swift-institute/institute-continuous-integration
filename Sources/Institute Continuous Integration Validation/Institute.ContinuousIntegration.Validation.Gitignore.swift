@@ -149,8 +149,6 @@ extension Institute.ContinuousIntegration.Validation {
         public let rules: [Rule] = [
             "GH-IGNORE-001", "GH-IGNORE-002", "GH-IGNORE-003", "GH-IGNORE-004",
         ]
-        public let retiredScript: String? = ".github/scripts/validate-gitignore.py"
-
         /// The package-class canon's path within the control-plane
         /// checkout. The other classes' documents are its siblings.
         public static let canonPath = "canon/gitignore-package.txt"

@@ -55,13 +55,6 @@ extension Institute.ContinuousIntegration.Validation {
             rules.first { $0.rawValue.lowercased() == directory.lowercased() }
         }
 
-        /// The validator that replaces a retired script, or `nil` when no
-        /// registered validator names it. A validator whose counterpart
-        /// is already deleted records `nil` and is therefore never
-        /// selected this way — by then no caller names the script.
-        public static func validator(replacing script: String) -> (any Validator)? {
-            validators.first { $0.retiredScript == script }
-        }
         // swiftlint:enable no_any_protocol_existential
     }
 }
