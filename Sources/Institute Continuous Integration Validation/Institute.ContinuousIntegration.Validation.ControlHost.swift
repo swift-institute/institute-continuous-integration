@@ -36,8 +36,8 @@ extension Institute.ContinuousIntegration.Validation {
             }
 
             var result: [Finding] = []
-            let triggers = document.body?["on"]?.mapping
-            let triggerNames = triggers.map { Set($0.keys) } ?? []
+            let triggers = document.triggers
+            let triggerNames = Set(triggers?.textKeys ?? [])
             if triggerNames != ["workflow_dispatch"] {
                 result.append(
                     finding(
@@ -60,7 +60,7 @@ extension Institute.ContinuousIntegration.Validation {
                 }
             }
 
-            if document.body?["permissions"]?.mapping?.isEmpty != true {
+            if document.body?["permissions"]?.mapping?.entries.isEmpty != true {
                 result.append(
                     finding(
                         subject.repository,
