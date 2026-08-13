@@ -17,7 +17,7 @@ extension Institute.ContinuousIntegration.Inventory {
     /// re-extracted the full-tier leg list from a `LEGS="…"` shell
     /// literal in the "Classify tier" step body with a regular
     /// expression. That literal is gone: the step now shells out to
-    /// `institute-ci plan` and reads the answer back with `jq`, so the
+    /// `institute-ci package plan` and reads the answer back with `jq`, so the
     /// regular expression has been matching nothing and the committed
     /// corpus has been recording `"full_tier_legs": []` — an empty
     /// vocabulary — as the shipped truth.
@@ -36,7 +36,7 @@ extension Institute.ContinuousIntegration.Inventory {
         /// The type that owns the leg vocabulary this workflow plans by.
         public static let legVocabularyOwner = "CI.Contract.Plan"
 
-        /// True when the "Classify tier" step invokes `institute-ci plan`.
+        /// True when the "Classify tier" step invokes `institute-ci package plan`.
         public let delegatesToInstituteCI: Bool
 
         /// The full tier's leg ids, from `ContinuousIntegration.Plan` — the owner,
