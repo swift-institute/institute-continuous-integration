@@ -6,7 +6,7 @@ import Institute_Continuous_Integration
 extension Institute.ContinuousIntegration.Validation {
     /// Rule identifier → validator, for the Institute-policy validators.
     ///
-    /// The Institute's own registry: the six corpus-and-convention
+    /// The Institute's own registry: the corpus-and-convention
     /// validators this package owns. The seventeen GitHub-Actions-
     /// mechanics validators live with their subject in
     /// `GitHub.ContinuousIntegration.Validation.Registry`
@@ -22,6 +22,7 @@ extension Institute.ContinuousIntegration.Validation {
         // swiftlint:disable:next no_any_protocol_existential - heterogeneous registry over the externally owned Validator protocol; deliberate dynamic dispatch, the [API-ERR-006]-extension opt-out class (Wave 2b decision 3)
         public static let validators: [any Validator] = [
             Anchor(),
+            ControlHost(),
             Gitignore(),
             ManifestBinding(),
             Readme(),
