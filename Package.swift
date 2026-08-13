@@ -222,7 +222,10 @@ let package = Package(
         ),
         .testTarget(
             name: "Repository Policy Tests",
-            dependencies: ["Repository Policy"],
+            dependencies: [
+                "Repository Policy",
+                .product(name: "Package Manager", package: "swift-package-manager"),
+            ],
             resources: [.process("Fixtures")]
         ),
         .testTarget(

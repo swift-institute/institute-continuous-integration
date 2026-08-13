@@ -62,6 +62,18 @@ extension Main {
             }
         }
 
+        let evaluation: Package.Manifest.Evaluation
+        do {
+            evaluation = try Package.Manager().evaluation(at: root)
+        } catch {
+            refuse("package validate could not evaluate manifest: \(error)")
+        }
+        for finding in RepositoryPolicy.TestSupport.findings(in: evaluation) {
+            print(
+                "\(repository)\tTEST-SUPPORT-INTEGRITY\t\(finding.target) depends on "
+                    + "non-support product or target \(finding.dependency)")
+        }
+
         do {
             for finding in try RepositoryPolicy.BrokenSymlink.findings(at: root) {
                 print("\(repository)\tBROKEN-SYMLINK\t\(finding.path)")
