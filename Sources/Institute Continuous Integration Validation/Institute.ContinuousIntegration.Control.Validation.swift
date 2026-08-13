@@ -15,7 +15,6 @@ extension Institute.ContinuousIntegration.Control {
         // swiftlint:disable:next no_any_protocol_existential
         private static let mechanics: [any GitHub.ContinuousIntegration.Validation.Validator] = [
             GitHub.ContinuousIntegration.Validation.BinaryInstallChecksum(),
-            GitHub.ContinuousIntegration.Validation.CIMatrix(),
             GitHub.ContinuousIntegration.Validation.CachePolicy(),
             GitHub.ContinuousIntegration.Validation.CompositeActionDescriptions(),
             GitHub.ContinuousIntegration.Validation.CompositeActionPins(),
@@ -36,6 +35,7 @@ extension Institute.ContinuousIntegration.Control {
         private static let institute: [any GitHub.ContinuousIntegration.Validation.Validator] = [
             Institute.ContinuousIntegration.Validation.Anchor(),
             Institute.ContinuousIntegration.Validation.ControlHost(),
+            Institute.ContinuousIntegration.Validation.UniversalWorkflow(),
         ]
 
         /// Reads `root` strictly as data; it never executes candidate code, actions, or workflows.

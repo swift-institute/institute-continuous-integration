@@ -29,7 +29,9 @@ struct `Control Validation Tests` {
         let root = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString)
         let workflows = root.appendingPathComponent(".github/workflows")
-        try FileManager.default.createDirectory(at: workflows, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(
+            at: workflows,
+            withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: root) }
 
         let workflow = """
@@ -53,6 +55,48 @@ struct `Control Validation Tests` {
         #expect(run.defect == nil)
         #expect(run.findings.contains { $0.rule == "CI-117" })
         #expect(run.tsv.contains("\tCI-117\t"))
+    }
+
+    @Test
+    func `canonical compositor does not retain the superseded runner label heuristic`() throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+        let workflows = root.appendingPathComponent(".github/workflows")
+        try FileManager.default.createDirectory(at: workflows, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+
+        let universal = CIValidationUniversalWorkflowTests.workflow()
+            .replacingOccurrences(
+                of: "  macos-release:\n    runs-on: ubuntu-latest",
+                with: "  macos-release:\n    runs-on: xcode-27"
+            )
+            .replacingOccurrences(
+                of: "  apple-simulator-build:\n    runs-on: ubuntu-latest",
+                with: "  apple-simulator-build:\n    runs-on: xcode-27"
+            )
+        try Data(universal.utf8).write(
+            to: workflows.appendingPathComponent("swift-ci.yml"))
+        let host = """
+            on:
+              workflow_dispatch:
+                inputs:
+                  repository: {required: true, type: string}
+                  pull: {required: true, type: string}
+                  head: {required: true, type: string}
+            permissions: {}
+            jobs: {}
+            """
+        try Data(host.utf8).write(
+            to: workflows.appendingPathComponent("control-validate.yml"))
+
+        let run = Institute.ContinuousIntegration.Control.Validation.run(
+            repository: "swift-institute/.github",
+            root: root.path)
+
+        #expect(
+            !run.findings.contains {
+                $0.message.contains("runs-on must reference a macos runner")
+            })
     }
 
     @Test

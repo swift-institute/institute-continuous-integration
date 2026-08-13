@@ -52,7 +52,6 @@ extension Institute.ContinuousIntegration.Validation {
     /// artefact is still spelled `validate-*.py`.
     public struct ManifestBinding: Validator {
         public let rules: [Rule] = ["CI-MANIFEST-BINDING"]
-        public let retiredScript: String? = ".github/scripts/validate-manifest-binding.py"
 
         /// Every key a manifest entry must carry, per
         /// `CI-REVIEW-PHASE-B-DESIGN §3`.

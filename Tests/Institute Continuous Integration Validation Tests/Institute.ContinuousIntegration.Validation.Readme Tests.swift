@@ -81,12 +81,6 @@ struct CIValidationReadmeTests {
 
     @Suite
     struct Registry {
-        @Test func `the registry serves this validator for the retired script`() {
-            let validator = Institute.ContinuousIntegration.Validation.Registry.validator(
-                replacing: ".github/scripts/validate-readme.py")
-            #expect(validator is Institute.ContinuousIntegration.Validation.Readme)
-        }
-
         @Test func `every corpus directory resolves to a registered rule`() {
             for directory in ["readme-008", "readme-013", "readme-017", "readme-026"] {
                 #expect(Institute.ContinuousIntegration.Validation.Registry.rule(forCorpusDirectory: directory) != nil)

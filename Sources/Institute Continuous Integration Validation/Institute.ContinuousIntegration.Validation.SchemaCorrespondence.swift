@@ -47,7 +47,6 @@ extension Institute.ContinuousIntegration.Validation {
     /// traceback. Both fail the caller loudly; neither reports a pass.
     public struct SchemaCorrespondence: Validator {
         public let rules: [Rule] = ["GH-REPO-063"]
-        public let retiredScript: String? = ".github/scripts/validate-schema-workflow-keys.py"
 
         /// The `readme.<field>` enum ↔ consumer-constant pairs the
         /// readme half compares. Mirrors the retired script's

@@ -15,7 +15,6 @@ extension Institute.ContinuousIntegration.Validation {
     /// own this organization-level host and are deliberately out of scope.
     public struct ControlHost: Validator {
         public let rules: [Rule] = ["CI-CONTROL-001"]
-        public let retiredScript: String? = nil
 
         public static let canonicalRepository = "swift-institute/.github"
         public static let workflowPath = ".github/workflows/control-validate.yml"

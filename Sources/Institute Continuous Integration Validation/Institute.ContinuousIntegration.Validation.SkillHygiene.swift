@@ -53,8 +53,6 @@ extension Institute.ContinuousIntegration.Validation {
             machinePath, internalRuleID, unsanctionedReference,
         ]
 
-        public let retiredScript: String? = ".github/scripts/validate-skill-hygiene.py"
-
         /// Where a scanned repository declares the cross-repository
         /// references it has already sanctioned.
         ///
