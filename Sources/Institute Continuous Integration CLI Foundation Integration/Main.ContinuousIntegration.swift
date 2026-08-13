@@ -12,6 +12,7 @@ extension Main {
     /// the owners', and the exit status is the verdict.
     enum Verb: String {
         case packageCommand = "package"
+        case control
         case bootstrapManifest = "bootstrap-manifest"
         case bootstrapVerify = "bootstrap-verify"
         case bootstrapIdentity = "bootstrap-identity"
@@ -59,6 +60,7 @@ extension Main {
     static func run(_ verb: Verb, _ rest: [String]) {
         switch verb {
         case .packageCommand: package(rest)
+        case .control: control(rest)
 
         case .bootstrapIdentity, .bootstrapManifest, .bootstrapVerify:
             bootstrap(verb, rest)
@@ -284,7 +286,7 @@ extension Main {
                 \(executableObjects.count) executable(s), producer run \(producerRun)
                 """)
 
-        case .packageCommand:
+        case .control, .packageCommand:
             refuse("unreachable")
         }
     }

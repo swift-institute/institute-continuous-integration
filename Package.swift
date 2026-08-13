@@ -235,8 +235,12 @@ let package = Package(
         .testTarget(
             name: "Institute Continuous Integration Validation Tests",
             dependencies: [
-                "Institute Continuous Integration Validation",
-                "Institute Continuous Integration Inventory",
+                .target(name: "Institute Continuous Integration"),
+                .target(name: "Institute Continuous Integration Validation"),
+                .target(name: "Institute Continuous Integration Inventory"),
+                .product(
+                    name: "GitHub Continuous Integration Validation",
+                    package: "swift-github-continuous-integration"),
             ],
             // Read from source through `#filePath`, not bundled: the
             // corpus is data the suite reads, unmodified.
