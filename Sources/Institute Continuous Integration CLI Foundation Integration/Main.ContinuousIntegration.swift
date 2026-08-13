@@ -375,7 +375,7 @@ extension Main {
                 \(executableObjects.count) executable(s), producer run \(producerRun)
                 """)
 
-        case .packageCommand:
+        case .packageCommand, .validate, .validateFixtures:
             refuse("unreachable")
         }
     }
