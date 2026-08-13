@@ -2,6 +2,7 @@ import ContinuousIntegration
 import GitHub_Continuous_Integration
 import GitHub_Continuous_Integration_Validation
 import GitHub_Continuous_Integration_Workflow
+import GitHub_Standard
 import Institute_Continuous_Integration
 
 extension Institute.ContinuousIntegration.Validation {
@@ -46,7 +47,7 @@ extension Institute.ContinuousIntegration.Validation {
             let document: GitHub.ContinuousIntegration.Workflow.Document
             do {
                 document = try .init(name: "swift-ci.yml", text: text)
-            } catch {
+            } catch let error as GitHub.ContinuousIntegration.Workflow.YAML.Error {
                 return [
                     finding(
                         subject.repository, "CI-010",

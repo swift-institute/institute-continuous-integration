@@ -115,6 +115,7 @@ let package = Package(
                 .product(
                     name: "GitHub Continuous Integration Validation",
                     package: "swift-github-continuous-integration"),
+                .product(name: "GitHub Standard", package: "swift-github-standard"),
                 .product(name: "Package Manager", package: "swift-package-manager"),
             ]
         ),
