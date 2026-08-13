@@ -1,12 +1,9 @@
 extension Repository.Policy.Caller {
-    /// Deterministic host projections of one caller spec. Two forms:
+    /// Deterministic host projections during the caller cutover.
     ///
-    /// - `current` — byte parity with the incumbent generate-caller.py
-    ///   TERMINAL form (wrapper call, tag trigger, legacy secrets); the
-    ///   F3 fixture-corpus parity gate compares against the incumbent.
-    /// - `direct` — the FT1-ratified no-tag leaf calling the universal
-    ///   reusable directly with the two-name secret map; activates in
-    ///   the F13/F14 caller wave.
+    /// `terminal` is the sole intended fleet output. `current` and `direct`
+    /// remain bounded migration renderings only until the convergence wave
+    /// has removed their final consumers.
     ///
     /// This renderer is a closed projection: it emits only admitted
     /// declarations (triggers/filters, root read ceiling, one
