@@ -42,6 +42,7 @@ extension Main {
                 case .fatal:
                     refused = true
                     print("\(repository)\tIDENTITY-CONFLICT\t\(identityMessage(finding))")
+
                 case .stalePin:
                     print("\(repository)\tIDENTITY-CONFLICT-STALE-PIN\t\(identityMessage(finding))")
                 }
@@ -55,7 +56,12 @@ extension Main {
         root: String
     ) -> [Package.Manifest.Identity.Conflict.Finding] {
         var entries: [Package.Manifest.Identity.Conflict.Entry] = []
-        let names = (try? FileManager.default.contentsOfDirectory(atPath: root)) ?? []
+        let names: [String]
+        do {
+            names = try FileManager.default.contentsOfDirectory(atPath: root)
+        } catch {
+            return []
+        }
         for name in names.sorted()
         where Package.Manifest.Identity.Conflict.isRootManifest(name) {
             guard let data = FileManager.default.contents(atPath: root + "/" + name) else {
