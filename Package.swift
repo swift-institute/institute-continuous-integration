@@ -145,6 +145,7 @@ let package = Package(
             dependencies: [
                 .product(name: "Byte Primitives", package: "swift-byte-primitives"),
                 .product(name: "FIPS 180-4", package: "swift-fips-180-4"),
+                .product(name: "Package Manager", package: "swift-package-manager"),
             ]
         ),
         .executableTarget(
@@ -216,6 +217,7 @@ let package = Package(
                 .product(
                     name: "GitHub Continuous Integration Validation",
                     package: "swift-github-continuous-integration"),
+                .product(name: "Package Manager", package: "swift-package-manager"),
             ]
         ),
         .testTarget(
