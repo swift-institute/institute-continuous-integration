@@ -16,6 +16,7 @@ extension Main {
         case packageCommand = "package"
         case validate = "validate"
         case validateFixtures = "validate-fixtures"
+        case control
         case bootstrapManifest = "bootstrap-manifest"
         case bootstrapVerify = "bootstrap-verify"
         case bootstrapIdentity = "bootstrap-identity"
@@ -63,6 +64,7 @@ extension Main {
     static func run(_ verb: Verb, _ rest: [String]) {
         switch verb {
         case .packageCommand: package(rest)
+        case .control: control(rest)
 
         case .validate: validate(rest)
 
@@ -375,7 +377,7 @@ extension Main {
                 \(executableObjects.count) executable(s), producer run \(producerRun)
                 """)
 
-        case .packageCommand, .validate, .validateFixtures:
+        case .control, .packageCommand, .validate, .validateFixtures:
             refuse("unreachable")
         }
     }
