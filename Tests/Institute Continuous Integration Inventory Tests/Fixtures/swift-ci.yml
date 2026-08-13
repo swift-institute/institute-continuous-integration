@@ -655,7 +655,7 @@ jobs:
           LINT_BUNDLE: ${{ inputs.lint-bundle }}
         run: |
           set -euo pipefail
-          PLAN_JSON="$(.institute-ci-entry/bin/institute-ci plan --tier "$FORCED_TIER" --ref "$GITHUB_REF" --head-message "$HEAD_MSG" --event "$EVENT_NAME" --platform-support "$PLATFORM_SUPPORT" --lint-bundle "$LINT_BUNDLE")"
+          PLAN_JSON="$(.institute-ci-entry/bin/institute-ci package plan --tier "$FORCED_TIER" --ref "$GITHUB_REF" --head-message "$HEAD_MSG" --event "$EVENT_NAME" --platform-support "$PLATFORM_SUPPORT" --lint-bundle "$LINT_BUNDLE")"
           TIER="$(jq -r '.tier' <<< "$PLAN_JSON")"
           LEGS="$(jq -r '.legs' <<< "$PLAN_JSON")"
           GATING="$(jq -r '.gating' <<< "$PLAN_JSON")"
@@ -2642,7 +2642,7 @@ jobs:
             FLAGS+=(--require-full-tier)
           fi
           RC=0
-          VERDICT="$(.institute-ci-entry/bin/institute-ci aggregate --needs-json "$NEEDS_JSON" --gating "$PLANNED_GATING" --subject-repository "$PLANNED_SUBJECT_REPOSITORY" --subject-sha "$PLANNED_SUBJECT_SHA" --tier "$PLANNED_TIER" "${FLAGS[@]}" 2> >(tee /tmp/aggregate-findings.txt >&2))" || RC=$?
+          VERDICT="$(.institute-ci-entry/bin/institute-ci package aggregate --needs-json "$NEEDS_JSON" --gating "$PLANNED_GATING" --subject-repository "$PLANNED_SUBJECT_REPOSITORY" --subject-sha "$PLANNED_SUBJECT_SHA" --tier "$PLANNED_TIER" "${FLAGS[@]}" 2> >(tee /tmp/aggregate-findings.txt >&2))" || RC=$?
           {
             if [ "$RC" -eq 0 ]; then
               echo "## ci-ok: pass (tier \`${PLANNED_TIER:-unknown}\`, aggregated by institute-ci)"

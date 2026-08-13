@@ -80,7 +80,7 @@ extension Institute.ContinuousIntegration.Inventory {
             self.plan = Plan(
                 delegatesToInstituteCI: planJob.steps.contains { step in
                     step["name"]?.text == Plan.classifyStep
-                        && (step["run"]?.text ?? "").contains("institute-ci plan")
+                        && (step["run"]?.text ?? "").contains("package plan")
                 })
 
             self.cacheSteps = jobs.flatMap { job in
