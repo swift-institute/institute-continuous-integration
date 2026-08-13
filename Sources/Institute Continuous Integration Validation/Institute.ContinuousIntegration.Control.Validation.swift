@@ -30,11 +30,12 @@ extension Institute.ContinuousIntegration.Control {
             GitHub.ContinuousIntegration.Validation.VisibilityGate(),
         ]
 
-        // The initial Institute-owned semantic slice is the exact-workflow trust anchor.
-        // Historical correspondence checks do not become control-plane policy by proximity.
+        // The Institute-owned terminal control-plane predicates. Historical
+        // correspondence checks do not become policy by proximity.
         // swiftlint:disable:next no_any_protocol_existential
         private static let institute: [any GitHub.ContinuousIntegration.Validation.Validator] = [
-            Institute.ContinuousIntegration.Validation.Anchor()
+            Institute.ContinuousIntegration.Validation.Anchor(),
+            Institute.ContinuousIntegration.Validation.ControlHost(),
         ]
 
         /// Reads `root` strictly as data; it never executes candidate code, actions, or workflows.
