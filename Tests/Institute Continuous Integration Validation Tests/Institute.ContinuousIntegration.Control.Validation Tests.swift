@@ -9,6 +9,22 @@ import Testing
 @Suite
 struct `Control Validation Tests` {
     @Test
+    func `canonical checker deletion is a finding`() throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        try Data("candidate data\n".utf8).write(to: root.appendingPathComponent("README.md"))
+
+        let run = Institute.ContinuousIntegration.Control.Validation.run(
+            repository: "swift-institute/.github",
+            root: root.path)
+
+        #expect(run.defect == nil)
+        #expect(run.findings.contains { $0.rule == "CI-CONTROL-001" })
+    }
+
+    @Test
     func `candidate remains data while floating-action positive control fires`() throws {
         let root = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString)
