@@ -109,7 +109,8 @@ extension Institute.ContinuousIntegration.Validation.SkillHygiene {
         /// keeps a live step summary readable against its predecessor.
         static func componentsPrecede(_ lhs: String, _ rhs: String) -> Bool {
             lhs.split(separator: "/", omittingEmptySubsequences: false).lexicographicallyPrecedes(
-                rhs.split(separator: "/", omittingEmptySubsequences: false))
+                rhs.split(separator: "/", omittingEmptySubsequences: false)
+            )
         }
     }
 }

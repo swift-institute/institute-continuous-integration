@@ -42,7 +42,8 @@ extension Institute.ContinuousIntegration.Validation {
                     finding(
                         subject.repository,
                         "trusted Control host must be dispatch-only"
-                    ))
+                    )
+                )
             }
 
             let inputs = triggers?["workflow_dispatch"]?["inputs"]?.mapping
@@ -54,7 +55,8 @@ extension Institute.ContinuousIntegration.Validation {
                         finding(
                             subject.repository,
                             "workflow_dispatch input `\(name)` must exist and be required"
-                        ))
+                        )
+                    )
                     continue
                 }
             }
@@ -64,11 +66,13 @@ extension Institute.ContinuousIntegration.Validation {
                     finding(
                         subject.repository,
                         "trusted Control host must deny top-level permissions with `permissions: {}`"
-                    ))
+                    )
+                )
             }
             if document.body?["jobs"]?["control"]?.mapping == nil {
                 result.append(
-                    finding(subject.repository, "trusted Control host has no `control` job"))
+                    finding(subject.repository, "trusted Control host has no `control` job")
+                )
             }
             return result
         }

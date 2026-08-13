@@ -73,15 +73,21 @@ struct InstituteValidationCorpusTests {
                 for subject in try fileManager.contentsOfDirectory(
                     at: root,
                     includingPropertiesForKeys: [.isDirectoryKey]
-                ) where (try? subject.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true {
+                )
+                where (try? subject.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true
+                {
                     guard
                         try Institute.ContinuousIntegration.Validation.Gitignore.git(
-                            ["init", "-q", "."], in: subject, input: nil
+                            ["init", "-q", "."],
+                            in: subject,
+                            input: nil
                         ).status == 0
                     else { throw CocoaError(.fileWriteUnknown) }
                     guard
                         try Institute.ContinuousIntegration.Validation.Gitignore.git(
-                            ["add", "-f", "--all"], in: subject, input: nil
+                            ["add", "-f", "--all"],
+                            in: subject,
+                            input: nil
                         ).status == 0
                     else { throw CocoaError(.fileWriteUnknown) }
                 }
@@ -110,7 +116,8 @@ struct InstituteValidationCorpusTests {
         }
     }
 
-    static func run(in corpus: Validation.Corpus) throws -> (outcomes: [Outcome], unowned: [String]) {
+    static func run(in corpus: Validation.Corpus) throws -> (outcomes: [Outcome], unowned: [String])
+    {
         var outcomes: [Outcome] = []
         var unowned: [String] = []
         for directory in try corpus.ruleDirectories() {
@@ -145,7 +152,8 @@ struct InstituteValidationCorpusTests {
     @Test func `every registered rule resolves back to its validator`() {
         for rule in Institute.ContinuousIntegration.Validation.Registry.rules {
             #expect(
-                Institute.ContinuousIntegration.Validation.Registry.validator(for: rule) != nil)
+                Institute.ContinuousIntegration.Validation.Registry.validator(for: rule) != nil
+            )
         }
     }
 
@@ -158,7 +166,8 @@ struct InstituteValidationCorpusTests {
         // deny-by-default shape rule (linter-rules#68).
         #expect(
             directories.count == 51,
-            "expected the 51-directory Institute-side corpus, found \(directories.count)")
+            "expected the 51-directory Institute-side corpus, found \(directories.count)"
+        )
     }
 
     @Test func `every owned scenario meets its expectation`() throws {
@@ -172,7 +181,9 @@ struct InstituteValidationCorpusTests {
             // Guard against a silently empty run: a harness that checks
             // nothing passes everything.
             #expect(!outcomes.isEmpty)
-            #expect(outcomes.contains { $0.scenario.expectation == .violating && !$0.findings.isEmpty })
+            #expect(
+                outcomes.contains { $0.scenario.expectation == .violating && !$0.findings.isEmpty }
+            )
             // Port residue is named, not silently skipped: every directory is
             // either owned by this registry or listed as residue.
             let directories = try corpus.ruleDirectories()
@@ -180,7 +191,8 @@ struct InstituteValidationCorpusTests {
                 directories.filter {
                     Institute.ContinuousIntegration.Validation.Registry
                         .rule(forCorpusDirectory: $0) != nil
-                })
+                }
+            )
             #expect(owned.isDisjoint(with: Set(unowned)))
             #expect(owned.count + unowned.count == directories.count)
         }

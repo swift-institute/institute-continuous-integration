@@ -10,16 +10,20 @@ extension Main {
         let repository = value("--repository", in: rest)
         let root = value("--root", in: rest)
         guard !repository.isEmpty, !root.isEmpty else {
-            refuse("control validate requires --repository <owner/name> --root <candidate-directory>")
+            refuse(
+                "control validate requires --repository <owner/name> --root <candidate-directory>"
+            )
         }
 
         let run = Institute.ContinuousIntegration.Control.Validation.run(
             repository: repository,
-            root: root)
+            root: root
+        )
         if !run.tsv.isEmpty { print(run.tsv) }
         if let defect = run.defect {
             FileHandle.standardError.write(
-                Data("institute-continuous-integration: control validate: \(defect.message)\n".utf8))
+                Data("institute-continuous-integration: control validate: \(defect.message)\n".utf8)
+            )
             exit(2)
         }
         if !run.findings.isEmpty { exit(1) }

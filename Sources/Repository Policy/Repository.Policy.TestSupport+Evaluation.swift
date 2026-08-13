@@ -5,7 +5,8 @@ extension RepositoryPolicy.TestSupport {
         in evaluation: Package.Manifest.Evaluation
     ) -> [Finding] {
         let supportedTargets = Swift.Set(
-            evaluation.products.flatMap(\.targets).map(\.underlying))
+            evaluation.products.flatMap(\.targets).map(\.underlying)
+        )
 
         return evaluation.targets.flatMap { target -> [Finding] in
             let targetName = target.name.underlying

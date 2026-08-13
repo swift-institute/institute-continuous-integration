@@ -74,11 +74,13 @@ struct CIValidationUniversalWorkflowTests {
         let findings = try Self.findings(
             Self.workflow(aggregateNeeds: [
                 "plan", "linux-release", "macos-release", "format", "lint", "swift-linter",
-            ]))
+            ])
+        )
         #expect(
             findings.contains {
                 $0.message.contains("does not consume gating result `windows-release`")
-            })
+            }
+        )
     }
 
     @Test func `selected gating job cannot be statically skipped`() throws {
@@ -88,7 +90,8 @@ struct CIValidationUniversalWorkflowTests {
 
     @Test func `Windows cannot move into the advisory result set`() throws {
         let findings = try Self.findings(
-            Self.workflow(advisoryNeeds: ["plan", "windows-release"]))
+            Self.workflow(advisoryNeeds: ["plan", "windows-release"])
+        )
         #expect(findings.contains { $0.rule == "CI-099" && $0.message.contains("windows-release") })
     }
 }

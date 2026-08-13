@@ -73,7 +73,9 @@ struct CIValidationReadmeTests {
             let repository = TemporaryRepository(repository: "swift-institute/other")
             repository.write("readme:\n  family: G\n", to: ".github/metadata.yaml")
             repository.write(
-                "# Org\n\n## Installation\n\nforbidden\n", to: ".github/profile/README.md")
+                "# Org\n\n## Installation\n\nforbidden\n",
+                to: ".github/profile/README.md"
+            )
             let findings = try validator.findings(in: repository.subject)
             #expect(findings.map(\.rule) == ["README-116"])
         }
@@ -83,7 +85,11 @@ struct CIValidationReadmeTests {
     struct Registry {
         @Test func `every corpus directory resolves to a registered rule`() {
             for directory in ["readme-008", "readme-013", "readme-017", "readme-026"] {
-                #expect(Institute.ContinuousIntegration.Validation.Registry.rule(forCorpusDirectory: directory) != nil)
+                #expect(
+                    Institute.ContinuousIntegration.Validation.Registry.rule(
+                        forCorpusDirectory: directory
+                    ) != nil
+                )
             }
         }
     }

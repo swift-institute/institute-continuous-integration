@@ -17,7 +17,9 @@ struct RepositoryPolicyEligibilityTests {
         let verdict = Repository.Policy.Eligibility.verdict(
             .init(
                 repository: "swift-primitives/swift-percent-primitives",
-                rootManifest: .present))
+                rootManifest: .present
+            )
+        )
         #expect(verdict == .eligible)
         #expect(verdict.isEligible)
     }
@@ -31,7 +33,8 @@ struct RepositoryPolicyEligibilityTests {
     @Test
     func issuesIsExcludedDespiteCarryingARootManifest() {
         let verdict = Repository.Policy.Eligibility.verdict(
-            .init(repository: "swift-institute/Issues", rootManifest: .present))
+            .init(repository: "swift-institute/Issues", rootManifest: .present)
+        )
         guard case .bespoke(let exception) = verdict else {
             Issue.record("expected .bespoke, got \(verdict)")
             return
@@ -47,7 +50,8 @@ struct RepositoryPolicyEligibilityTests {
     @Test
     func theExceptionSetMatchesCaseInsensitively() {
         let verdict = Repository.Policy.Eligibility.verdict(
-            .init(repository: "swift-institute/issues", rootManifest: .present))
+            .init(repository: "swift-institute/issues", rootManifest: .present)
+        )
         #expect(!verdict.isEligible)
     }
 
@@ -61,12 +65,18 @@ struct RepositoryPolicyEligibilityTests {
             Repository.Policy.Eligibility.verdict(
                 .init(
                     repository: "swift-institute/Issues-archive",
-                    rootManifest: .present)) == .eligible)
+                    rootManifest: .present
+                )
+            ) == .eligible
+        )
         #expect(
             Repository.Policy.Eligibility.verdict(
                 .init(
                     repository: "swift-foundations/Issues",
-                    rootManifest: .present)) == .eligible)
+                    rootManifest: .present
+                )
+            ) == .eligible
+        )
     }
 
     // MARK: Negative control 2 — excluded by the manifest term
@@ -76,9 +86,11 @@ struct RepositoryPolicyEligibilityTests {
         for repository in ["swift-institute/Skills", "swift-institute/cclsp"] {
             #expect(
                 Repository.Policy.Eligibility.verdict(
-                    .init(repository: repository, rootManifest: .absent))
+                    .init(repository: repository, rootManifest: .absent)
+                )
                     == .noManifest,
-                "\(repository)")
+                "\(repository)"
+            )
         }
     }
 
@@ -89,13 +101,16 @@ struct RepositoryPolicyEligibilityTests {
     func skillsReportsNoManifestNowAndBespokeIfItEverGainsOne() {
         #expect(
             Repository.Policy.Eligibility.verdict(
-                .init(repository: "swift-institute/Skills", rootManifest: .absent))
-                == .noManifest)
+                .init(repository: "swift-institute/Skills", rootManifest: .absent)
+            )
+                == .noManifest
+        )
         #expect(
             !Repository.Policy.Eligibility.verdict(
                 .init(repository: "swift-institute/Skills", rootManifest: .present)
             )
-            .isEligible)
+            .isEligible
+        )
     }
 
     /// The control repository for the manifest probe itself: this very
@@ -104,8 +119,10 @@ struct RepositoryPolicyEligibilityTests {
     func theControlPlaneRepositoryIsNotAWaveSubject() {
         #expect(
             Repository.Policy.Eligibility.verdict(
-                .init(repository: "swift-institute/.github", rootManifest: .absent))
-                == .noManifest)
+                .init(repository: "swift-institute/.github", rootManifest: .absent)
+            )
+                == .noManifest
+        )
     }
 
     // MARK: Negative control 3 — the omission direction
@@ -126,9 +143,11 @@ struct RepositoryPolicyEligibilityTests {
         for repository in created {
             #expect(
                 Repository.Policy.Eligibility.verdict(
-                    .init(repository: repository, rootManifest: .present))
+                    .init(repository: repository, rootManifest: .present)
+                )
                     == .eligible,
-                "\(repository)")
+                "\(repository)"
+            )
         }
     }
 
@@ -141,7 +160,8 @@ struct RepositoryPolicyEligibilityTests {
             #expect(exception.repository.contains("/"), "\(exception.repository)")
             #expect(
                 exception.reason.contains("swift-institute/.github#"),
-                "\(exception.repository) names no durable ruling coordinate")
+                "\(exception.repository) names no durable ruling coordinate"
+            )
         }
     }
 
@@ -155,6 +175,7 @@ struct RepositoryPolicyEligibilityTests {
     func lookupReturnsNilForANonException() {
         #expect(
             Repository.Policy.Eligibility
-                .exception("swift-primitives/swift-percent-primitives") == nil)
+                .exception("swift-primitives/swift-percent-primitives") == nil
+        )
     }
 }

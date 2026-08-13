@@ -27,7 +27,8 @@ extension Main {
             default:
                 throw .configuration(
                     RepositoryPolicy.ConfigurationError(
-                        "unknown draft-metadata argument \(argument)")
+                        "unknown draft-metadata argument \(argument)"
+                    )
                 )
             }
         }
@@ -48,7 +49,10 @@ extension Main {
         let draft: Repository.Policy.Metadata.Draft
         do throws(Repository.Policy.Metadata.Error) {
             draft = try Repository.Policy.Metadata.Draft(
-                target: repository, titles: titles, packageDescription: packageDescription)
+                target: repository,
+                titles: titles,
+                packageDescription: packageDescription
+            )
         } catch {
             throw .metadata(error)
         }
@@ -61,9 +65,14 @@ extension Main {
     /// (and a re-run of the same wave) renders the same bytes.
     private static var today: String {
         let components = Calendar(identifier: .gregorian).dateComponents(
-            in: TimeZone(identifier: "UTC") ?? .gmt, from: Date())
+            in: TimeZone(identifier: "UTC") ?? .gmt,
+            from: Date()
+        )
         return String(
-            format: "%04d-%02d-%02d", components.year ?? 0, components.month ?? 0,
-            components.day ?? 0)
+            format: "%04d-%02d-%02d",
+            components.year ?? 0,
+            components.month ?? 0,
+            components.day ?? 0
+        )
     }
 }

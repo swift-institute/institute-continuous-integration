@@ -61,12 +61,16 @@ extension Institute.ContinuousIntegration.Command {
             switch command {
             case "render-gitignore":
                 let values = try values(arguments.dropFirst(), admitting: ["--canon", "--target"])
-                guard let canon = values["--canon"] else { throw .missingRequiredArgument("--canon") }
+                guard let canon = values["--canon"] else {
+                    throw .missingRequiredArgument("--canon")
+                }
                 return .render(canon: canon, target: values["--target"])
 
             case "validate-gitignore":
                 let values = try values(
-                    arguments.dropFirst(), admitting: ["--repository", "--root", "--canon"])
+                    arguments.dropFirst(),
+                    admitting: ["--repository", "--root", "--canon"]
+                )
                 guard let repository = values["--repository"] else {
                     throw .missingRequiredArgument("--repository")
                 }
@@ -75,7 +79,9 @@ extension Institute.ContinuousIntegration.Command {
 
             case "validate-gitignore-fixtures":
                 let values = try values(arguments.dropFirst(), admitting: ["--corpus"])
-                guard let corpus = values["--corpus"] else { throw .missingRequiredArgument("--corpus") }
+                guard let corpus = values["--corpus"] else {
+                    throw .missingRequiredArgument("--corpus")
+                }
                 return .fixtures(corpus: corpus)
 
             default:
@@ -88,7 +94,8 @@ extension Institute.ContinuousIntegration.Command {
         public static func render(canon: String, target: String?) throws(Error) -> String {
             do throws(Institute.ContinuousIntegration.Canon.Gitignore.Render.Error) {
                 return try Institute.ContinuousIntegration.Canon.Gitignore.Render(
-                    canon: .init(canon))(over: target.map(Institute.ContinuousIntegration.Canon.Gitignore.init))
+                    canon: .init(canon)
+                )(over: target.map(Institute.ContinuousIntegration.Canon.Gitignore.init))
             } catch {
                 throw .invalidCanon(error.message)
             }
@@ -97,8 +104,12 @@ extension Institute.ContinuousIntegration.Command {
         /// Evaluates one checked-out repository. Findings remain the shared
         /// TSV wire format so every GH-IGNORE identifier survives aggregation.
         public static func findings(
-            repository: String, root: String, canon: String?
-        ) throws(Institute.ContinuousIntegration.Validation.EnvironmentDefect) -> [Institute.ContinuousIntegration.Validation.Finding] {
+            repository: String,
+            root: String,
+            canon: String?
+        ) throws(Institute.ContinuousIntegration.Validation.EnvironmentDefect) -> [Institute
+            .ContinuousIntegration.Validation.Finding]
+        {
             try Institute.ContinuousIntegration.Validation.Gitignore(canon: canon)
                 .findings(in: .init(repository: repository, root: root))
         }
@@ -125,7 +136,8 @@ extension Institute.ContinuousIntegration.Command {
         }
 
         private static func values(
-            _ arguments: ArraySlice<String>, admitting options: Set<String>
+            _ arguments: ArraySlice<String>,
+            admitting options: Set<String>
         ) throws(Error) -> [String: String] {
             var values: [String: String] = [:]
             var iterator = arguments.makeIterator()

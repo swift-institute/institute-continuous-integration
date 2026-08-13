@@ -67,8 +67,10 @@ extension Institute.ContinuousIntegration {
                         response: response
                     )
                 }
-                return Institute.ContinuousIntegration.Package.Content(declaredRoots: packageRoots(in: workspace))
-                    .changed(changes)
+                return Institute.ContinuousIntegration.Package.Content(
+                    declaredRoots: packageRoots(in: workspace)
+                )
+                .changed(changes)
             } catch { return true }
         }
 
@@ -109,7 +111,9 @@ extension Institute.ContinuousIntegration {
                     commits.append(sha)
                 }
             }
-            guard commits.count == expected, Set(commits).count == expected else { throw .comparison }
+            guard commits.count == expected, Set(commits).count == expected else {
+                throw .comparison
+            }
             var changes: [Institute.ContinuousIntegration.Package.Content.Change] = []
             for commit in commits {
                 changes += try files(

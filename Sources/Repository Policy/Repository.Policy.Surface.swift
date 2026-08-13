@@ -159,7 +159,8 @@ extension RepositoryPolicy {
                         "surface exemption path is not normalized: \(exemption.path)"
                     )
                 }
-                guard !exemption.reason.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                guard !exemption.reason.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                else {
                     throw ConfigurationError(
                         "surface exemption requires a reason: \(exemption.repository) \(exemption.path)"
                     )
@@ -315,7 +316,8 @@ extension RepositoryPolicy {
                         .init(
                             identifier: "REPO-ACTIONS-005",
                             path: action.path,
-                            message: "thin callers require every job to use a reusable workflow and forbid steps/runs-on"
+                            message:
+                                "thin callers require every job to use a reusable workflow and forbid steps/runs-on"
                         )
                     )
                 }
@@ -368,7 +370,8 @@ extension RepositoryPolicy {
                         .init(
                             identifier: "REPO-README-001",
                             path: "README.md",
-                            message: "development-status badge (img.shields.io/badge/status-) is struck; remove it"
+                            message:
+                                "development-status badge (img.shields.io/badge/status-) is struck; remove it"
                         )
                     )
                 }
@@ -543,7 +546,9 @@ private struct SurfaceSnapshot {
                 options: []
             )
         else {
-            throw RepositoryPolicy.ConfigurationError("cannot enumerate repository root \(root.path)")
+            throw RepositoryPolicy.ConfigurationError(
+                "cannot enumerate repository root \(root.path)"
+            )
         }
 
         var actions = [ActionFile]()
@@ -674,7 +679,9 @@ private struct ActionFile {
     let jobsWithUses: Int
 
     init(
-        path: String, source: String, manifestIsAction: Bool
+        path: String,
+        source: String,
+        manifestIsAction: Bool
     ) throws(RepositoryPolicy.ConfigurationError) {
         let lines = source.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
         var triggers = Set<String>()

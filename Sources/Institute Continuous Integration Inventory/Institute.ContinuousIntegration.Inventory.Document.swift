@@ -30,7 +30,10 @@ extension Institute.ContinuousIntegration.Inventory {
         public init(universalWorkflow text: String) throws(Error) {
             let document: GitHub.ContinuousIntegration.Workflow.Document
             do throws(GitHub.ContinuousIntegration.Workflow.YAML.Error) {
-                document = try GitHub.ContinuousIntegration.Workflow.Document(name: "swift-ci.yml", text: text)
+                document = try GitHub.ContinuousIntegration.Workflow.Document(
+                    name: "swift-ci.yml",
+                    text: text
+                )
             } catch {
                 throw .unreadableWorkflow(message: error.message)
             }
@@ -44,12 +47,15 @@ extension Institute.ContinuousIntegration.Inventory {
                     (.text("generated_by"), .text("institute-ci verdict-inventory")),
                     (.text("caller_hops"), .integer(Self.callerHops)),
                     (.text("universal"), universal.node),
-                ]))
+                ])
+            )
         }
 
         /// The document as canonical JSON — key-sorted, one deterministic
         /// spelling per value — through the reader's own serializer, so
         /// the inventory never grows a second one.
-        public var canonicalJSON: String { GitHub.ContinuousIntegration.Workflow.YAML.Canonical.json(node) }
+        public var canonicalJSON: String {
+            GitHub.ContinuousIntegration.Workflow.YAML.Canonical.json(node)
+        }
     }
 }

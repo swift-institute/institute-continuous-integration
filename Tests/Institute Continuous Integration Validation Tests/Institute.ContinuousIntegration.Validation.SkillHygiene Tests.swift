@@ -18,7 +18,9 @@ import Testing
 struct CIValidationSkillHygieneTests {
     static let validator = Institute.ContinuousIntegration.Validation.SkillHygiene(supportRoot: nil)
 
-    static func findings(in repository: borrowing TemporaryRepository) -> [GitHub.ContinuousIntegration.Validation.Finding] {
+    static func findings(
+        in repository: borrowing TemporaryRepository
+    ) -> [GitHub.ContinuousIntegration.Validation.Finding] {
         (try? validator.findings(in: repository.subject)) ?? []
     }
 
@@ -94,7 +96,9 @@ struct CIValidationSkillHygieneTests {
     struct Control {
         typealias Subject = Institute.ContinuousIntegration.Validation.SkillHygiene
 
-        static func rules(_ repository: borrowing TemporaryRepository) -> Set<GitHub.ContinuousIntegration.Validation.Rule> {
+        static func rules(
+            _ repository: borrowing TemporaryRepository
+        ) -> Set<GitHub.ContinuousIntegration.Validation.Rule> {
             Set(CIValidationSkillHygieneTests.findings(in: repository).map(\.rule))
         }
 
@@ -120,7 +124,8 @@ struct CIValidationSkillHygieneTests {
             let repository = TemporaryRepository()
             repository.write(
                 "---\nname: alpha\ndescription: d\n---\n\n[gone](companion.md)\n",
-                to: "alpha/SKILL.md")
+                to: "alpha/SKILL.md"
+            )
             #expect(Self.rules(repository).contains(Subject.links))
         }
 
@@ -128,7 +133,8 @@ struct CIValidationSkillHygieneTests {
             let repository = TemporaryRepository()
             repository.write(
                 "---\nname: alpha\ndescription: d\n---\n\n[here](companion.md)\n",
-                to: "alpha/SKILL.md")
+                to: "alpha/SKILL.md"
+            )
             repository.write("# Companion\n", to: "alpha/companion.md")
             #expect(!Self.rules(repository).contains(Subject.links))
         }
@@ -137,7 +143,8 @@ struct CIValidationSkillHygieneTests {
             let repository = TemporaryRepository()
             repository.write(
                 "---\nname: alpha\ndescription: d\n---\n\nsee /Users/someone/dev/x\n",
-                to: "alpha/SKILL.md")
+                to: "alpha/SKILL.md"
+            )
             #expect(Self.rules(repository).contains(Subject.machinePath))
         }
 
@@ -145,7 +152,8 @@ struct CIValidationSkillHygieneTests {
             let repository = TemporaryRepository()
             repository.write(
                 "---\nname: alpha\ndescription: d\n---\n\nper [CI-105] this fires\n",
-                to: "alpha/SKILL.md")
+                to: "alpha/SKILL.md"
+            )
             #expect(Self.rules(repository).contains(Subject.internalRuleID))
         }
 
@@ -156,7 +164,8 @@ struct CIValidationSkillHygieneTests {
             let repository = TemporaryRepository()
             repository.write(
                 "---\nname: alpha\ndescription: d\n---\n\nsee swift-primitives/thing\n",
-                to: "alpha/SKILL.md")
+                to: "alpha/SKILL.md"
+            )
             #expect(Self.rules(repository).contains(Subject.unsanctionedReference))
         }
 
@@ -164,7 +173,8 @@ struct CIValidationSkillHygieneTests {
             let repository = TemporaryRepository()
             repository.write(
                 "---\nname: alpha\ndescription: d\n---\n\nsee swift-primitives/thing\n",
-                to: "alpha/SKILL.md")
+                to: "alpha/SKILL.md"
+            )
             repository.write("swift-primitives/thing\n", to: ".github/sanctioned-references")
             #expect(!Self.rules(repository).contains(Subject.unsanctionedReference))
         }
@@ -176,7 +186,8 @@ struct CIValidationSkillHygieneTests {
             let repository = TemporaryRepository()
             repository.write(
                 "---\nname: alpha\ndescription: d\n---\n\nsee swift-primitives/thing.\n",
-                to: "alpha/SKILL.md")
+                to: "alpha/SKILL.md"
+            )
             repository.write("swift-primitives/thing\n", to: ".github/sanctioned-references")
             #expect(!Self.rules(repository).contains(Subject.unsanctionedReference))
         }
@@ -187,7 +198,8 @@ struct CIValidationSkillHygieneTests {
             let repository = TemporaryRepository()
             repository.write(
                 "---\nname: alpha\ndescription: d\n---\n\nsee Internal/Other\n",
-                to: "alpha/SKILL.md")
+                to: "alpha/SKILL.md"
+            )
             repository.write("Internal/Skills\n", to: ".github/sanctioned-references")
             #expect(Self.rules(repository).contains(Subject.unsanctionedReference))
         }

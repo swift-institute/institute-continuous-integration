@@ -31,9 +31,11 @@ struct CIInventoryAnchorTests {
     ) throws -> Anchor.Source {
         Anchor.Source(
             repository: repository,
-            checkout: ".ci-sources/" + (repository.split(separator: "/").last.map(String.init) ?? repository),
+            checkout: ".ci-sources/"
+                + (repository.split(separator: "/").last.map(String.init) ?? repository),
             commit: try Anchor.Revision(commit),
-            tree: Anchor.Source.Tree(path: path, oid: try Anchor.Revision(Self.tree)))
+            tree: Anchor.Source.Tree(path: path, oid: try Anchor.Revision(Self.tree))
+        )
     }
 
     static func anchor(_ sources: [Anchor.Source]) throws -> Anchor {
@@ -45,7 +47,10 @@ struct CIInventoryAnchorTests {
     @Suite
     struct Revisions {
         @Test func `a canonical object name is a revision`() throws {
-            #expect(try Anchor.Revision(CIInventoryAnchorTests.commit).rawValue == CIInventoryAnchorTests.commit)
+            #expect(
+                try Anchor.Revision(CIInventoryAnchorTests.commit).rawValue
+                    == CIInventoryAnchorTests.commit
+            )
         }
 
         /// Each of these is a perfectly good string and none of them pins
@@ -63,7 +68,8 @@ struct CIInventoryAnchorTests {
                 "",
             ])
         func `nothing but a canonical object name is accepted`(_ text: String) throws {
-            #expect(throws: Institute.ContinuousIntegration.Inventory.Error.malformedRevision(text)) {
+            #expect(throws: Institute.ContinuousIntegration.Inventory.Error.malformedRevision(text))
+            {
                 try Anchor.Revision(text)
             }
         }
@@ -101,7 +107,10 @@ struct CIInventoryAnchorTests {
     @Test func `each source emits its checkout followed by its identity check`() throws {
         let anchor = try Self.anchor([
             Self.source(),
-            Self.source("swift-institute/institute-continuous-integration", commit: "fedcba9876543210fedcba9876543210fedcba98"),
+            Self.source(
+                "swift-institute/institute-continuous-integration",
+                commit: "fedcba9876543210fedcba9876543210fedcba98"
+            ),
         ])
         let names = anchor.steps.compactMap { $0["name"]?.text }
         #expect(
@@ -110,7 +119,8 @@ struct CIInventoryAnchorTests {
                 "swift-foundations/swift-continuous-integration source identity",
                 "Checkout swift-institute/institute-continuous-integration",
                 "swift-institute/institute-continuous-integration source identity",
-            ])
+            ]
+        )
     }
 
     @Test func `the checkout is pinned to the literal commit and carries no credentials`() throws {
@@ -146,8 +156,11 @@ struct CIInventoryAnchorTests {
     @Test func `a guarded anchor puts its condition on both generated steps`() throws {
         let source = try Self.source()
         let anchor = try Anchor(
-            producer: "institute-ci trust-anchor", action: Self.action,
-            condition: "${{ inputs.job == '' }}", sources: [source])
+            producer: "institute-ci trust-anchor",
+            action: Self.action,
+            condition: "${{ inputs.job == '' }}",
+            sources: [source]
+        )
         #expect(anchor.steps.allSatisfy { $0["if"]?.text == "${{ inputs.job == '' }}" })
     }
 
@@ -182,7 +195,8 @@ struct CIInventoryAnchorTests {
             (#"{"schema_version": 1, "producer": "p"}"#, "`action`"),
         ])
     func `a manifest that cannot be read is refused, never partially read`(
-        _ text: String, _ expected: String
+        _ text: String,
+        _ expected: String
     ) throws {
         do throws(Institute.ContinuousIntegration.Inventory.Error) {
             _ = try Anchor(manifest: text)
@@ -208,8 +222,11 @@ struct CIInventoryAnchorTests {
             observed: [
                 .init(
                     repository: "swift-foundations/swift-continuous-integration",
-                    head: try Anchor.Revision(Self.commit), distance: 0)
-            ])
+                    head: try Anchor.Revision(Self.commit),
+                    distance: 0
+                )
+            ]
+        )
         #expect(report.behind.isEmpty)
         #expect(report.unmeasured.isEmpty)
         #expect(report.rows.first?.isCurrent == true)
@@ -223,8 +240,10 @@ struct CIInventoryAnchorTests {
                 .init(
                     repository: "swift-foundations/swift-continuous-integration",
                     head: try Anchor.Revision("fedcba9876543210fedcba9876543210fedcba98"),
-                    distance: 12)
-            ])
+                    distance: 12
+                )
+            ]
+        )
         #expect(report.behind.count == 1)
         #expect(report.behind.first?.distance == 12)
         #expect(report.rows.first?.isCurrent == false)
@@ -250,8 +269,11 @@ struct CIInventoryAnchorTests {
             observed: [
                 .init(
                     repository: "swift-institute/unrelated",
-                    head: try Anchor.Revision(Self.tree), distance: 3)
-            ])
+                    head: try Anchor.Revision(Self.tree),
+                    distance: 3
+                )
+            ]
+        )
         #expect(report.rows.count == 1)
         #expect(report.rows.first?.repository == "swift-foundations/swift-continuous-integration")
         #expect(report.unmeasured.count == 1)

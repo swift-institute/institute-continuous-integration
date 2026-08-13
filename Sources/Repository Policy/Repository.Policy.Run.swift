@@ -6,7 +6,8 @@ extension RepositoryPolicy {
         public let repository: String?
 
         public init(
-            organization: String?, repository: String?
+            organization: String?,
+            repository: String?
         ) throws(RepositoryPolicy.ConfigurationError) {
             let organization = organization.flatMap { $0.isEmpty ? nil : $0 }
             let repository = repository.flatMap { $0.isEmpty ? nil : $0 }
@@ -19,7 +20,9 @@ extension RepositoryPolicy {
             guard owner != "tenthijeboonkkamp" else {
                 throw ConfigurationError("owner tenthijeboonkkamp is outside Institute scope")
             }
-            if let repository, repository.split(separator: "/", omittingEmptySubsequences: false).count != 2 {
+            if let repository,
+                repository.split(separator: "/", omittingEmptySubsequences: false).count != 2
+            {
                 throw ConfigurationError("--repository must use owner/name form")
             }
             self.organization = organization
@@ -260,7 +263,8 @@ extension RepositoryPolicy {
     }
 
     private static func write(
-        _ receipt: Receipt, to url: URL
+        _ receipt: Receipt,
+        to url: URL
     ) throws(RepositoryPolicy.Error) {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]

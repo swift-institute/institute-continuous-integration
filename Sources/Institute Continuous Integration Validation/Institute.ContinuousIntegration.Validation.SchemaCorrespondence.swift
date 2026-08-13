@@ -78,8 +78,10 @@ extension Institute.ContinuousIntegration.Validation {
 
         public func findings(in subject: Subject) throws(EnvironmentDefect) -> [Finding] {
             let schemaPath = schemaFile ?? subject.path("metadata-schema.json")
-            let workflowPath = syncWorkflowFile ?? subject.path(".github/workflows/sync-metadata.yml")
-            let readmePath = readmeValidatorFile ?? subject.path(".github/scripts/validate-readme.py")
+            let workflowPath =
+                syncWorkflowFile ?? subject.path(".github/workflows/sync-metadata.yml")
+            let readmePath =
+                readmeValidatorFile ?? subject.path(".github/scripts/validate-readme.py")
 
             let schemaText = try Self.text(at: schemaPath)
             let workflowText = try Self.text(at: workflowPath)
@@ -98,11 +100,17 @@ extension Institute.ContinuousIntegration.Validation {
 
             let schemaName = Self.name(of: schemaPath)
             var problems = Self.settingsProblems(
-                schema: schema, schemaName: schemaName,
-                workflowName: Self.name(of: workflowPath), workflowText: workflowText)
+                schema: schema,
+                schemaName: schemaName,
+                workflowName: Self.name(of: workflowPath),
+                workflowText: workflowText
+            )
             problems += Self.readmeProblems(
-                schema: schema, schemaName: schemaName,
-                consumer: Self.name(of: readmePath), consumerSource: readmeText)
+                schema: schema,
+                schemaName: schemaName,
+                consumer: Self.name(of: readmePath),
+                consumerSource: readmeText
+            )
             return problems.map {
                 Finding(repository: subject.repository, rule: rules[0], message: $0)
             }
@@ -114,8 +122,10 @@ extension Institute.ContinuousIntegration.Validation.SchemaCorrespondence {
     /// `settings.properties` keys ↔ `.settings.<key>` reads in the
     /// workflow.
     static func settingsProblems(
-        schema: [String: Any], schemaName: String,
-        workflowName: String, workflowText: String
+        schema: [String: Any],
+        schemaName: String,
+        workflowName: String,
+        workflowText: String
     ) -> [String] {
         let properties = schema["properties"] as? [String: Any]
         let settings = properties?["settings"] as? [String: Any]
@@ -134,12 +144,14 @@ extension Institute.ContinuousIntegration.Validation.SchemaCorrespondence {
         if !onlySchema.isEmpty {
             problems.append(
                 "declared in \(schemaName) `settings` but NOT read by "
-                    + "\(workflowName): \(list(onlySchema.sorted()))")
+                    + "\(workflowName): \(list(onlySchema.sorted()))"
+            )
         }
         if !onlyWorkflow.isEmpty {
             problems.append(
                 "read by \(workflowName) but NOT declared in \(schemaName) "
-                    + "`settings`: \(list(onlyWorkflow.sorted()))")
+                    + "`settings`: \(list(onlyWorkflow.sorted()))"
+            )
         }
         return problems
     }
@@ -147,12 +159,16 @@ extension Institute.ContinuousIntegration.Validation.SchemaCorrespondence {
     /// `readme.{exempt,family}` enums ↔ `EXEMPTIONS`/`FAMILIES` in the
     /// consumer.
     static func readmeProblems(
-        schema: [String: Any], schemaName: String,
-        consumer: String, consumerSource: String
+        schema: [String: Any],
+        schemaName: String,
+        consumer: String,
+        consumerSource: String
     ) -> [String] {
         var problems: [String] = []
         let constants = moduleLevelStringSequences(
-            in: consumerSource, names: Set(readmePairs.map(\.constant)))
+            in: consumerSource,
+            names: Set(readmePairs.map(\.constant))
+        )
 
         for (field, constant) in readmePairs {
             let declared = schemaEnum(schema, block: "readme", field: field)
@@ -163,7 +179,8 @@ extension Institute.ContinuousIntegration.Validation.SchemaCorrespondence {
             guard let declared else {
                 problems.append(
                     "\(schemaName) `readme.\(field)` declares no string enum -- "
-                        + "cannot compare against \(consumer) `\(constant)`.")
+                        + "cannot compare against \(consumer) `\(constant)`."
+                )
                 continue
             }
             guard let read else {
@@ -171,7 +188,8 @@ extension Institute.ContinuousIntegration.Validation.SchemaCorrespondence {
                     "\(consumer) has no module-level `\(constant)` assigned a tuple "
                         + "of string literals -- cannot compare against \(schemaName) "
                         + "`readme.\(field)`. If it was renamed or made computed, update "
-                        + "this guard rather than removing the constant.")
+                        + "this guard rather than removing the constant."
+                )
                 continue
             }
             let onlySchema = Set(declared).subtracting(read).sorted()
@@ -181,14 +199,16 @@ extension Institute.ContinuousIntegration.Validation.SchemaCorrespondence {
                     "declared in \(schemaName) `readme.\(field)` enum but NOT "
                         + "handled by \(consumer) `\(constant)`: \(list(onlySchema)) -- "
                         + "authoring one of these in a metadata.yaml would be a silent "
-                        + "no-op.")
+                        + "no-op."
+                )
             }
             if !onlyConsumer.isEmpty {
                 problems.append(
                     "handled by \(consumer) `\(constant)` but NOT declared in "
                         + "\(schemaName) `readme.\(field)` enum: \(list(onlyConsumer)) -- "
                         + "schema validation would reject a value the validator "
-                        + "accepts.")
+                        + "accepts."
+                )
             }
         }
         return problems
@@ -241,7 +261,8 @@ extension Institute.ContinuousIntegration.Validation.SchemaCorrespondence {
     /// caller reports that rather than skipping it — and the LAST
     /// module-level assignment wins.
     static func moduleLevelStringSequences(
-        in source: String, names: Set<String>
+        in source: String,
+        names: Set<String>
     ) -> [String: [String]?] {
         var found: [String: [String]?] = [:]
         for name in names { found[name] = .some(nil) }
@@ -410,7 +431,9 @@ extension Institute.ContinuousIntegration.Validation.SchemaCorrespondence {
     /// The text of one input file. Absence is a defect, not a finding:
     /// this validator's subject IS the three files, so a missing one
     /// means the question cannot be asked.
-    private static func text(at path: String) throws(GitHub.ContinuousIntegration.Validation.EnvironmentDefect) -> String {
+    private static func text(
+        at path: String
+    ) throws(GitHub.ContinuousIntegration.Validation.EnvironmentDefect) -> String {
         var isDirectory: ObjCBool = false
         guard
             FileManager.default.fileExists(atPath: path, isDirectory: &isDirectory),

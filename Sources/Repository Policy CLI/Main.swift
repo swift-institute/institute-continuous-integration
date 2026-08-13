@@ -463,7 +463,8 @@ enum Main {
             // invocation) keeps its prior behavior unchanged. A
             // control-plane target ignores this value entirely — it selects
             // no required-check context either way.
-            let visibilityValue = values.removeValue(forKey: "--visibility") ?? Visibility.public.rawValue
+            let visibilityValue =
+                values.removeValue(forKey: "--visibility") ?? Visibility.public.rawValue
             guard let visibility = Visibility(rawValue: visibilityValue) else {
                 throw RepositoryPolicy.ConfigurationError(
                     "--visibility must be public or private"

@@ -26,14 +26,16 @@ extension Main {
             default:
                 throw .configuration(
                     RepositoryPolicy.ConfigurationError(
-                        "unknown parse-caller argument \(argument)")
+                        "unknown parse-caller argument \(argument)"
+                    )
                 )
             }
         }
         guard let caller, let repository else {
             throw .configuration(
                 RepositoryPolicy.ConfigurationError(
-                    "parse-caller requires --caller <ci.yml> and --repository <owner/name>")
+                    "parse-caller requires --caller <ci.yml> and --repository <owner/name>"
+                )
             )
         }
         let text: String

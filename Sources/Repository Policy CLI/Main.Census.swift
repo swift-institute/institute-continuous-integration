@@ -81,6 +81,8 @@ extension Main {
         } catch {
             throw .io("could not write capability records to \(arguments[1]): \(error)")
         }
-        print("repository-policy: capability-records count=\(Repository.Policy.Capability.records.count)")
+        print(
+            "repository-policy: capability-records count=\(Repository.Policy.Capability.records.count)"
+        )
     }
 }

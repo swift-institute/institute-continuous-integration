@@ -18,7 +18,8 @@ struct `Control Validation Tests` {
 
         let run = Institute.ContinuousIntegration.Control.Validation.run(
             repository: "swift-institute/.github",
-            root: root.path)
+            root: root.path
+        )
 
         #expect(run.defect == nil)
         #expect(run.findings.contains { $0.rule == "CI-CONTROL-001" })
@@ -31,7 +32,8 @@ struct `Control Validation Tests` {
         let workflows = root.appendingPathComponent(".github/workflows")
         try FileManager.default.createDirectory(
             at: workflows,
-            withIntermediateDirectories: true)
+            withIntermediateDirectories: true
+        )
         defer { try? FileManager.default.removeItem(at: root) }
 
         let workflow = """
@@ -46,11 +48,13 @@ struct `Control Validation Tests` {
             """
         try Data(workflow.utf8).write(to: workflows.appendingPathComponent("probe.yml"))
         try Data("#!/bin/sh\nexit 99\n".utf8).write(
-            to: root.appendingPathComponent("candidate-code"))
+            to: root.appendingPathComponent("candidate-code")
+        )
 
         let run = Institute.ContinuousIntegration.Control.Validation.run(
             repository: "swift-institute-test/control-candidate",
-            root: root.path)
+            root: root.path
+        )
 
         #expect(run.defect == nil)
         #expect(run.findings.contains { $0.rule == "CI-117" })
@@ -75,7 +79,8 @@ struct `Control Validation Tests` {
                 with: "  apple-simulator-build:\n    runs-on: xcode-27"
             )
         try Data(universal.utf8).write(
-            to: workflows.appendingPathComponent("swift-ci.yml"))
+            to: workflows.appendingPathComponent("swift-ci.yml")
+        )
         let host = """
             on:
               workflow_dispatch:
@@ -87,16 +92,19 @@ struct `Control Validation Tests` {
             jobs: {}
             """
         try Data(host.utf8).write(
-            to: workflows.appendingPathComponent("control-validate.yml"))
+            to: workflows.appendingPathComponent("control-validate.yml")
+        )
 
         let run = Institute.ContinuousIntegration.Control.Validation.run(
             repository: "swift-institute/.github",
-            root: root.path)
+            root: root.path
+        )
 
         #expect(
             !run.findings.contains {
                 $0.message.contains("runs-on must reference a macos runner")
-            })
+            }
+        )
     }
 
     @Test
@@ -104,7 +112,8 @@ struct `Control Validation Tests` {
         let root = "/path/that/control-validation-does-not-have"
         let run = Institute.ContinuousIntegration.Control.Validation.run(
             repository: "swift-institute-test/control-candidate",
-            root: root)
+            root: root
+        )
 
         #expect(run.findings.isEmpty)
         #expect(run.defect == .unreadableSubject(root: root))
@@ -120,7 +129,8 @@ struct `Control Validation Tests` {
 
         let run = Institute.ContinuousIntegration.Control.Validation.run(
             repository: "swift-institute-test/control-candidate",
-            root: root.path)
+            root: root.path
+        )
 
         #expect(run.findings.isEmpty)
         #expect(run.defect != nil)

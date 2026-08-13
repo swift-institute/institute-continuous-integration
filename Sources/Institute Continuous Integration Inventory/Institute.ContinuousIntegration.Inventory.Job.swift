@@ -93,10 +93,20 @@ extension Institute.ContinuousIntegration.Inventory {
         public var node: GitHub.ContinuousIntegration.Workflow.YAML.Node {
             .mapping(
                 .init([
-                    (.text("name"), displayName.map(GitHub.ContinuousIntegration.Workflow.YAML.Node.text) ?? .null),
+                    (
+                        .text("name"),
+                        displayName.map(GitHub.ContinuousIntegration.Workflow.YAML.Node.text)
+                            ?? .null
+                    ),
                     (.text("runner"), runner ?? .null),
-                    (.text("needs"), .sequence(needs.map(GitHub.ContinuousIntegration.Workflow.YAML.Node.text))),
-                    (.text("if"), condition.map(GitHub.ContinuousIntegration.Workflow.YAML.Node.text) ?? .null),
+                    (
+                        .text("needs"),
+                        .sequence(needs.map(GitHub.ContinuousIntegration.Workflow.YAML.Node.text))
+                    ),
+                    (
+                        .text("if"),
+                        condition.map(GitHub.ContinuousIntegration.Workflow.YAML.Node.text) ?? .null
+                    ),
                     (.text("continue_on_error"), .boolean(continueOnError)),
                     (.text("private_guarded"), .boolean(privateGuarded)),
                     (.text("has_matrix"), .boolean(hasMatrix)),
@@ -105,11 +115,17 @@ extension Institute.ContinuousIntegration.Inventory {
                     (.text("nested_test_execution"), .boolean(nestedTestExecution)),
                     (
                         .text("step_names"),
-                        .sequence(stepNames.map { $0.map(GitHub.ContinuousIntegration.Workflow.YAML.Node.text) ?? .null })
+                        .sequence(
+                            stepNames.map {
+                                $0.map(GitHub.ContinuousIntegration.Workflow.YAML.Node.text)
+                                    ?? .null
+                            }
+                        )
                     ),
                     (.text("posture"), .text(posture.rawValue)),
                     (.text("wave"), .integer(wave)),
-                ]))
+                ])
+            )
         }
     }
 }

@@ -45,7 +45,10 @@ extension Institute.ContinuousIntegration.Inventory {
         public static var fullTierLegs: [String] {
             do throws(ContractPlan.Error) {
                 return try ContractPlan(
-                    forcedTier: "full", ref: "", event: "", lintBundle: "institute"
+                    forcedTier: "full",
+                    ref: "",
+                    event: "",
+                    lintBundle: "institute"
                 )
                 .legs.map(\.id)
             } catch {
@@ -69,9 +72,14 @@ extension Institute.ContinuousIntegration.Inventory {
                     (.text("leg_vocabulary_owner"), .text(Self.legVocabularyOwner)),
                     (
                         .text("full_tier_legs"),
-                        .sequence(Self.fullTierLegs.map(GitHub.ContinuousIntegration.Workflow.YAML.Node.text))
+                        .sequence(
+                            Self.fullTierLegs.map(
+                                GitHub.ContinuousIntegration.Workflow.YAML.Node.text
+                            )
+                        )
                     ),
-                ]))
+                ])
+            )
         }
     }
 }

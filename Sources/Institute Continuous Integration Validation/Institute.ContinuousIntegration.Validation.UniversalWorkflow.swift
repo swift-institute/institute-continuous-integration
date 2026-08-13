@@ -49,7 +49,8 @@ extension Institute.ContinuousIntegration.Validation {
             } catch {
                 return [
                     finding(
-                        subject.repository, "CI-010",
+                        subject.repository,
+                        "CI-010",
                         "YAML parse failed: \(error.message)"
                     )
                 ]
@@ -62,19 +63,23 @@ extension Institute.ContinuousIntegration.Validation {
             for name in Self.catalogue where jobs[name]?.mapping == nil {
                 result.append(
                     finding(
-                        subject.repository, "CI-010",
+                        subject.repository,
+                        "CI-010",
                         "planner catalogue job `\(name)` is absent"
-                    ))
+                    )
+                )
             }
 
             guard let windows = jobs["windows-release"]?.mapping else { return result }
             if windows["continue-on-error"]?.boolean == true {
                 result.append(
-                    finding(subject.repository, "CI-099", "Windows must never be advisory"))
+                    finding(subject.repository, "CI-099", "Windows must never be advisory")
+                )
             }
             if !(windows["runs-on"]?.text ?? "").lowercased().contains("windows") {
                 result.append(
-                    finding(subject.repository, "CI-010", "Windows must use a Windows runner"))
+                    finding(subject.repository, "CI-010", "Windows must use a Windows runner")
+                )
             }
 
             let aggregateNeeds = Set(Self.names(in: jobs["ci-ok"]?["needs"]))
@@ -82,25 +87,31 @@ extension Institute.ContinuousIntegration.Validation {
             for name in expectedAggregateNeeds.subtracting(aggregateNeeds).sorted() {
                 result.append(
                     finding(
-                        subject.repository, "CI-010",
+                        subject.repository,
+                        "CI-010",
                         "ci-ok does not consume gating result `\(name)`"
-                    ))
+                    )
+                )
             }
             for name in aggregateNeeds.subtracting(expectedAggregateNeeds).sorted() {
                 result.append(
                     finding(
-                        subject.repository, "CI-010",
+                        subject.repository,
+                        "CI-010",
                         "ci-ok consumes non-gating result `\(name)`"
-                    ))
+                    )
+                )
             }
 
             let advisoryNeeds = Set(Self.names(in: jobs["advisory-summary"]?["needs"]))
             for name in Set(Self.gating).intersection(advisoryNeeds).sorted() {
                 result.append(
                     finding(
-                        subject.repository, "CI-099",
+                        subject.repository,
+                        "CI-099",
                         "gating result `\(name)` is routed to the advisory set"
-                    ))
+                    )
+                )
             }
 
             for name in Self.gating {
@@ -108,9 +119,11 @@ extension Institute.ContinuousIntegration.Validation {
                 if body["continue-on-error"]?.boolean == true {
                     result.append(
                         finding(
-                            subject.repository, "CI-099",
+                            subject.repository,
+                            "CI-099",
                             "gating job `\(name)` is advisory"
-                        ))
+                        )
+                    )
                 }
                 let condition = body["if"]?.text ?? ""
                 let selected = "needs.plan.outputs.legs"
@@ -119,7 +132,9 @@ extension Institute.ContinuousIntegration.Validation {
                         finding(
                             subject.repository,
                             "CI-010",
-                            "gating job `\(name)` is not selected by the planner leg catalogue"))
+                            "gating job `\(name)` is not selected by the planner leg catalogue"
+                        )
+                    )
                 }
             }
             return result

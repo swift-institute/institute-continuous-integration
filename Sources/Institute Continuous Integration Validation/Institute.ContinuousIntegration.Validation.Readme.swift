@@ -103,7 +103,8 @@ extension Institute.ContinuousIntegration.Validation {
                 + #"MEM-LINEAR|MEM-REF|MEM-SAFE|MEM-SEND|MEM-UNSAFE|MEM-SPAN|"#
                 + #"INFRA|MOD-EXCEPT|CI|README-PROC|SOC|SUPER|HANDOFF|COLLAB|GIT|"#
                 + #"FREVIEW|SAVE|DOC-MARKUP|RELEASE|META|REFL-PROC|SKILL-CREATE|"#
-                + #"SKILL-LIFE|REFL-PROC)(?:-[A-Z][A-Z0-9]*)*-[0-9]+[a-z]?\]"#)
+                + #"SKILL-LIFE|REFL-PROC)(?:-[A-Z][A-Z0-9]*)*-[0-9]+[a-z]?\]"#
+        )
 
         static let h1Line = Pattern(#"^#\s+\S"#)
         static let h2Line = Pattern(#"^##\s+\S"#)
@@ -112,7 +113,8 @@ extension Institute.ContinuousIntegration.Validation {
         static let installTarget = Pattern(#"\.(?:target|testTarget|executableTarget)\("#)
         static let statusLine = Pattern(#">\s*\*\*Status:\s*([^*]+?)\*\*"#)
         static let errorDeclaration = Pattern(
-            #"\b(?:enum|struct|final\s+class|class|actor)\s+([A-Za-z_][A-Za-z0-9_]*)"#)
+            #"\b(?:enum|struct|final\s+class|class|actor)\s+([A-Za-z_][A-Za-z0-9_]*)"#
+        )
         static let publicThrows = Pattern(#"\bpublic[^\n]*\bthrows\(([^)]+)\)"#)
         static let identifierHead = Pattern(#"^[A-Za-z_][A-Za-z0-9_]*"#)
 
@@ -122,9 +124,11 @@ extension Institute.ContinuousIntegration.Validation {
             guard let family = Self.family(of: subject) else {
                 return [
                     Finding(
-                        repository: subject.repository, rule: "README-family-unset",
+                        repository: subject.repository,
+                        rule: "README-family-unset",
                         message: ".github/metadata.yaml lacks readme.family field; "
-                            + "cannot apply per-family rules")
+                            + "cannot apply per-family rules"
+                    )
                 ]
             }
             if family == "exempt" {
@@ -144,8 +148,10 @@ extension Institute.ContinuousIntegration.Validation {
                 // whose README cannot be read is dirty, not unaskable.
                 return [
                     Finding(
-                        repository: subject.repository, rule: "README-read-failed",
-                        message: "\(subject.path(relative)): could not be read")
+                        repository: subject.repository,
+                        rule: "README-read-failed",
+                        message: "\(subject.path(relative)): could not be read"
+                    )
                 ]
             }
             guard let content else {
@@ -156,9 +162,11 @@ extension Institute.ContinuousIntegration.Validation {
                 }
                 return [
                     Finding(
-                        repository: subject.repository, rule: "README-presence",
+                        repository: subject.repository,
+                        rule: "README-presence",
                         message: "family=\(family) but README not found at expected path "
-                            + relative)
+                            + relative
+                    )
                 ]
             }
 
@@ -268,7 +276,9 @@ extension Institute.ContinuousIntegration.Validation.Readme {
     }
 
     static func universal(
-        _ repository: String, name: String, content: String
+        _ repository: String,
+        name: String,
+        content: String
     ) -> [GitHub.ContinuousIntegration.Validation.Finding] {
         typealias Finding = GitHub.ContinuousIntegration.Validation.Finding
         var findings: [Finding] = []
@@ -285,35 +295,49 @@ extension Institute.ContinuousIntegration.Validation.Readme {
         if h1Count == 0 {
             findings.append(
                 Finding(
-                    repository: repository, rule: "README-017",
-                    message: "\(name): missing H1 title (first heading must be `# `)"))
+                    repository: repository,
+                    rule: "README-017",
+                    message: "\(name): missing H1 title (first heading must be `# `)"
+                )
+            )
         } else if h1Count > 1 {
             findings.append(
                 Finding(
-                    repository: repository, rule: "README-017",
-                    message: "\(name): \(h1Count) H1 headings found; exactly one required"))
+                    repository: repository,
+                    rule: "README-017",
+                    message: "\(name): \(h1Count) H1 headings found; exactly one required"
+                )
+            )
         }
         if let first = nonblank.first, h1Line.firstMatch(in: String(first)) == nil {
             findings.append(
                 Finding(
-                    repository: repository, rule: "README-017",
+                    repository: repository,
+                    rule: "README-017",
                     message: "\(name): first non-empty line is not H1 "
-                        + "(got \(GitHub.ContinuousIntegration.Validation.Retired.quoted(prefix(first, 80))))"))
+                        + "(got \(GitHub.ContinuousIntegration.Validation.Retired.quoted(prefix(first, 80))))"
+                )
+            )
         }
         // [README-026] no internal rule-ID citations outside code blocks.
         // One finding suffices.
         if let match = forbiddenRuleID.firstMatch(in: stripped) {
             findings.append(
                 Finding(
-                    repository: repository, rule: "README-026",
+                    repository: repository,
+                    rule: "README-026",
                     message: "\(name): contains internal rule-ID citation \(match.whole) "
-                        + "(forbidden in published READMEs)"))
+                        + "(forbidden in published READMEs)"
+                )
+            )
         }
         return findings
     }
 
     static func familyE(
-        _ subject: GitHub.ContinuousIntegration.Validation.Subject, name: String, content: String
+        _ subject: GitHub.ContinuousIntegration.Validation.Subject,
+        name: String,
+        content: String
     ) -> [GitHub.ContinuousIntegration.Validation.Finding] {
         typealias Finding = GitHub.ContinuousIntegration.Validation.Finding
         var findings: [Finding] = []
@@ -323,54 +347,75 @@ extension Institute.ContinuousIntegration.Validation.Readme {
         if !content.contains("## License") {
             findings.append(
                 Finding(
-                    repository: subject.repository, rule: "README-001",
-                    message: "\(name): missing `## License` section"))
+                    repository: subject.repository,
+                    rule: "README-001",
+                    message: "\(name): missing `## License` section"
+                )
+            )
         }
         // [README-008] Installation section presence, then both the
         // `.package(` and target-declaration blocks within it.
         if let heading = content.range(of: "## Installation") {
             let searchStart = content.index(after: heading.lowerBound)
             let nextSection = content.range(
-                of: "\n## ", range: searchStart..<content.endIndex)
+                of: "\n## ",
+                range: searchStart..<content.endIndex
+            )
             let section = String(
-                content[heading.lowerBound..<(nextSection?.lowerBound ?? content.endIndex)])
+                content[heading.lowerBound..<(nextSection?.lowerBound ?? content.endIndex)]
+            )
             if installDependency.firstMatch(in: section) == nil {
                 findings.append(
                     Finding(
-                        repository: subject.repository, rule: "README-008",
+                        repository: subject.repository,
+                        rule: "README-008",
                         message: "\(name): Installation section missing `.package(...)` "
-                            + "dependency block"))
+                            + "dependency block"
+                    )
+                )
             }
             if installTarget.firstMatch(in: section) == nil {
                 findings.append(
                     Finding(
-                        repository: subject.repository, rule: "README-008",
+                        repository: subject.repository,
+                        rule: "README-008",
                         message: "\(name): Installation section missing "
-                            + "`.target(dependencies: ...)` block"))
+                            + "`.target(dependencies: ...)` block"
+                    )
+                )
             }
         } else {
             findings.append(
                 Finding(
-                    repository: subject.repository, rule: "README-008",
-                    message: "\(name): missing `## Installation` section"))
+                    repository: subject.repository,
+                    rule: "README-008",
+                    message: "\(name): missing `## Installation` section"
+                )
+            )
         }
         // [README-013] Error Handling threshold (Wave 2b Decision 5).
         if declaresThrownError(subject), !content.contains("## Error Handling") {
             findings.append(
                 Finding(
-                    repository: subject.repository, rule: "README-013",
+                    repository: subject.repository,
+                    rule: "README-013",
                     message: "\(name): package has public throws(NonNever) signatures but "
                         + "README lacks `## Error Handling` section (Wave 2b finalization "
-                        + "Decision 5 threshold)"))
+                        + "Decision 5 threshold)"
+                )
+            )
         }
         // [README-016] forbidden sections.
         for forbidden in ["## Roadmap", "## TODO", "## Changelog"]
         where content.contains(forbidden) {
             findings.append(
                 Finding(
-                    repository: subject.repository, rule: "README-016",
+                    repository: subject.repository,
+                    rule: "README-016",
                     message: "\(name): contains forbidden section "
-                        + GitHub.ContinuousIntegration.Validation.Retired.quoted(forbidden)))
+                        + GitHub.ContinuousIntegration.Validation.Retired.quoted(forbidden)
+                )
+            )
         }
         return findings
     }
@@ -386,7 +431,9 @@ extension Institute.ContinuousIntegration.Validation.Readme {
     /// name the package itself declares. Type aliases are excluded on
     /// purpose: `typealias Error = Dep.Error` re-exports a dependency's
     /// error and is not ownership.
-    static func declaresThrownError(_ subject: GitHub.ContinuousIntegration.Validation.Subject) -> Bool {
+    static func declaresThrownError(
+        _ subject: GitHub.ContinuousIntegration.Validation.Subject
+    ) -> Bool {
         let sources = subject.path("Sources")
         var isDirectory: ObjCBool = false
         guard FileManager.default.fileExists(atPath: sources, isDirectory: &isDirectory),
@@ -427,7 +474,9 @@ extension Institute.ContinuousIntegration.Validation.Readme {
     }
 
     static func familyC(
-        _ repository: String, name: String, content: String
+        _ repository: String,
+        name: String,
+        content: String
     ) -> [GitHub.ContinuousIntegration.Validation.Finding] {
         typealias Finding = GitHub.ContinuousIntegration.Validation.Finding
         var findings: [Finding] = []
@@ -438,35 +487,49 @@ extension Institute.ContinuousIntegration.Validation.Readme {
         if content.contains("## Installation") {
             findings.append(
                 Finding(
-                    repository: repository, rule: "README-137",
-                    message: "\(name): process README has `## Installation` section (forbidden)"))
+                    repository: repository,
+                    rule: "README-137",
+                    message: "\(name): process README has `## Installation` section (forbidden)"
+                )
+            )
         }
         if content.hasPrefix("![") {
             findings.append(
                 Finding(
-                    repository: repository, rule: "README-137",
-                    message: "\(name): process README has badges (forbidden)"))
+                    repository: repository,
+                    rule: "README-137",
+                    message: "\(name): process README has badges (forbidden)"
+                )
+            )
         }
         if content.contains("## Quick Start") {
             findings.append(
                 Finding(
-                    repository: repository, rule: "README-137",
-                    message: "\(name): process README has `## Quick Start` (forbidden)"))
+                    repository: repository,
+                    rule: "README-137",
+                    message: "\(name): process README has `## Quick Start` (forbidden)"
+                )
+            )
         }
         // [README-138] length budget.
         let lineCount = splitLines(content).count
         if lineCount > 80 {
             findings.append(
                 Finding(
-                    repository: repository, rule: "README-138",
+                    repository: repository,
+                    rule: "README-138",
                     message: "\(name): process README is \(lineCount) lines (>80 suggests "
-                        + "content should relocate per [README-138])"))
+                        + "content should relocate per [README-138])"
+                )
+            )
         }
         return findings
     }
 
     static func familyF(
-        _ repository: String, name: String, content: String
+        _ repository: String,
+        name: String,
+        content: String
     ) -> [GitHub.ContinuousIntegration.Validation.Finding] {
         typealias Finding = GitHub.ContinuousIntegration.Validation.Finding
         var findings: [Finding] = []
@@ -478,10 +541,13 @@ extension Institute.ContinuousIntegration.Validation.Readme {
         if let first = extraH2.first {
             findings.append(
                 Finding(
-                    repository: repository, rule: "README-150",
+                    repository: repository,
+                    rule: "README-150",
                     message: "\(name): Family F README has extra ## sections "
                         + "(first: \(GitHub.ContinuousIntegration.Validation.Retired.quoted(prefix(first, 60)))); "
-                        + "should be H1 + status blockquote only"))
+                        + "should be H1 + status blockquote only"
+                )
+            )
         }
         // [README-151] status value enumerated.
         if let match = statusLine.firstMatch(in: content),
@@ -490,22 +556,30 @@ extension Institute.ContinuousIntegration.Validation.Readme {
         {
             findings.append(
                 Finding(
-                    repository: repository, rule: "README-151",
-                    message: "\(name): Family F status \(GitHub.ContinuousIntegration.Validation.Retired.quoted(status)) "
-                        + "not in canonical set \(GitHub.ContinuousIntegration.Validation.Retired.list(statusValues.sorted()))"))
+                    repository: repository,
+                    rule: "README-151",
+                    message:
+                        "\(name): Family F status \(GitHub.ContinuousIntegration.Validation.Retired.quoted(status)) "
+                        + "not in canonical set \(GitHub.ContinuousIntegration.Validation.Retired.list(statusValues.sorted()))"
+                )
+            )
         }
         return findings
     }
 
     static func familyG(
-        _ repository: String, name: String, content: String
+        _ repository: String,
+        name: String,
+        content: String
     ) -> [GitHub.ContinuousIntegration.Validation.Finding] {
         guard content.contains("## Installation") else { return [] }
         // [README-116] org profile MUST NOT include installation block.
         return [
             GitHub.ContinuousIntegration.Validation.Finding(
-                repository: repository, rule: "README-116",
-                message: "\(name): org-profile README has `## Installation` section (forbidden)")
+                repository: repository,
+                rule: "README-116",
+                message: "\(name): org-profile README has `## Installation` section (forbidden)"
+            )
         ]
     }
 }

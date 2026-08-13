@@ -14,6 +14,38 @@ extension Repository.Policy.Caller {
     /// secret map). A declaration it cannot represent is STOP-F3-YAML,
     /// never a hand-authored escape.
     public enum Render {
+        /// The terminal generated caller. Package identity and desired-state
+        /// differences are resolved by the central policy owner after the
+        /// reusable hop, so every package receives these exact bytes.
+        public static var terminal: String {
+            [
+                "name: CI",
+                "",
+                "on:",
+                "  push:",
+                "    branches:",
+                "      - main",
+                "  pull_request:",
+                "    branches:",
+                "      - main",
+                "  workflow_dispatch:",
+                "",
+                "permissions:",
+                "  actions: read",
+                "  contents: read",
+                "",
+                "concurrency:",
+                "  group: ci-${{ github.ref }}",
+                "  cancel-in-progress: true",
+                "",
+                "jobs:",
+                "  ci:",
+                "    if: ${{ !github.event.repository.private }}",
+                "    name: ci / matrix",
+                "    uses: swift-institute/.github/.github/workflows/swift-ci.yml@main",
+            ].joined(separator: "\n") + "\n"
+        }
+
         public static func current(_ caller: Repository.Policy.Caller) -> String {
             var lines = [
                 "name: CI",

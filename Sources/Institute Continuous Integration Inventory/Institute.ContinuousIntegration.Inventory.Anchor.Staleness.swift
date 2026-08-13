@@ -37,16 +37,22 @@ extension Institute.ContinuousIntegration.Inventory.Anchor {
         /// observations arrived in. An observation naming a repository
         /// the anchor does not pin contributes nothing — there is no pin
         /// for it to be a distance from.
-        public init(anchor: Institute.ContinuousIntegration.Inventory.Anchor, observed: [Observation]) {
+        public init(
+            anchor: Institute.ContinuousIntegration.Inventory.Anchor,
+            observed: [Observation]
+        ) {
             let byRepository = Dictionary(
-                observed.map { ($0.repository, $0) }, uniquingKeysWith: { first, _ in first })
+                observed.map { ($0.repository, $0) },
+                uniquingKeysWith: { first, _ in first }
+            )
             self.rows = anchor.sources.map { source in
                 let observation = byRepository[source.repository]
                 return Row(
                     repository: source.repository,
                     pinned: source.commit,
                     head: observation?.head,
-                    distance: observation?.distance)
+                    distance: observation?.distance
+                )
             }
         }
 
@@ -65,7 +71,8 @@ extension Institute.ContinuousIntegration.Inventory.Anchor {
                     (.text("rows"), .sequence(rows.map(\.node))),
                     (.text("behind"), .integer(behind.count)),
                     (.text("unmeasured"), .integer(unmeasured.count)),
-                ]))
+                ])
+            )
         }
 
         public var canonicalJSON: String {

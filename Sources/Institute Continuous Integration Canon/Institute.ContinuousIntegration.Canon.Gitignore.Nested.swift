@@ -19,7 +19,8 @@ extension Institute.ContinuousIntegration.Canon.Gitignore {
                 uniqueKeysWithValues: roots.compactMap { root in
                     declarations.contains("\(root)/Package.swift")
                         ? ("\(root)/.gitignore", text) : nil
-                })
+                }
+            )
         }
     }
 }

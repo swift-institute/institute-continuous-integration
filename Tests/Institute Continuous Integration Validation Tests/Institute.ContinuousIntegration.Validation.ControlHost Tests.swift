@@ -58,7 +58,9 @@ struct CIValidationControlHostTests {
             "on:\n  workflow_dispatch:",
             with: "on:\n  pull_request:\n  workflow_dispatch:"
         )
-        #expect(try Self.findings(workflow: workflow).contains { $0.message.contains("dispatch-only") })
+        #expect(
+            try Self.findings(workflow: workflow).contains { $0.message.contains("dispatch-only") }
+        )
     }
 
     @Test func `head coordinate cannot become optional`() throws {
@@ -74,6 +76,8 @@ struct CIValidationControlHostTests {
             "permissions: {}",
             with: "permissions:\n  contents: read"
         )
-        #expect(try Self.findings(workflow: workflow).contains { $0.message.contains("permissions") })
+        #expect(
+            try Self.findings(workflow: workflow).contains { $0.message.contains("permissions") }
+        )
     }
 }

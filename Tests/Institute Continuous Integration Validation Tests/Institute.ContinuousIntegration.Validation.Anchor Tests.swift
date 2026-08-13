@@ -41,13 +41,15 @@ struct CIValidationAnchorTests {
     @Test func `the rule resolves to this validator`() {
         #expect(
             Institute.ContinuousIntegration.Validation.Registry.validator(for: Self.rule)
-                is Institute.ContinuousIntegration.Validation.Anchor)
+                is Institute.ContinuousIntegration.Validation.Anchor
+        )
     }
 
     @Test func `the corpus directory name resolves to the registered spelling`() {
         #expect(
             Institute.ContinuousIntegration.Validation.Registry
-                .rule(forCorpusDirectory: "ci-anchor-001") == Self.rule)
+                .rule(forCorpusDirectory: "ci-anchor-001") == Self.rule
+        )
     }
 
     // MARK: - The gate's positive control
@@ -85,7 +87,8 @@ struct CIValidationAnchorTests {
         #expect(
             findings.allSatisfy {
                 $0.message.contains("is not what the recorded trust-anchor inputs regenerate")
-            })
+            }
+        )
     }
 
     /// A pin with no identity check is a pin trusted on the fetcher's
@@ -157,7 +160,8 @@ struct CIValidationAnchorTests {
     @Test func `an unparseable workflow is a finding`() throws {
         let manifest = try String(
             contentsOfFile: Self.root("pass", "pinned-sources") + "/.github/trust-anchor.json",
-            encoding: .utf8)
+            encoding: .utf8
+        )
         let root = try Self.temporary(manifest: manifest, workflow: "jobs:\n  - [\n")
         defer { try? FileManager.default.removeItem(atPath: root) }
         let findings = try Institute.ContinuousIntegration.Validation.Anchor()
@@ -170,11 +174,19 @@ struct CIValidationAnchorTests {
         let root = NSTemporaryDirectory() + "ci-anchor-001-" + UUID().uuidString
         let workflows = root + "/.github/workflows"
         try FileManager.default.createDirectory(
-            atPath: workflows, withIntermediateDirectories: true)
+            atPath: workflows,
+            withIntermediateDirectories: true
+        )
         try manifest.write(
-            toFile: root + "/.github/trust-anchor.json", atomically: true, encoding: .utf8)
+            toFile: root + "/.github/trust-anchor.json",
+            atomically: true,
+            encoding: .utf8
+        )
         try workflow.write(
-            toFile: workflows + "/swift-ci.yml", atomically: true, encoding: .utf8)
+            toFile: workflows + "/swift-ci.yml",
+            atomically: true,
+            encoding: .utf8
+        )
         return root
     }
 }

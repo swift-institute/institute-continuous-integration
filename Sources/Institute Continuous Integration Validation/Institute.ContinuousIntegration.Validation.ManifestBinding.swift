@@ -77,7 +77,8 @@ extension Institute.ContinuousIntegration.Validation {
                     finding(
                         "manifest missing: \(Self.manifestPath) MUST exist per "
                             + "[CI-MANIFEST-BINDING] (single source-of-truth for rule-ID ↔ "
-                            + "validator-script binding).")
+                            + "validator-script binding)."
+                    )
                 ]
             }
 
@@ -101,19 +102,23 @@ extension Institute.ContinuousIntegration.Validation {
             for (index, entry) in entries.enumerated() {
                 guard let entry = entry.mapping else {
                     findings.append(
-                        finding("entry #\(index): not a mapping (got \(Retired.typeName(entry)))."))
+                        finding("entry #\(index): not a mapping (got \(Retired.typeName(entry))).")
+                    )
                     continue
                 }
 
                 let keys = Set(entry.textKeys)
                 let missing = Self.requiredKeys.subtracting(keys)
                 if !missing.isEmpty {
-                    let identifier = entry["rule-id"].map(Retired.value) ?? Retired.quoted("#\(index)")
+                    let identifier =
+                        entry["rule-id"].map(Retired.value) ?? Retired.quoted("#\(index)")
                     findings.append(
                         finding(
                             "entry \(identifier): missing required keys "
                                 + "\(Retired.list(missing.sorted())) — every manifest entry "
-                                + "MUST carry the full schema per CI-REVIEW-PHASE-B-DESIGN §3."))
+                                + "MUST carry the full schema per CI-REVIEW-PHASE-B-DESIGN §3."
+                        )
+                    )
                     continue
                 }
 
@@ -125,7 +130,9 @@ extension Institute.ContinuousIntegration.Validation {
                         finding(
                             "entry \(identifier): invalid status \(Retired.value(status)) — "
                                 + "must be one of \(Retired.list(Self.validStatuses.sorted())) "
-                                + "per [CI-MANIFEST-BINDING]."))
+                                + "per [CI-MANIFEST-BINDING]."
+                        )
+                    )
                     continue
                 }
 
@@ -137,7 +144,9 @@ extension Institute.ContinuousIntegration.Validation {
                                     + "non-empty (\(Retired.value(script))) — deprecated "
                                     + "entries MUST clear validator-script per "
                                     + "[CI-MANIFEST-BINDING] check 4 (prevents ghost lint via "
-                                    + "stale script reference)."))
+                                    + "stale script reference)."
+                            )
+                        )
                     }
                     if let workflow = entry["workflow-file"], Retired.isTruthy(workflow) {
                         findings.append(
@@ -145,7 +154,9 @@ extension Institute.ContinuousIntegration.Validation {
                                 "entry \(identifier): status=deprecated but workflow-file is "
                                     + "non-empty (\(Retired.value(workflow))) — deprecated "
                                     + "entries MUST clear workflow-file per [CI-MANIFEST-BINDING] "
-                                    + "check 4."))
+                                    + "check 4."
+                            )
+                        )
                     }
                 }
 
@@ -154,8 +165,12 @@ extension Institute.ContinuousIntegration.Validation {
                 {
                     findings.append(
                         contentsOf: try Self.selfFiring(
-                            entry: identifier, workflowFile: workflowFile, subject: subject,
-                            finding: finding))
+                            entry: identifier,
+                            workflowFile: workflowFile,
+                            subject: subject,
+                            finding: finding
+                        )
+                    )
                 }
 
                 // Collected for check 2 at any status. A non-empty
@@ -169,7 +184,11 @@ extension Institute.ContinuousIntegration.Validation {
 
             findings.append(
                 contentsOf: try Self.orphans(
-                    referenced: referencedScripts, subject: subject, finding: finding))
+                    referenced: referencedScripts,
+                    subject: subject,
+                    finding: finding
+                )
+            )
             return findings
         }
 
@@ -190,7 +209,8 @@ extension Institute.ContinuousIntegration.Validation {
                         "entry \(identifier): declared self-firing: active but workflow-file "
                             + "\(Retired.quoted(workflowFile)) does not exist on disk — per "
                             + "[CI-MANIFEST-BINDING] check 5, every active self-firing entry MUST "
-                            + "resolve to an on-disk workflow.")
+                            + "resolve to an on-disk workflow."
+                    )
                 ]
             }
             let document: GitHub.ContinuousIntegration.Workflow.YAML.Node
@@ -201,7 +221,8 @@ extension Institute.ContinuousIntegration.Validation {
                     finding(
                         "entry \(identifier): workflow-file "
                             + "\(Retired.quoted(workflowFile)) YAML parse failed: "
-                            + "\(error.message)")
+                            + "\(error.message)"
+                    )
                 ]
             }
             guard let mapping = document.mapping else { return [] }
@@ -215,7 +236,8 @@ extension Institute.ContinuousIntegration.Validation {
                         + "\(Retired.list(missing.sorted())) at top level of `on:` (has: "
                         + "\(Retired.list(triggers.sorted()))) — per [CI-MANIFEST-BINDING] "
                         + "check 5 (catches the manifest-says-active-but-workflow-is-"
-                        + "workflow_call-only failure mode).")
+                        + "workflow_call-only failure mode)."
+                )
             ]
         }
 
@@ -232,7 +254,9 @@ extension Institute.ContinuousIntegration.Validation {
         /// Three `on:` shapes are read, matching the retired script:
         /// mapping (its keys), sequence (its items), and a bare scalar
         /// (itself). Anything else is no triggers at all.
-        static func triggerKeys(of mapping: GitHub.ContinuousIntegration.Workflow.YAML.Mapping) -> Set<String> {
+        static func triggerKeys(
+            of mapping: GitHub.ContinuousIntegration.Workflow.YAML.Mapping
+        ) -> Set<String> {
             let block = mapping["on"] ?? mapping[node: .boolean(true)]
             switch block {
             case .mapping(let value): return Set(value.textKeys)
@@ -273,7 +297,8 @@ extension Institute.ContinuousIntegration.Validation {
                         "validator \(Retired.quoted(relative)) exists on disk but has no "
                             + "manifest entry — every active .github/scripts/validate-*.py MUST be "
                             + "referenced by ≥1 manifest entry per [CI-MANIFEST-BINDING] check 2 "
-                            + "(prevents orphan validator drift).")
+                            + "(prevents orphan validator drift)."
+                    )
                 }
         }
     }

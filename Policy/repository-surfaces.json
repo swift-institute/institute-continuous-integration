@@ -11,13 +11,7 @@
         "workflow_dispatch"
       ],
       "uses": [
-        "swift-foundations/.github/.github/workflows/swift-ci.yml@main",
-        "swift-foundations/.github/.github/workflows/swift-docs.yml@main",
-        "swift-institute/.github/.github/workflows/notify-linter-republish.yml@main",
-        "swift-primitives/.github/.github/workflows/swift-ci.yml@main",
-        "swift-primitives/.github/.github/workflows/swift-docs.yml@main",
-        "swift-standards/.github/.github/workflows/swift-ci.yml@main",
-        "swift-standards/.github/.github/workflows/swift-docs.yml@main"
+        "swift-institute/.github/.github/workflows/swift-ci.yml@main"
       ]
     },
     {
@@ -31,8 +25,7 @@
         "workflow_dispatch"
       ],
       "uses": [
-        "swift-foundations/.github/.github/workflows/swift-ci.yml@main",
-        "swift-foundations/.github/.github/workflows/swift-docs.yml@main"
+        "swift-institute/.github/.github/workflows/swift-ci.yml@main"
       ]
     },
     {

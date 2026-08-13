@@ -93,7 +93,8 @@ extension Institute.ContinuousIntegration.Bootstrap.Manifest {
                 throw .executableDigestMismatch(
                     path: executable.path,
                     recorded: executable.digest,
-                    observed: observed)
+                    observed: observed
+                )
             }
         }
     }

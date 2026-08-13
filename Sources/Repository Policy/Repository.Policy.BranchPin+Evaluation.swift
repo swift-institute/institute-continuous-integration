@@ -13,7 +13,8 @@ extension RepositoryPolicy.BranchPin {
             return .init(
                 document: dependency.document,
                 url: dependency.url,
-                branch: branch)
+                branch: branch
+            )
         }.sorted {
             ($0.document, $0.url, $0.branch) < ($1.document, $1.url, $1.branch)
         }

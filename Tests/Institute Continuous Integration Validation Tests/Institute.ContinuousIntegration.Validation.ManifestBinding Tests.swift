@@ -59,7 +59,8 @@ struct CIValidationManifestBindingTests {
                     "fail/self-firing-active-missing-triggers/.github/scripts/validate-stub.py",
                     "pass/clean/.github/scripts/validate-foo.py",
                     "pass/self-firing-active-with-triggers/.github/scripts/validate-stub.py",
-                ])
+                ]
+            )
 
             #expect(
                 stubs(under: "schema-correspondence") == [
@@ -68,7 +69,8 @@ struct CIValidationManifestBindingTests {
                     "fail/readme-family-unhandled/validate-readme.py",
                     "fail/settings-key-unread/validate-readme.py",
                     "pass/consistent/validate-readme.py",
-                ])
+                ]
+            )
         }
     }
 
@@ -86,11 +88,14 @@ struct CIValidationManifestBindingTests {
                   push:
                     branches: [main]
                   pull_request: {}
-                """)
+                """
+            )
             let mapping = try #require(document.mapping)
             #expect(mapping["on"] == nil)
             #expect(
-                Institute.ContinuousIntegration.Validation.ManifestBinding.triggerKeys(of: mapping) == ["push", "pull_request"])
+                Institute.ContinuousIntegration.Validation.ManifestBinding.triggerKeys(of: mapping)
+                    == ["push", "pull_request"]
+            )
         }
 
         @Test func `a quoted on key is a different key and still reads`() throws {
@@ -98,28 +103,47 @@ struct CIValidationManifestBindingTests {
                 """
                 "on":
                   push: {}
-                """)
+                """
+            )
             let mapping = try #require(document.mapping)
-            #expect(Institute.ContinuousIntegration.Validation.ManifestBinding.triggerKeys(of: mapping) == ["push"])
+            #expect(
+                Institute.ContinuousIntegration.Validation.ManifestBinding.triggerKeys(of: mapping)
+                    == ["push"]
+            )
         }
 
         @Test func `the sequence and scalar forms of on are read too`() throws {
             let sequence = try #require(
-                try GitHub.ContinuousIntegration.Workflow.YAML.Parser.parse("on: [push, pull_request]").mapping)
+                try GitHub.ContinuousIntegration.Workflow.YAML.Parser.parse(
+                    "on: [push, pull_request]"
+                ).mapping
+            )
             #expect(
-                Institute.ContinuousIntegration.Validation.ManifestBinding.triggerKeys(of: sequence) == ["push", "pull_request"])
-            let scalar = try #require(try GitHub.ContinuousIntegration.Workflow.YAML.Parser.parse("on: push").mapping)
-            #expect(Institute.ContinuousIntegration.Validation.ManifestBinding.triggerKeys(of: scalar) == ["push"])
+                Institute.ContinuousIntegration.Validation.ManifestBinding.triggerKeys(of: sequence)
+                    == ["push", "pull_request"]
+            )
+            let scalar = try #require(
+                try GitHub.ContinuousIntegration.Workflow.YAML.Parser.parse("on: push").mapping
+            )
+            #expect(
+                Institute.ContinuousIntegration.Validation.ManifestBinding.triggerKeys(of: scalar)
+                    == ["push"]
+            )
         }
 
         /// Message text inherited from the retired corpus, and load-bearing
         /// while its counterpart still exists.
         @Test func `retired renderings match Python's repr`() {
             #expect(GitHub.ContinuousIntegration.Validation.Retired.quoted("CI-010") == "'CI-010'")
-            #expect(GitHub.ContinuousIntegration.Validation.Retired.list(["push", "pull_request"]) == "['push', 'pull_request']")
+            #expect(
+                GitHub.ContinuousIntegration.Validation.Retired.list(["push", "pull_request"])
+                    == "['push', 'pull_request']"
+            )
             #expect(GitHub.ContinuousIntegration.Validation.Retired.value(.null) == "None")
             #expect(GitHub.ContinuousIntegration.Validation.Retired.value(.boolean(true)) == "True")
-            #expect(GitHub.ContinuousIntegration.Validation.Retired.typeName(.sequence([])) == "list")
+            #expect(
+                GitHub.ContinuousIntegration.Validation.Retired.typeName(.sequence([])) == "list"
+            )
             #expect(!GitHub.ContinuousIntegration.Validation.Retired.isTruthy(.text("")))
             #expect(GitHub.ContinuousIntegration.Validation.Retired.isTruthy(.text("x")))
         }
@@ -132,8 +156,11 @@ struct CIValidationManifestBindingTests {
         /// and answered.
         @Test func `a missing manifest is a finding and not an exit-2`() throws {
             let subject = GitHub.ContinuousIntegration.Validation.Subject(
-                repository: "swift-institute-test/empty", root: NSTemporaryDirectory())
-            let findings = try Institute.ContinuousIntegration.Validation.ManifestBinding().findings(in: subject)
+                repository: "swift-institute-test/empty",
+                root: NSTemporaryDirectory()
+            )
+            let findings = try Institute.ContinuousIntegration.Validation.ManifestBinding()
+                .findings(in: subject)
             #expect(findings.count == 1)
             #expect(findings[0].message.hasPrefix("manifest missing:"))
         }

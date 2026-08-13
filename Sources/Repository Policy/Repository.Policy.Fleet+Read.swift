@@ -8,10 +8,13 @@ extension RepositoryPolicy.Fleet {
         } catch {
             throw .unreadable
         }
+        let fleet: Self
         do {
-            return try JSONDecoder().decode(Self.self, from: data)
+            fleet = try JSONDecoder().decode(Self.self, from: data)
         } catch {
             throw .invalid
         }
+        try fleet.validate()
+        return fleet
     }
 }

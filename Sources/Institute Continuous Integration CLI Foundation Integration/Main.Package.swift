@@ -41,12 +41,13 @@ extension Main {
         var refused = false
         for finding in RepositoryPolicy.BranchPin.findings(
             in: dependencies,
-            organizations: fleet.activeOrganizationNames)
-        {
+            organizations: fleet.activeOrganizationNames
+        ) {
             refused = true
             print(
                 "\(repository)\tBRANCH-PIN-001\t\(finding.document): `\(finding.url)` "
-                    + "pinned to branch \"\(finding.branch)\"; Institute dependencies use main")
+                    + "pinned to branch \"\(finding.branch)\"; Institute dependencies use main"
+            )
         }
 
         if repository.split(separator: "/").last != "swift-html-prism" {
@@ -71,7 +72,8 @@ extension Main {
         for finding in RepositoryPolicy.TestSupport.findings(in: evaluation) {
             print(
                 "\(repository)\tTEST-SUPPORT-INTEGRITY\t\(finding.target) depends on "
-                    + "non-support product or target \(finding.dependency)")
+                    + "non-support product or target \(finding.dependency)"
+            )
         }
 
         do {
@@ -88,13 +90,15 @@ extension Main {
     private static func dependencyFacts(
         root: String
     ) -> [Package.Manifest.Dependency.SourceControl] {
-        rootManifestNames(root: root).flatMap { name -> [Package.Manifest.Dependency.SourceControl] in
+        rootManifestNames(root: root).flatMap {
+            name -> [Package.Manifest.Dependency.SourceControl] in
             guard let data = FileManager.default.contents(atPath: root + "/" + name) else {
                 return []
             }
             return Package.Manifest.Dependency.SourceControl.all(
                 in: String(decoding: data, as: UTF8.self),
-                document: name)
+                document: name
+            )
         }
     }
 
@@ -108,12 +112,14 @@ extension Main {
             }
             entries += Package.Manifest.Identity.Conflict.entries(
                 in: String(decoding: data, as: UTF8.self),
-                document: name)
+                document: name
+            )
         }
 
         if let data = FileManager.default.contents(atPath: root + "/Package.resolved") {
             entries += Package.Manifest.Identity.Conflict.entries(
-                inResolved: String(decoding: data, as: UTF8.self))
+                inResolved: String(decoding: data, as: UTF8.self)
+            )
         }
         return Package.Manifest.Identity.Conflict.findings(in: entries)
     }

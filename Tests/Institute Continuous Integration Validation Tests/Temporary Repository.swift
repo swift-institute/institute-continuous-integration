@@ -74,7 +74,8 @@ struct TemporaryRepository: ~Copyable {
         process.currentDirectoryURL = URL(filePath: root)
         if let environment {
             process.environment = ProcessInfo.processInfo.environment.merging(environment) {
-                _, value in value
+                _,
+                value in value
             }
         }
         process.standardOutput = FileHandle.nullDevice

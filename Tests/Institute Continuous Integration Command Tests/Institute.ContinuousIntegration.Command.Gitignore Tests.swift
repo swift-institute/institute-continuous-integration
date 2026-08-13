@@ -22,7 +22,8 @@ extension Institute.ContinuousIntegration.Command.Gitignore {
         }
 
         static var fixtures: String {
-            root.appending(path: "Tests/Institute Continuous Integration Validation Tests/Fixtures").path
+            root.appending(path: "Tests/Institute Continuous Integration Validation Tests/Fixtures")
+                .path
         }
 
         /// The Gitignore validator evaluates the fixture subjects through Git.
@@ -67,16 +68,23 @@ extension Institute.ContinuousIntegration.Command.Gitignore {
                     guard fileManager.fileExists(atPath: root.path) else { continue }
                     for subject in try fileManager.contentsOfDirectory(
                         at: root,
-                        includingPropertiesForKeys: [.isDirectoryKey])
-                    where (try? subject.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true {
+                        includingPropertiesForKeys: [.isDirectoryKey]
+                    )
+                    where (try? subject.resourceValues(forKeys: [.isDirectoryKey]).isDirectory)
+                        == true
+                    {
                         guard
                             try Institute.ContinuousIntegration.Validation.Gitignore.git(
-                                ["init", "-q", "."], in: subject, input: nil
+                                ["init", "-q", "."],
+                                in: subject,
+                                input: nil
                             ).status == 0
                         else { throw CocoaError(.fileWriteUnknown) }
                         guard
                             try Institute.ContinuousIntegration.Validation.Gitignore.git(
-                                ["add", "-f", "--all"], in: subject, input: nil
+                                ["add", "-f", "--all"],
+                                in: subject,
+                                input: nil
                             ).status == 0
                         else { throw CocoaError(.fileWriteUnknown) }
                     }
@@ -90,24 +98,30 @@ extension Institute.ContinuousIntegration.Command.Gitignore {
                 #expect(
                     try Institute.ContinuousIntegration.Command.Gitignore.parse([
                         "render-gitignore", "--canon", "canon.txt", "--target", ".gitignore",
-                    ]) == .render(canon: "canon.txt", target: ".gitignore"))
+                    ]) == .render(canon: "canon.txt", target: ".gitignore")
+                )
             }
 
             @Test func `validator command parses repository inputs`() throws {
                 #expect(
                     try Institute.ContinuousIntegration.Command.Gitignore.parse([
-                        "validate-gitignore", "--repository", "swift-primitives/swift-byte-primitives",
+                        "validate-gitignore", "--repository",
+                        "swift-primitives/swift-byte-primitives",
                         "--root", "/tmp/subject", "--canon", "/tmp/canon.txt",
                     ])
                         == .validate(
-                            repository: "swift-primitives/swift-byte-primitives", root: "/tmp/subject",
-                            canon: "/tmp/canon.txt"))
+                            repository: "swift-primitives/swift-byte-primitives",
+                            root: "/tmp/subject",
+                            canon: "/tmp/canon.txt"
+                        )
+                )
             }
 
             @Test func `renderer emits only complete canonical bytes`() throws {
                 let rendered = try Institute.ContinuousIntegration.Command.Gitignore.render(
                     canon: Institute.ContinuousIntegration.Command.Gitignore.Test.canon,
-                    target: "# tail\n")
+                    target: "# tail\n"
+                )
                 #expect(rendered == Institute.ContinuousIntegration.Command.Gitignore.Test.canon)
                 #expect(!rendered.contains("# tail"))
             }
@@ -121,7 +135,8 @@ extension Institute.ContinuousIntegration.Command.Gitignore {
                         .missingRequiredArgument("--root")
                 ) {
                     _ = try Institute.ContinuousIntegration.Command.Gitignore.parse([
-                        "validate-gitignore", "--repository", "swift-primitives/swift-byte-primitives",
+                        "validate-gitignore", "--repository",
+                        "swift-primitives/swift-byte-primitives",
                     ])
                 }
             }
@@ -132,20 +147,23 @@ extension Institute.ContinuousIntegration.Command.Gitignore {
             @Test func `fixture controls self fire through an isolated copied harness`() throws {
                 let marker = "gh-ignore-001/fail/drifted-header/.command-test-private"
                 let shared = Institute.ContinuousIntegration.Command.Gitignore.Test.fixtures
-                try Institute.ContinuousIntegration.Command.Gitignore.Test.withPrivateFixtures { corpus in
+                try Institute.ContinuousIntegration.Command.Gitignore.Test.withPrivateFixtures {
+                    corpus in
                     let privateMarker = URL(filePath: corpus).appending(path: marker)
                     try Data("private\n".utf8).write(to: privateMarker)
                     #expect(corpus != shared)
                     #expect(!FileManager.default.fileExists(atPath: shared + "/" + marker))
 
                     let report = try Institute.ContinuousIntegration.Command.Gitignore.fixtures(
-                        corpus: corpus)
+                        corpus: corpus
+                    )
                     #expect(report.isComplete)
                     #expect(!report.outcomes.isEmpty)
                     #expect(
                         report.outcomes.contains {
                             $0.scenario.expectation == .violating && !$0.findings.isEmpty
-                        })
+                        }
+                    )
                 }
             }
         }

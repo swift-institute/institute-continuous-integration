@@ -46,14 +46,16 @@ extension Institute.ContinuousIntegration.Inventory {
             let aggregate = Aggregate(
                 ciOkNeeds: Self.needs(of: ciOk),
                 advisorySummaryNeeds: advisorySummary.map(Self.needs) ?? [],
-                innerMatrixJobs: jobs.filter { Self.matrixAxes(of: $0) != nil }.map(\.name))
+                innerMatrixJobs: jobs.filter { Self.matrixAxes(of: $0) != nil }.map(\.name)
+            )
             self.aggregate = aggregate
 
             let gating = Set(aggregate.gatingJobs)
             let advisory = Set(aggregate.advisoryJobs)
             var waves: [String: Int] = [:]
             let needsByJob = Dictionary(
-                uniqueKeysWithValues: jobs.map { ($0.name, Self.needs(of: $0)) })
+                uniqueKeysWithValues: jobs.map { ($0.name, Self.needs(of: $0)) }
+            )
 
             self.jobs = jobs.map { job in
                 let condition = job.body["if"]?.text
@@ -73,15 +75,20 @@ extension Institute.ContinuousIntegration.Inventory {
                     },
                     stepNames: job.steps.map { $0["name"]?.text },
                     posture: Self.posture(
-                        of: job.name, gating: gating, advisory: advisory),
-                    wave: Self.wave(of: job.name, needs: needsByJob, cache: &waves))
+                        of: job.name,
+                        gating: gating,
+                        advisory: advisory
+                    ),
+                    wave: Self.wave(of: job.name, needs: needsByJob, cache: &waves)
+                )
             }
 
             self.plan = Plan(
                 delegatesToInstituteCI: planJob.steps.contains { step in
                     step["name"]?.text == Plan.classifyStep
                         && (step["run"]?.text ?? "").contains("package plan")
-                })
+                }
+            )
 
             self.cacheSteps = jobs.flatMap { job in
                 job.steps
@@ -91,7 +98,8 @@ extension Institute.ContinuousIntegration.Inventory {
                             job: job.name,
                             step: step["name"]?.text,
                             path: step["with"]?["path"],
-                            key: step["with"]?["key"])
+                            key: step["with"]?["key"]
+                        )
                     }
             }
         }
@@ -101,25 +109,47 @@ extension Institute.ContinuousIntegration.Inventory {
                 .init([
                     (
                         .text("jobs"),
-                        .mapping(.init(jobs.map { (GitHub.ContinuousIntegration.Workflow.YAML.Node.text($0.id), $0.node) }))
+                        .mapping(
+                            .init(
+                                jobs.map {
+                                    (
+                                        GitHub.ContinuousIntegration.Workflow.YAML.Node.text($0.id),
+                                        $0.node
+                                    )
+                                }
+                            )
+                        )
                     ),
                     (.text("job_count"), .integer(jobCount)),
                     (
                         .text("gating_jobs"),
-                        .sequence(aggregate.gatingJobs.map(GitHub.ContinuousIntegration.Workflow.YAML.Node.text))
+                        .sequence(
+                            aggregate.gatingJobs.map(
+                                GitHub.ContinuousIntegration.Workflow.YAML.Node.text
+                            )
+                        )
                     ),
                     (
                         .text("advisory_jobs"),
-                        .sequence(aggregate.advisoryJobs.map(GitHub.ContinuousIntegration.Workflow.YAML.Node.text))
+                        .sequence(
+                            aggregate.advisoryJobs.map(
+                                GitHub.ContinuousIntegration.Workflow.YAML.Node.text
+                            )
+                        )
                     ),
                     (.text("plan"), plan.node),
                     (.text("aggregate"), aggregate.node),
                     (.text("cache_steps"), .sequence(cacheSteps.map(\.node))),
                     (
                         .text("possible_job_conclusions"),
-                        .sequence(Self.possibleJobConclusions.map(GitHub.ContinuousIntegration.Workflow.YAML.Node.text))
+                        .sequence(
+                            Self.possibleJobConclusions.map(
+                                GitHub.ContinuousIntegration.Workflow.YAML.Node.text
+                            )
+                        )
                     ),
-                ]))
+                ])
+            )
         }
 
         /// A job's `needs`, normalised: Actions allows a bare scalar.
@@ -129,12 +159,16 @@ extension Institute.ContinuousIntegration.Inventory {
             return node.sequence?.compactMap(\.text) ?? []
         }
 
-        static func matrixAxes(of job: GitHub.ContinuousIntegration.Workflow.Job) -> GitHub.ContinuousIntegration.Workflow.YAML.Node? {
+        static func matrixAxes(
+            of job: GitHub.ContinuousIntegration.Workflow.Job
+        ) -> GitHub.ContinuousIntegration.Workflow.YAML.Node? {
             job.body["strategy"]?["matrix"]
         }
 
         static func posture(
-            of id: String, gating: Set<String>, advisory: Set<String>
+            of id: String,
+            gating: Set<String>,
+            advisory: Set<String>
         ) -> Posture {
             switch id {
             case "plan": .plan
@@ -150,7 +184,9 @@ extension Institute.ContinuousIntegration.Inventory {
         /// workflow outright, and inventing a wave for it here would
         /// describe a run that cannot happen.
         static func wave(
-            of id: String, needs: [String: [String]], cache: inout [String: Int]
+            of id: String,
+            needs: [String: [String]],
+            cache: inout [String: Int]
         ) -> Int {
             if let known = cache[id] { return known }
             let declared = (needs[id] ?? []).filter { needs[$0] != nil }

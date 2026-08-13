@@ -118,7 +118,8 @@ extension Repository.Policy {
         public let inputs: [(key: String, value: String)]
 
         public init(
-            repository: String, layer: Layer,
+            repository: String,
+            layer: Layer,
             inputs: [(key: String, value: String)] = []
         ) throws(Error) {
             guard repository.contains("/") else {

@@ -19,7 +19,9 @@ struct RepositoryPolicyCensusTests {
         defer { try? FileManager.default.removeItem(atPath: root) }
         let workflows = root + "/.github/workflows"
         try FileManager.default.createDirectory(
-            atPath: workflows, withIntermediateDirectories: true)
+            atPath: workflows,
+            withIntermediateDirectories: true
+        )
         let yaml = """
             on: push
             jobs:
@@ -35,9 +37,12 @@ struct RepositoryPolicyCensusTests {
                     run: gh api /rate_limit
             """
         try Data(yaml.utf8).write(
-            to: URL(fileURLWithPath: workflows + "/demo.yml"))
+            to: URL(fileURLWithPath: workflows + "/demo.yml")
+        )
         let census = try Repository.Policy.Census.Generator(
-            repos: [.init(name: "fixture/repo", root: root, headSha: String(repeating: "a", count: 40))]
+            repos: [
+                .init(name: "fixture/repo", root: root, headSha: String(repeating: "a", count: 40))
+            ]
         ).run()
         func rows(_ kind: Repository.Policy.Census.Kind) -> [Repository.Policy.Census.Row] {
             census.rows.filter { $0.coordinateKind == kind && $0.repository == "fixture/repo" }
@@ -60,7 +65,9 @@ struct RepositoryPolicyCensusTests {
         #expect(Repository.Policy.Capability.records.first?.id == "D-01")
         let data = try Repository.Policy.Capability.recordsJSON()
         let decoded = try JSONDecoder().decode(
-            [Repository.Policy.Capability].self, from: data)
+            [Repository.Policy.Capability].self,
+            from: data
+        )
         #expect(decoded == Repository.Policy.Capability.records)
     }
 }
