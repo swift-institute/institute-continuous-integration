@@ -3,6 +3,7 @@ import GitHub_Continuous_Integration_Validation
 import GitHub_Standard
 import Institute_Continuous_Integration
 import Package_Manager
+import Repository_Policy
 
 extension Main {
     static func control(_ arguments: [String]) {
@@ -47,6 +48,14 @@ extension Main {
                     print("\(repository)\tIDENTITY-CONFLICT-STALE-PIN\t\(identityMessage(finding))")
                 }
             }
+        }
+
+        do {
+            for finding in try RepositoryPolicy.BrokenSymlink.findings(at: root) {
+                print("\(repository)\tBROKEN-SYMLINK\t\(finding.path)")
+            }
+        } catch {
+            refuse("control validate could not evaluate symbolic links: \(error)")
         }
 
         if refused { exit(1) }

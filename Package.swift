@@ -206,6 +206,7 @@ let package = Package(
                 .target(name: "Institute Continuous Integration Command"),
                 .target(name: "Institute Continuous Integration Contract"),
                 .target(name: "Institute Continuous Integration Validation"),
+                .target(name: "Repository Policy"),
                 .product(
                     name: "Continuous Integration",
                     package: "swift-continuous-integration"),
