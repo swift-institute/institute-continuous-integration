@@ -45,11 +45,9 @@ extension Institute.ContinuousIntegration.Validation {
             }
 
             let document: GitHub.ContinuousIntegration.Workflow.Document
-            switch Self.document(text) {
-            case .success(let parsed):
-                document = parsed
-
-            case .failure(let error):
+            do throws(GitHub.ContinuousIntegration.Workflow.YAML.Error) {
+                document = try .init(name: "swift-ci.yml", text: text)
+            } catch {
                 return [
                     finding(
                         subject.repository, "CI-010",
@@ -137,19 +135,6 @@ extension Institute.ContinuousIntegration.Validation {
         ) -> [String] {
             if let text = node?.text { return [text] }
             return node?.sequence?.compactMap(\.text) ?? []
-        }
-
-        private static func document(
-            _ text: String
-        ) -> Result<
-            GitHub.ContinuousIntegration.Workflow.Document,
-            GitHub.ContinuousIntegration.Workflow.YAML.Error
-        > {
-            do {
-                return .success(try .init(name: "swift-ci.yml", text: text))
-            } catch {
-                return .failure(error)
-            }
         }
     }
 }
