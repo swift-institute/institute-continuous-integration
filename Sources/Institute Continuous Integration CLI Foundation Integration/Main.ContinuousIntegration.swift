@@ -91,14 +91,22 @@ extension Main {
         // the canonical owner and are not reinterpreted as compatibility
         // evidence. The old directories are reported outside this bounded
         // scope until the host fixture workflow is retired.
-        let scripts = value("--scripts", in: arguments)
-        guard !scripts.isEmpty else {
-            unmeasured("validate-fixtures requires --scripts <scripts-dir>")
+        let explicitSupportRoot = value("--support-root", in: arguments)
+        let legacyScripts = value("--scripts", in: arguments)
+        let supportRoot: String
+        if !explicitSupportRoot.isEmpty {
+            supportRoot = explicitSupportRoot
+        } else if !legacyScripts.isEmpty {
+            // TEMPORARY COMPATIBILITY: the incumbent host passes its
+            // `.github/scripts` path. Delete this branch with that caller.
+            supportRoot =
+                URL(fileURLWithPath: legacyScripts)
+                .deletingLastPathComponent()
+                .deletingLastPathComponent()
+                .path
+        } else {
+            unmeasured("validate-fixtures requires --support-root <support-root>")
         }
-        let supportRoot = URL(fileURLWithPath: scripts)
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .path
         let institute =
             Institute.ContinuousIntegration.Validation.Registry.validators.filter {
                 !($0 is Institute.ContinuousIntegration.Validation.UniversalWorkflow)

@@ -160,6 +160,7 @@ jobs:
           # observe at least one known-invalid Swift fixture before publish.
           /tmp/stage-binary validate-fixtures \
             --corpus "$GITHUB_WORKSPACE/Tests/Institute Continuous Integration Validation Tests/Fixtures" \
+            --support-root "$GITHUB_WORKSPACE" \
             --rule-prefix readme-
 
       - name: Publish
