@@ -91,9 +91,22 @@ extension Main {
         // the canonical owner and are not reinterpreted as compatibility
         // evidence. The old directories are reported outside this bounded
         // scope until the host fixture workflow is retired.
-        let institute = Institute.ContinuousIntegration.Validation.Registry.validators.filter {
-            !($0 is Institute.ContinuousIntegration.Validation.UniversalWorkflow)
+        let scripts = value("--scripts", in: arguments)
+        guard !scripts.isEmpty else {
+            unmeasured("validate-fixtures requires --scripts <scripts-dir>")
         }
+        let supportRoot = URL(fileURLWithPath: scripts)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .path
+        let institute =
+            Institute.ContinuousIntegration.Validation.Registry.validators.filter {
+                !($0 is Institute.ContinuousIntegration.Validation.UniversalWorkflow)
+                    && !($0 is Institute.ContinuousIntegration.Validation.Gitignore)
+            } + [
+                Institute.ContinuousIntegration.Validation.Gitignore(
+                    canon: supportRoot + "/canon/gitignore-package.txt")
+            ]
         let instituteRules = Set(institute.flatMap(\.rules))
         let generic = GitHub.ContinuousIntegration.Validation.Registry.validators.filter {
             instituteRules.isDisjoint(with: $0.rules)
