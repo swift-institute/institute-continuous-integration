@@ -12,6 +12,8 @@ extension Main {
     /// the owners', and the exit status is the verdict.
     enum Verb: String {
         case packageCommand = "package"
+        case validate = "validate"
+        case validateFixtures = "validate-fixtures"
         case bootstrapManifest = "bootstrap-manifest"
         case bootstrapVerify = "bootstrap-verify"
         case bootstrapIdentity = "bootstrap-identity"
@@ -60,9 +62,93 @@ extension Main {
         switch verb {
         case .packageCommand: package(rest)
 
+        case .validate: validate(rest)
+
+        case .validateFixtures: validateFixtures(rest)
+
         case .bootstrapIdentity, .bootstrapManifest, .bootstrapVerify:
             bootstrap(verb, rest)
         }
+    }
+
+    // MARK: - temporary validator compatibility
+
+    /// TEMPORARY COMPATIBILITY
+    /// consumer: current validator-fixture workflow on .github/main
+    /// deletion event: trusted control validate owns the positive-control
+    /// corpus and the old fixture workflow has no remaining caller.
+    static func validateFixtures(_ arguments: [String]) {
+        let root = value("--corpus", in: arguments)
+        guard !root.isEmpty else {
+            unmeasured("validate-fixtures requires --corpus <fixtures-dir>")
+        }
+        // CI-010/CI-099's historical static-matrix corpus encodes the model
+        // this change replaces. Its focused planner-driven controls live at
+        // the canonical owner and are not reinterpreted as compatibility
+        // evidence. The old directories are reported outside this bounded
+        // scope until the host fixture workflow is retired.
+        let institute = Institute.ContinuousIntegration.Validation.Registry.validators.filter {
+            !($0 is Institute.ContinuousIntegration.Validation.UniversalWorkflow)
+        }
+        let instituteRules = Set(institute.flatMap(\.rules))
+        let generic = GitHub.ContinuousIntegration.Validation.Registry.validators.filter {
+            instituteRules.isDisjoint(with: $0.rules)
+                && !($0 is GitHub.ContinuousIntegration.Validation.CIMatrix)
+        }
+        let report: GitHub.ContinuousIntegration.Validation.Harness.Report
+        do throws(Institute.ContinuousIntegration.Validation.EnvironmentDefect) {
+            report = try GitHub.ContinuousIntegration.Validation.Harness(
+                corpus: .init(root: root), validators: institute + generic
+            ).run(matching: value("--rule-prefix", in: arguments))
+        } catch {
+            unmeasured(error.message)
+        }
+        guard !report.outcomes.isEmpty else {
+            unmeasured("validate-fixtures selected no Swift-owned fixture scenarios")
+        }
+        guard report.outcomes.contains(where: {
+            $0.scenario.expectation == .violating && !$0.findings.isEmpty
+        }) else {
+            unmeasured("validate-fixtures observed no firing positive control")
+        }
+        for outcome in report.outcomes { print("  " + outcome.summary) }
+        print("")
+        print("Total: \(report.satisfied.count) passed, \(report.unsatisfied.count) failed")
+        if !report.unownedRuleDirectories.isEmpty {
+            print(
+                "Outside the Swift compatibility scope (\(report.unownedRuleDirectories.count)): "
+                    + report.unownedRuleDirectories.joined(separator: ", "))
+        }
+        exit(report.isSatisfied ? 0 : 1)
+    }
+
+    /// The existing validate-base route. Exit 3 means the named retired
+    /// script has no Swift owner yet; the host then uses its incumbent path.
+    static func validate(_ arguments: [String]) {
+        let script = value("--script", in: arguments)
+        let rule = Institute.ContinuousIntegration.Validation.Rule(
+            value("--rule", in: arguments))
+        let validator: (any Institute.ContinuousIntegration.Validation.Validator)? =
+            script.isEmpty
+            ? Institute.ContinuousIntegration.Validation.Registry.validator(for: rule)
+            : Institute.ContinuousIntegration.Validation.Registry.validator(replacing: script)
+        guard let validator else { exit(3) }
+        let subject = Institute.ContinuousIntegration.Validation.Subject(
+            repository: value("--repository", in: arguments),
+            root: value("--root", in: arguments))
+        let findings: [Institute.ContinuousIntegration.Validation.Finding]
+        do throws(Institute.ContinuousIntegration.Validation.EnvironmentDefect) {
+            findings = try validator.findings(in: subject)
+        } catch {
+            unmeasured(error.message)
+        }
+        for finding in findings { print(finding.tsv) }
+    }
+
+    static func unmeasured(_ message: String) -> Never {
+        FileHandle.standardError.write(
+            Data("institute-continuous-integration: \(message)\n".utf8))
+        exit(Institute.ContinuousIntegration.Validation.EnvironmentDefect.exitCode)
     }
 
     // MARK: - plan
