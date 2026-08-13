@@ -104,6 +104,9 @@ let package = Package(
                 "Institute Continuous Integration Inventory",
                 .product(name: "ASCII", package: "swift-ascii"),
                 .product(
+                    name: "Continuous Integration",
+                    package: "swift-continuous-integration"),
+                .product(
                     name: "GitHub Continuous Integration",
                     package: "swift-github-continuous-integration"),
                 .product(
@@ -112,6 +115,7 @@ let package = Package(
                 .product(
                     name: "GitHub Continuous Integration Validation",
                     package: "swift-github-continuous-integration"),
+                .product(name: "GitHub Standard", package: "swift-github-standard"),
                 .product(name: "Package Manager", package: "swift-package-manager"),
             ]
         ),

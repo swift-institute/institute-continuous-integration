@@ -27,6 +27,7 @@ extension Institute.ContinuousIntegration.Validation {
             Readme(),
             SchemaCorrespondence(),
             SkillHygiene(),
+            UniversalWorkflow(),
         ]
 
         // swiftlint:disable no_any_protocol_existential - selects one member of the heterogeneous registry above; same [API-ERR-006]-extension opt-out (Wave 2b decision 3)

@@ -156,6 +156,11 @@ jobs:
             --repository swift-institute/institute-continuous-integration \
             --root "$GITHUB_WORKSPACE" \
             --policy "$GITHUB_WORKSPACE/Tests/Repository Policy Tests/Fixtures/fleet-minimal.json"
+          # Transitional host compatibility must stay executable and must
+          # observe at least one known-invalid Swift fixture before publish.
+          /tmp/stage-binary validate-fixtures \
+            --corpus "$GITHUB_WORKSPACE/Tests/Institute Continuous Integration Validation Tests/Fixtures" \
+            --rule-prefix readme-
 
       - name: Publish
         if: ${{ steps.fresh.outputs.stale == 'true' }}
