@@ -106,9 +106,11 @@ extension Main {
         guard !report.outcomes.isEmpty else {
             unmeasured("validate-fixtures selected no Swift-owned fixture scenarios")
         }
-        guard report.outcomes.contains(where: {
-            $0.scenario.expectation == .violating && !$0.findings.isEmpty
-        }) else {
+        guard
+            report.outcomes.contains(where: {
+                $0.scenario.expectation == .violating && !$0.findings.isEmpty
+            })
+        else {
             unmeasured("validate-fixtures observed no firing positive control")
         }
         for outcome in report.outcomes { print("  " + outcome.summary) }
@@ -128,6 +130,7 @@ extension Main {
         let script = value("--script", in: arguments)
         let rule = Institute.ContinuousIntegration.Validation.Rule(
             value("--rule", in: arguments))
+        // swiftlint:disable:next no_any_protocol_existential - registry-selected validator requires deliberate dynamic dispatch; same [API-ERR-006]-extension opt-out as the owning registry
         let validator: (any Institute.ContinuousIntegration.Validation.Validator)? =
             script.isEmpty
             ? Institute.ContinuousIntegration.Validation.Registry.validator(for: rule)

@@ -23,27 +23,29 @@ struct CIValidationUniversalWorkflowTests {
         ]
     ) -> String {
         let catalogue = Validator.catalogue.filter { $0 != "windows-release" || windowsPresent }
-        return "jobs:\n" + catalogue.map { name in
-            var lines = ["  \(name):"]
-            if name == "ci-ok" {
-                lines.append("    needs: [\(aggregateNeeds.joined(separator: ", "))]")
-            } else if name == "advisory-summary" {
-                lines.append("    needs: [\(advisoryNeeds.joined(separator: ", "))]")
-                lines.append("    continue-on-error: true")
-            } else if name == "windows-release" {
-                lines.append("    runs-on: windows-latest")
-                if windowsAdvisory { lines.append("    continue-on-error: true") }
-            } else {
-                lines.append("    runs-on: ubuntu-latest")
-            }
-            if Validator.gating.contains(name) {
-                let condition = skippedGating == name
-                    ? "false"
-                    : "${{ contains(format(',{0},', needs.plan.outputs.legs), ',\(name),') }}"
-                lines.append("    if: \(condition)")
-            }
-            return lines.joined(separator: "\n")
-        }.joined(separator: "\n") + "\n"
+        return "jobs:\n"
+            + catalogue.map { name in
+                var lines = ["  \(name):"]
+                if name == "ci-ok" {
+                    lines.append("    needs: [\(aggregateNeeds.joined(separator: ", "))]")
+                } else if name == "advisory-summary" {
+                    lines.append("    needs: [\(advisoryNeeds.joined(separator: ", "))]")
+                    lines.append("    continue-on-error: true")
+                } else if name == "windows-release" {
+                    lines.append("    runs-on: windows-latest")
+                    if windowsAdvisory { lines.append("    continue-on-error: true") }
+                } else {
+                    lines.append("    runs-on: ubuntu-latest")
+                }
+                if Validator.gating.contains(name) {
+                    let condition =
+                        skippedGating == name
+                        ? "false"
+                        : "${{ contains(format(',{0},', needs.plan.outputs.legs), ',\(name),') }}"
+                    lines.append("    if: \(condition)")
+                }
+                return lines.joined(separator: "\n")
+            }.joined(separator: "\n") + "\n"
     }
 
     static func findings(

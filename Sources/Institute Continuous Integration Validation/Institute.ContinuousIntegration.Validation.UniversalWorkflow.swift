@@ -35,8 +35,9 @@ extension Institute.ContinuousIntegration.Validation {
         ]
 
         public func findings(in subject: Subject) throws(EnvironmentDefect) -> [Finding] {
-            guard subject.repository == Self.canonicalRepository
-                || subject.repository.contains("-test/")
+            guard
+                subject.repository == Self.canonicalRepository
+                    || subject.repository.contains("-test/")
             else { return [] }
             guard let text = try subject.text(at: ".github/workflows/swift-ci.yml") else {
                 return [finding(subject.repository, "CI-010", "universal workflow is absent")]
