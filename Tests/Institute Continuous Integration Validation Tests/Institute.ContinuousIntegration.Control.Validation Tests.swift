@@ -1,0 +1,69 @@
+import Foundation
+import GitHub_Continuous_Integration
+import GitHub_Continuous_Integration_Validation
+import GitHub_Standard
+import Institute_Continuous_Integration
+import Institute_Continuous_Integration_Validation
+import Testing
+
+@Suite
+struct `Control Validation Tests` {
+    @Test
+    func `candidate remains data while floating-action positive control fires`() throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+        let workflows = root.appendingPathComponent(".github/workflows")
+        try FileManager.default.createDirectory(at: workflows, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+
+        let workflow = """
+            on:
+              workflow_dispatch:
+            permissions: {}
+            jobs:
+              probe:
+                runs-on: ubuntu-latest
+                steps:
+                  - uses: swift-institute/.github/.github/actions/probe@main
+            """
+        try Data(workflow.utf8).write(to: workflows.appendingPathComponent("probe.yml"))
+        try Data("#!/bin/sh\nexit 99\n".utf8).write(
+            to: root.appendingPathComponent("candidate-code"))
+
+        let run = Institute.ContinuousIntegration.Control.Validation.run(
+            repository: "swift-institute-test/control-candidate",
+            root: root.path)
+
+        #expect(run.defect == nil)
+        #expect(run.findings.contains { $0.rule == "CI-117" })
+        #expect(run.tsv.contains("\tCI-117\t"))
+    }
+
+    @Test
+    func `unreadable candidate is unmeasured`() {
+        let root = "/path/that/control-validation-does-not-have"
+        let run = Institute.ContinuousIntegration.Control.Validation.run(
+            repository: "swift-institute-test/control-candidate",
+            root: root)
+
+        #expect(run.findings.isEmpty)
+        #expect(run.defect == .unreadableSubject(root: root))
+        #expect(run.exitCode == 2)
+    }
+
+    @Test
+    func `empty candidate is unmeasured`() throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+
+        let run = Institute.ContinuousIntegration.Control.Validation.run(
+            repository: "swift-institute-test/control-candidate",
+            root: root.path)
+
+        #expect(run.findings.isEmpty)
+        #expect(run.defect != nil)
+        #expect(run.exitCode == 2)
+    }
+}
