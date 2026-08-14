@@ -1,5 +1,4 @@
 import ContinuousIntegration
-import CoreFoundation
 import Foundation
 import Institute_Continuous_Integration
 import Institute_Continuous_Integration_Contract
@@ -245,8 +244,8 @@ extension Institute.ContinuousIntegration {
         /// that cannot be represented exactly as Swift's `Int` for an event
         /// field whose schema is an integer.
         static func integer(_ value: Any?) -> Int? {
-            guard let number = value as? NSNumber,
-                CFGetTypeID(number) != CFBooleanGetTypeID(),
+            guard !(value is Bool),
+                let number = value as? NSNumber,
                 ["c", "C", "s", "S", "i", "I", "l", "L", "q", "Q"].contains(
                     String(cString: number.objCType)
                 )
