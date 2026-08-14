@@ -252,6 +252,189 @@ extension RepositoryPolicy {
             }
         }
 
+        public func callerWaveRepository(
+            _ fullName: String
+        ) async throws(Error) -> Repository_Policy.Repository.Policy.Caller.Wave.Repository {
+            let path = "/repos/\(fullName)"
+            let response = try await request(method: "GET", path: path)
+            guard response.status == 200 else {
+                throw error(method: "GET", path: path, response: response)
+            }
+            let repository = try decode(WaveRepository.self, from: response.data, path: path)
+            return .init(
+                visibility: repository.visibility,
+                archived: repository.archived,
+                disabled: repository.disabled,
+                defaultBranch: repository.defaultBranch
+            )
+        }
+
+        public func callerWaveHead(_ fullName: String) async throws(Error) -> String {
+            let path = "/repos/\(fullName)/git/ref/heads/main"
+            let response = try await request(method: "GET", path: path)
+            guard response.status == 200 else {
+                throw error(method: "GET", path: path, response: response)
+            }
+            return try decode(WaveReference.self, from: response.data, path: path).object.sha
+        }
+
+        public func callerWaveSource(
+            _ fullName: String,
+            head: String
+        ) async throws(Error)
+            -> Repository_Policy.Repository.Policy.Caller.Wave.CallerSource
+        {
+            guard let source = try await callerWaveSourceIfPresent(fullName, head: head) else {
+                throw Error.precondition("\(fullName): required package caller is absent")
+            }
+            return source
+        }
+
+        public func callerWaveSourceIfPresent(
+            _ fullName: String,
+            head: String
+        ) async throws(Error)
+            -> Repository_Policy.Repository.Policy.Caller.Wave.CallerSource?
+        {
+            let path = "/repos/\(fullName)/contents/.github/workflows/ci.yml?ref=\(head)"
+            let response = try await request(method: "GET", path: path)
+            if response.status == 404 { return nil }
+            guard response.status == 200 else {
+                throw error(method: "GET", path: path, response: response)
+            }
+            let content = try decode(WaveContent.self, from: response.data, path: path)
+            guard content.encoding == "base64",
+                let bytes = Data(
+                    base64Encoded: content.content,
+                    options: .ignoreUnknownCharacters
+                )
+            else {
+                throw Error.precondition("\(fullName): caller content is not base64")
+            }
+            return .init(blob: content.sha, bytes: bytes)
+        }
+
+        public func callerWaveRulesets(
+            _ fullName: String
+        ) async throws(Error)
+            -> [Repository_Policy.Repository.Policy.Caller.Wave.RulesetReference]
+        {
+            let path = "/repos/\(fullName)/rulesets"
+            let response = try await request(method: "GET", path: path)
+            guard response.status == 200 else {
+                throw error(method: "GET", path: path, response: response)
+            }
+            return try decode([WaveRuleset].self, from: response.data, path: path)
+                .map { .init(id: $0.id, name: $0.name) }
+        }
+
+        public func callerWaveRuleset(
+            _ fullName: String,
+            id: Int64
+        ) async throws(Error) -> Data {
+            let path = "/repos/\(fullName)/rulesets/\(id)"
+            let response = try await request(method: "GET", path: path)
+            guard response.status == 200 else {
+                throw error(method: "GET", path: path, response: response)
+            }
+            return response.data
+        }
+
+        public func callerWaveReplaceRuleset(
+            _ fullName: String,
+            id: Int64,
+            payload: Data
+        ) async throws(Error) {
+            let path = "/repos/\(fullName)/rulesets/\(id)"
+            let response = try await request(method: "PUT", path: path, body: payload)
+            guard response.status == 200 else {
+                throw error(method: "PUT", path: path, response: response)
+            }
+        }
+
+        public func callerWaveCreateBlob(
+            _ fullName: String,
+            content: Data
+        ) async throws(Error) -> String {
+            let path = "/repos/\(fullName)/git/blobs"
+            let body = encodeObject([
+                "content": content.base64EncodedString(),
+                "encoding": "base64",
+            ])
+            let response = try await request(method: "POST", path: path, body: body)
+            guard response.status == 201 else {
+                throw error(method: "POST", path: path, response: response)
+            }
+            return try decode(WaveSHA.self, from: response.data, path: path).sha
+        }
+
+        public func callerWaveCreateCommit(
+            _ fullName: String,
+            parent: String,
+            blob: String,
+            message: String
+        ) async throws(Error) -> String {
+            let commitPath = "/repos/\(fullName)/git/commits/\(parent)"
+            let commitResponse = try await request(method: "GET", path: commitPath)
+            guard commitResponse.status == 200 else {
+                throw error(method: "GET", path: commitPath, response: commitResponse)
+            }
+            let baseTree = try decode(
+                WaveCommit.self,
+                from: commitResponse.data,
+                path: commitPath
+            ).tree.sha
+
+            let treePath = "/repos/\(fullName)/git/trees"
+            let treeBody = encodeObject([
+                "base_tree": baseTree,
+                "tree": [
+                    [
+                        "path": ".github/workflows/ci.yml",
+                        "mode": "100644",
+                        "type": "blob",
+                        "sha": blob,
+                    ]
+                ],
+            ])
+            let treeResponse = try await request(method: "POST", path: treePath, body: treeBody)
+            guard treeResponse.status == 201 else {
+                throw error(method: "POST", path: treePath, response: treeResponse)
+            }
+            let tree = try decode(WaveSHA.self, from: treeResponse.data, path: treePath).sha
+
+            let createPath = "/repos/\(fullName)/git/commits"
+            let createBody = encodeObject([
+                "message": message,
+                "tree": tree,
+                "parents": [parent],
+            ])
+            let createResponse = try await request(
+                method: "POST",
+                path: createPath,
+                body: createBody
+            )
+            guard createResponse.status == 201 else {
+                throw error(method: "POST", path: createPath, response: createResponse)
+            }
+            return try decode(WaveSHA.self, from: createResponse.data, path: createPath).sha
+        }
+
+        public func callerWaveMoveMain(
+            _ fullName: String,
+            to head: String
+        ) async throws(Error) {
+            let path = "/repos/\(fullName)/git/refs/heads/main"
+            let response = try await request(
+                method: "PATCH",
+                path: path,
+                body: encodeObject(["sha": head, "force": false])
+            )
+            guard response.status == 200 else {
+                throw error(method: "PATCH", path: path, response: response)
+            }
+        }
+
         private func request(
             method: String,
             path: String,
@@ -327,6 +510,14 @@ extension RepositoryPolicy {
             }
         }
 
+        private func encodeObject(_ body: Any) -> Data {
+            do {
+                return try JSONSerialization.data(withJSONObject: body, options: [.sortedKeys])
+            } catch {
+                preconditionFailure("JSON request body failed to encode: \(error)")
+            }
+        }
+
         private func isGovernedSurface(path: String) -> Bool {
             if path.hasPrefix(".github/ISSUE_TEMPLATE/") {
                 return true
@@ -345,6 +536,43 @@ extension RepositoryPolicy {
             let path: String
             let encoding: String?
             let content: String?
+        }
+
+        private struct WaveRepository: Decodable {
+            let visibility: String
+            let archived: Bool
+            let disabled: Bool
+            let defaultBranch: String
+
+            enum CodingKeys: String, CodingKey {
+                case visibility
+                case archived
+                case disabled
+                case defaultBranch = "default_branch"
+            }
+        }
+
+        private struct WaveReference: Decodable {
+            let object: WaveSHA
+        }
+
+        private struct WaveContent: Decodable {
+            let sha: String
+            let encoding: String
+            let content: String
+        }
+
+        private struct WaveRuleset: Decodable {
+            let id: Int64
+            let name: String
+        }
+
+        private struct WaveSHA: Decodable {
+            let sha: String
+        }
+
+        private struct WaveCommit: Decodable {
+            let tree: WaveSHA
         }
 
         private struct RemoteIssue: Decodable {

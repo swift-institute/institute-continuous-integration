@@ -184,8 +184,9 @@ let package = Package(
                 .product(name: "FIPS 180-4", package: "swift-fips-180-4"),
             ]
         ),
-        // The narrow process boundary for the portable Gitignore canon and
-        // validator. Fleet enumeration and mutation stay in .github.
+        // The narrow process boundary for portable validation and repository
+        // policy effects. The trusted host supplies credentials; fleet
+        // enumeration, guards, mutation, recovery, and receipts stay Swift-owned.
         .target(
             name: "Institute Continuous Integration Command",
             dependencies: [
