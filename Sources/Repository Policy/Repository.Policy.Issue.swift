@@ -81,7 +81,8 @@ extension RepositoryPolicy.Issue {
         public let status: String
         public let supersededBy: String?
 
-        public init(grammarVersion: Int, status: String, supersededBy: String? = nil) throws(Error) {
+        public init(grammarVersion: Int, status: String, supersededBy: String? = nil) throws(Error)
+        {
             guard grammarVersion == 1 else {
                 throw Error.unsupportedVersion(grammarVersion)
             }

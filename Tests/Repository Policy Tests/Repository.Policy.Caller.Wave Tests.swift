@@ -501,7 +501,9 @@ struct RepositoryPolicyCallerWaveTests {
         )
 
         #expect(listing.expected == 2)
-        #expect(listing.repositories.map(\.fullName) == ["swift-primitives/a", "swift-primitives/b"])
+        #expect(
+            listing.repositories.map(\.fullName) == ["swift-primitives/a", "swift-primitives/b"]
+        )
     }
 
     @Test

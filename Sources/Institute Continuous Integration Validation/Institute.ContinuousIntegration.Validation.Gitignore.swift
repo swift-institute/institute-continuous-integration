@@ -558,7 +558,8 @@ extension Institute.ContinuousIntegration.Validation.Gitignore {
         guard result.status == 0 else { throw .unreadableSubject(root: root) }
         if result.output.isEmpty { return [] }
         var paths: [String] = []
-        for record in result.output.split(separator: 0, omittingEmptySubsequences: false).dropLast() {
+        for record in result.output.split(separator: 0, omittingEmptySubsequences: false).dropLast()
+        {
             guard let tab = record.firstIndex(of: 9) else { throw .unreadableSubject(root: root) }
             let header = record[..<tab].split(separator: 32)
             guard header.count == 3, header[2].elementsEqual([48]),

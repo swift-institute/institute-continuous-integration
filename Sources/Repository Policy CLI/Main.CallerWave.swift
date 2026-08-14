@@ -125,7 +125,9 @@ extension Main {
         guard let subject = population.subjects.first(where: { $0.repository == repository }),
             population.subjects.filter({ $0.repository == repository }).count == 1
         else {
-            throw waveConfiguration("\(repository): not exactly one subject in committed population")
+            throw waveConfiguration(
+                "\(repository): not exactly one subject in committed population"
+            )
         }
         let request = try callerWaveRequest(
             subject: subject,

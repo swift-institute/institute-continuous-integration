@@ -105,7 +105,9 @@ extension RepositoryPolicy {
             var visited: Set<Int> = []
             while true {
                 guard visited.insert(page).inserted else {
-                    throw .precondition("\(organization): repository pagination repeated page \(page)")
+                    throw .precondition(
+                        "\(organization): repository pagination repeated page \(page)"
+                    )
                 }
                 let path = "/orgs/\(organization)/repos?type=public&per_page=100&page=\(page)"
                 let response = try await request(method: "GET", path: path)

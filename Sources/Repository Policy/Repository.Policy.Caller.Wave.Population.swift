@@ -50,7 +50,8 @@ extension Repository.Policy.Caller.Wave {
             else {
                 throw .population("population organization counts do not cover the exact fleet")
             }
-            guard examined == repositoryCounts.values.reduce(0, +) || repositoryCounts.isEmpty else {
+            guard examined == repositoryCounts.values.reduce(0, +) || repositoryCounts.isEmpty
+            else {
                 throw .population(
                     "population examined count \(examined) does not equal organization counts"
                 )
