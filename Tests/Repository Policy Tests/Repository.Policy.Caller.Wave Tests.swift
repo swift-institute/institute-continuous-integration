@@ -258,6 +258,60 @@ struct RepositoryPolicyCallerWaveTests {
         #expect(await client.replacements() == 2)
     }
 
+    /// GitHub may serve stale ref reads for several seconds after a
+    /// successful move (wave run 31830484954: eleven organizations
+    /// aborted at their second subject while every sampled repository
+    /// already sat at its created commit). A head that converges within
+    /// the bounded backoff verifies; the transaction completes exactly
+    /// as an immediately consistent one does.
+    @Test
+    func applyVerificationToleratesAStaleHeadReadAfterASuccessfulMove() async throws {
+        let canonical = try ruleset()
+        let client = RepositoryPolicyCallerWaveMockClient(ruleset: canonical)
+        await client.setStaleHeadReadsAfterMove(2)
+        let request = request(canonical: canonical)
+        let recovery = try await preflight(client: client, request: request)
+        var events: [Repository.Policy.Caller.Wave.Event] = []
+
+        let receipt = try await Repository.Policy.Caller.Wave.run(
+            client: client,
+            request: request,
+            recovery: recovery,
+            record: { events.append($0) }
+        )
+
+        #expect(receipt.callerChanged)
+        #expect(receipt.oldHead == "old-head")
+        #expect(receipt.newHead == "new-head")
+        #expect(receipt.bypassClosed)
+        #expect(events.map(\.phase) == ["window-opening", "applied"])
+        // The two stale reads cost exactly two backoff pauses.
+        #expect(await client.pauses() == [1, 2])
+    }
+
+    /// The refusal is preserved: a head that never converges exhausts
+    /// the bounded backoff and still throws the typed verification
+    /// error, with the bypass closed on the way out.
+    @Test
+    func applyVerificationStillRefusesAHeadThatNeverConverges() async throws {
+        let canonical = try ruleset()
+        let client = RepositoryPolicyCallerWaveMockClient(ruleset: canonical)
+        await client.setStaleHeadReadsAfterMove(99)
+        let request = request(canonical: canonical)
+        let recovery = try await preflight(client: client, request: request)
+
+        await #expect(throws: Repository.Policy.Caller.Wave.Error.self) {
+            try await Repository.Policy.Caller.Wave.run(
+                client: client,
+                request: request,
+                recovery: recovery,
+                record: { _ in }
+            )
+        }
+        // Bounded: exactly the four backoff attempts, no unbounded poll.
+        #expect(await client.pauses() == [1, 2, 3, 4])
+    }
+
     @Test
     func createsMissingRulesetEvenWhenCallerIsAlreadyTerminal() async throws {
         let canonical = try ruleset()

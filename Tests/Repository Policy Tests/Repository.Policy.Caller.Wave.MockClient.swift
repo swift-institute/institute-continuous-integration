@@ -30,6 +30,9 @@ actor RepositoryPolicyCallerWaveMockClient: Repository.Policy.Caller.Wave.Client
     var rulesetReadFailures = 0
     var readFailureAfterOpening = false
     var moveHeadAfterManifestRead = false
+    var staleHeadReadsAfterMove = 0
+    var staleHead: String?
+    var pausedAttempts: [Int] = []
     let emptyRepositories: Bool
     let callerAbsent: Bool
     let privateOrganizations: Set<String>
@@ -102,7 +105,11 @@ actor RepositoryPolicyCallerWaveMockClient: Repository.Policy.Caller.Wave.Client
     }
 
     func head(_: String) async throws(RepositoryPolicy.GitHubClient.Error) -> String {
-        currentHead
+        if staleHeadReadsAfterMove > 0, let staleHead {
+            staleHeadReadsAfterMove -= 1
+            return staleHead
+        }
+        return currentHead
     }
 
     func callerSource(
@@ -220,10 +227,24 @@ actor RepositoryPolicyCallerWaveMockClient: Repository.Policy.Caller.Wave.Client
         if moveFailure {
             throw .precondition("move failed")
         }
+        // Read-after-write staleness: the move itself succeeds, but the
+        // next `staleHeadReadsAfterMove` head reads serve the previous
+        // value, the way a lagging replica would.
+        if staleHeadReadsAfterMove > 0 { staleHead = currentHead }
         currentHead = head
     }
 
-    func pause(attempt _: Int) async {}
+    func pause(attempt: Int) async {
+        pausedAttempts.append(attempt)
+    }
+
+    func setStaleHeadReadsAfterMove(_ count: Int) {
+        staleHeadReadsAfterMove = count
+    }
+
+    func pauses() -> [Int] {
+        pausedAttempts
+    }
 
     func setHead(_ value: String) {
         currentHead = value
