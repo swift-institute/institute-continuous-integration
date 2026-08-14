@@ -111,12 +111,11 @@ extension Repository.Policy.Caller.Wave {
             try await calling {
                 try await client.moveMain(request.repository, to: candidateHead)
             }
-            let verifiedHead = try await calling { try await client.head(request.repository) }
-            guard verifiedHead == candidateHead else {
-                throw .verification(
-                    "\(request.repository): main did not move to created commit \(candidateHead)"
-                )
-            }
+            let verifiedHead = try await convergedHead(
+                client: client,
+                repository: request.repository,
+                expected: candidateHead
+            )
             let verifiedCaller = try await calling {
                 try await client.callerSource(request.repository, head: verifiedHead)
             }
@@ -238,6 +237,36 @@ extension Repository.Policy.Caller.Wave {
             if attempt < 4 { await client.pause(attempt: attempt) }
         }
         throw .ruleset("\(repository): integration bypass could not be verified closed")
+    }
+
+    /// The post-move head verification, tolerant of GitHub's
+    /// read-after-write lag: a successful ref move may be followed by a
+    /// stale read for several seconds (wave run 31830484954: eleven
+    /// organizations aborted at their second subject on the immediate
+    /// read-back while every sampled repository already sat at its
+    /// created commit). The head is re-read with the client's bounded
+    /// backoff — 2+4+8+16 seconds, ~30 seconds total — and a head that
+    /// never converges still refuses with the same typed verification
+    /// error. This is the only read-after-write in the apply path that
+    /// keys on a MOVING ref: the subsequent caller-bytes check reads
+    /// content at the verified immutable commit, and the ruleset loops
+    /// already re-read with backoff.
+    static func convergedHead<C: Client>(
+        client: C,
+        repository: String,
+        expected: String
+    ) async throws(Error) -> String {
+        var head = try await calling { try await client.head(repository) }
+        for attempt in 1...4 where head != expected {
+            await client.pause(attempt: attempt)
+            head = try await calling { try await client.head(repository) }
+        }
+        guard head == expected else {
+            throw .verification(
+                "\(repository): main did not move to created commit \(expected)"
+            )
+        }
+        return head
     }
 
     static func guardedHead<C: Client>(
