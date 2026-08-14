@@ -41,6 +41,17 @@ extension Repository.Policy.Caller.Wave.Attestation {
                 "\(repository): token issuance attestation does not grant administration: write"
             )
         }
+        // The wave rewrites .github/workflows/ci.yml, and GitHub refuses
+        // workflow-file writes from an App token without the workflows
+        // permission (wave run 31826746776: every Apply job 403ed on its
+        // first subject's tree creation). A token minted without it
+        // cannot complete the transaction, so preflight refuses before
+        // any measurement rather than letting apply discover it.
+        guard permissions["workflows"] == "write" else {
+            throw .attestation(
+                "\(repository): token issuance attestation does not grant workflows: write"
+            )
+        }
         guard organization == String(components[0]),
             repositories.contains(String(components[1]))
         else {
