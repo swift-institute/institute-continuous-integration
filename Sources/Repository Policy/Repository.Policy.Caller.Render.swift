@@ -14,6 +14,11 @@ extension Repository.Policy.Caller {
         /// The terminal generated caller. Package identity and desired-state
         /// differences are resolved by the central policy owner after the
         /// reusable hop, so every package receives these exact bytes.
+        ///
+        /// The `merge_group` trigger is declared ahead of any merge queue
+        /// existing (D2, #35): a trigger for an event that is never
+        /// delivered schedules nothing, so the declaration is inert until
+        /// a queue is enabled — at which point the fleet already listens.
         public static var terminal: String {
             [
                 "name: CI",
@@ -25,6 +30,9 @@ extension Repository.Policy.Caller {
                 "  pull_request:",
                 "    branches:",
                 "      - main",
+                "  merge_group:",
+                "    types:",
+                "      - checks_requested",
                 "  workflow_dispatch:",
                 "",
                 "permissions:",

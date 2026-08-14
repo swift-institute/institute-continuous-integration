@@ -4,6 +4,107 @@ import Testing
 
 @Suite
 struct RepositoryPolicyCallerTests {
+    /// The canonical terminal caller, byte for byte. The wave's census,
+    /// digests, and `already-terminal` classification all key on these
+    /// exact bytes, so the fixture is the full document rather than a
+    /// property list: any drift — a reordered trigger, a changed indent,
+    /// a lost trailing newline — is a visible fixture change here first.
+    static let terminalBytesFixture = """
+        name: CI
+
+        on:
+          push:
+            branches:
+              - main
+          pull_request:
+            branches:
+              - main
+          merge_group:
+            types:
+              - checks_requested
+          workflow_dispatch:
+
+        permissions:
+          actions: read
+          contents: read
+
+        concurrency:
+          group: ci-${{ github.ref }}
+          cancel-in-progress: true
+
+        jobs:
+          ci:
+            if: ${{ !github.event.repository.private }}
+            name: ci / matrix
+            uses: swift-institute/.github/.github/workflows/swift-ci.yml@main
+
+        """
+
+    @Test
+    func `terminal bytes equal the canonical fixture exactly`() {
+        #expect(Repository.Policy.Caller.Render.terminal == Self.terminalBytesFixture)
+    }
+
+    /// Negative control on the fixture comparison itself: equality that
+    /// survives a one-byte drift is not a byte census. One byte is
+    /// removed, one is substituted, and one is appended; each variant
+    /// must compare unequal.
+    @Test
+    func `terminal bytes comparison detects one-byte drift`() {
+        let canonical = Repository.Policy.Caller.Render.terminal
+        var dropped = canonical
+        dropped.removeLast()
+        #expect(dropped != canonical)
+        let substituted = canonical.replacingOccurrences(
+            of: "merge_group:",
+            with: "merge_groUp:"
+        )
+        #expect(substituted != canonical)
+        #expect(canonical + "\n" != canonical)
+        // The digest the wave records over these bytes moves with them.
+        let digest = Repository.Policy.Caller.Wave.digest(Data(canonical.utf8))
+        #expect(Repository.Policy.Caller.Wave.digest(Data(dropped.utf8)) != digest)
+        #expect(Repository.Policy.Caller.Wave.digest(Data(substituted.utf8)) != digest)
+    }
+
+    /// The merge_group trigger fires only `checks_requested`, and today no
+    /// repository has a merge queue, so the event is never delivered: the
+    /// trigger is inert. The declaration itself is asserted structurally
+    /// so a widening (more types, filters) is a deliberate change.
+    @Test
+    func `terminal merge group trigger is the single checks-requested declaration`() {
+        let expected = Repository.Policy.Caller.Render.terminal
+        #expect(
+            expected.contains(
+                "  merge_group:\n    types:\n      - checks_requested\n  workflow_dispatch:"
+            )
+        )
+        // Exactly one declaration, and no other merge_group surface.
+        #expect(expected.components(separatedBy: "merge_group").count == 2)
+    }
+
+    /// A direct-form caller carrying the merge_group trigger parses: the
+    /// trigger block is host state `Parse` deliberately does not model,
+    /// and must not refuse.
+    @Test
+    func `parse accepts a caller carrying the merge group trigger`() throws {
+        let caller = try Repository.Policy.Caller(
+            repository: "swift-primitives/swift-bool-primitives",
+            layer: .primitives
+        )
+        let rendered = Repository.Policy.Caller.Render.direct(caller)
+        let withTrigger = rendered.replacingOccurrences(
+            of: "  workflow_dispatch:",
+            with: "  merge_group:\n    types:\n      - checks_requested\n  workflow_dispatch:"
+        )
+        #expect(withTrigger != rendered)
+        let parsed = try Repository.Policy.Caller.Parse.caller(
+            withTrigger,
+            repository: caller.repository
+        )
+        #expect(parsed == caller)
+    }
+
     @Test
     func `terminal form is one byte-identical caller`() throws {
         let expected = Repository.Policy.Caller.Render.terminal
