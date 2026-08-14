@@ -84,7 +84,8 @@ extension RepositoryPolicy {
         /// Reads one current Issue body and its HTTP entity tag. The tag and
         /// body digest are both required before an apply operation can begin.
         public func issueSnapshot(
-            _ fullName: String, number: Int
+            _ fullName: String,
+            number: Int
         ) async throws(Error) -> Issue.Snapshot {
             let path = "/repos/\(fullName)/issues/\(number)"
             let response = try await request(method: "GET", path: path)
@@ -235,7 +236,11 @@ extension RepositoryPolicy {
             guard response.status == 200 else {
                 throw error(method: "GET", path: path, response: response)
             }
-            let state = try decode(PrivateVulnerabilityReporting.self, from: response.data, path: path)
+            let state = try decode(
+                PrivateVulnerabilityReporting.self,
+                from: response.data,
+                path: path
+            )
             return state.enabled ? .enabled : .disabled
         }
 

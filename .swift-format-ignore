@@ -10,4 +10,3 @@
 # explicit path per fixture root does. Listed individually. See #4.
 Tests/Repository Policy Tests/Fixtures/**
 Tests/Institute Continuous Integration Validation Tests/Fixtures/**
-Tests/Institute Continuous Integration Inventory Tests/Fixtures/**

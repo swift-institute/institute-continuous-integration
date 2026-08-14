@@ -78,7 +78,9 @@ extension Institute.ContinuousIntegration.Validation {
         /// widens silently.
         public let supportRoot: String?
 
-        public init(supportRoot: String? = ProcessInfo.processInfo.environment["INSTITUTE_CI_SUPPORT_ROOT"]) {
+        public init(
+            supportRoot: String? = ProcessInfo.processInfo.environment["INSTITUTE_CI_SUPPORT_ROOT"]
+        ) {
             self.supportRoot = supportRoot
         }
 
@@ -92,9 +94,11 @@ extension Institute.ContinuousIntegration.Validation {
                 // a silent zero is indistinguishable from a clean scan.
                 return [
                     Finding(
-                        repository: subject.repository, rule: Self.corpusEmpty,
+                        repository: subject.repository,
+                        rule: Self.corpusEmpty,
                         message: "no SKILL.md found anywhere in the repository; "
-                            + "the scan covered nothing and cannot be read as a pass")
+                            + "the scan covered nothing and cannot be read as a pass"
+                    )
                 ]
             }
 
@@ -105,7 +109,8 @@ extension Institute.ContinuousIntegration.Validation {
             let watched = instituteOrganizations().union(
                 sanctioned.compactMap { token in
                     token.contains("/") ? String(token.prefix(while: { $0 != "/" })) : nil
-                })
+                }
+            )
 
             for path in skillFiles {
                 findings += Skill(path: path, in: tree).findings(for: subject)
@@ -118,8 +123,11 @@ extension Institute.ContinuousIntegration.Validation {
                     if (path as NSString).lastPathComponent != "SKILL.md" {
                         findings.append(
                             Finding(
-                                repository: subject.repository, rule: Self.frontmatter,
-                                message: "\(tree.relative(path)): not valid UTF-8"))
+                                repository: subject.repository,
+                                rule: Self.frontmatter,
+                                message: "\(tree.relative(path)): not valid UTF-8"
+                            )
+                        )
                     }
                     continue
                 }
@@ -127,7 +135,10 @@ extension Institute.ContinuousIntegration.Validation {
                 findings += prose.linkFindings(for: subject)
                 findings += prose.proseFindings(for: subject)
                 findings += prose.referenceFindings(
-                    for: subject, sanctioned: sanctioned, watched: watched)
+                    for: subject,
+                    sanctioned: sanctioned,
+                    watched: watched
+                )
             }
 
             return findings
@@ -175,7 +186,8 @@ extension Institute.ContinuousIntegration.Validation {
                 entries.compactMap { entry in
                     guard let name = entry["name"]?.text, !name.isEmpty else { return nil }
                     return name
-                })
+                }
+            )
         }
     }
 }

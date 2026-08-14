@@ -52,18 +52,32 @@ extension Institute.ContinuousIntegration.Inventory {
         public var node: GitHub.ContinuousIntegration.Workflow.YAML.Node {
             .mapping(
                 .init([
-                    (.text("ci_ok_needs"), .sequence(ciOkNeeds.map(GitHub.ContinuousIntegration.Workflow.YAML.Node.text))),
+                    (
+                        .text("ci_ok_needs"),
+                        .sequence(
+                            ciOkNeeds.map(GitHub.ContinuousIntegration.Workflow.YAML.Node.text)
+                        )
+                    ),
                     (.text("ci_ok_step"), .text(Self.step)),
                     (
                         .text("advisory_summary_needs"),
-                        .sequence(advisorySummaryNeeds.map(GitHub.ContinuousIntegration.Workflow.YAML.Node.text))
+                        .sequence(
+                            advisorySummaryNeeds.map(
+                                GitHub.ContinuousIntegration.Workflow.YAML.Node.text
+                            )
+                        )
                     ),
                     (
                         .text("inner_matrix_jobs"),
-                        .sequence(innerMatrixJobs.map(GitHub.ContinuousIntegration.Workflow.YAML.Node.text))
+                        .sequence(
+                            innerMatrixJobs.map(
+                                GitHub.ContinuousIntegration.Workflow.YAML.Node.text
+                            )
+                        )
                     ),
                     (.text("required_check_context"), .text(Self.checkContext)),
-                ]))
+                ])
+            )
         }
     }
 }

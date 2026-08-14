@@ -57,13 +57,15 @@ extension Institute.ContinuousIntegration.Control {
 
             let subject = GitHub.ContinuousIntegration.Validation.Subject(
                 repository: repository,
-                root: root)
+                root: root
+            )
             var findings: [GitHub.ContinuousIntegration.Validation.Finding] = []
 
             for validator in mechanics + institute {
                 let run = GitHub.ContinuousIntegration.Validation.Run.validate(
                     validator,
-                    of: subject)
+                    of: subject
+                )
                 if let defect = run.defect {
                     return .init(findings: findings.sorted(), defect: defect)
                 }

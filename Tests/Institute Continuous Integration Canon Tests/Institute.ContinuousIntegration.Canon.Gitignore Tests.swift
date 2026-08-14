@@ -28,22 +28,29 @@ struct CICanonGitignoreTests {
         }
 
         @Test func `rendering over a canonical file replaces the complete policy`() throws {
-            let existing = Institute.ContinuousIntegration.Canon.Gitignore("# OLD\n\(Institute.ContinuousIntegration.Canon.Gitignore.terminator)\nown/\n")
+            let existing = Institute.ContinuousIntegration.Canon.Gitignore(
+                "# OLD\n\(Institute.ContinuousIntegration.Canon.Gitignore.terminator)\nown/\n"
+            )
             let rendered = try Institute.ContinuousIntegration.Canon.Gitignore.Render(
-                canon: .init(CICanonGitignoreTests.canon))(over: existing)
+                canon: .init(CICanonGitignoreTests.canon)
+            )(over: existing)
             #expect(rendered == CICanonGitignoreTests.canon)
         }
 
         @Test func `rendering over no file emits canon whole`() throws {
             let canon = CICanonGitignoreTests.canon
-            let rendered = try Institute.ContinuousIntegration.Canon.Gitignore.Render(canon: .init(canon))(over: nil)
+            let rendered = try Institute.ContinuousIntegration.Canon.Gitignore.Render(
+                canon: .init(canon)
+            )(over: nil)
             #expect(rendered == canon)
         }
 
         @Test func `rendering is idempotent`() throws {
             // The caller byte-compares before committing, so a second
             // render of a conformant file must produce no change.
-            let render = try Institute.ContinuousIntegration.Canon.Gitignore.Render(canon: .init(CICanonGitignoreTests.canon))
+            let render = try Institute.ContinuousIntegration.Canon.Gitignore.Render(
+                canon: .init(CICanonGitignoreTests.canon)
+            )
             let once = render(over: nil)
             let twice = render(over: .init(once))
             #expect(once == twice)
@@ -56,7 +63,8 @@ struct CICanonGitignoreTests {
                 canon.append(character)
             }
             let rendered = try Institute.ContinuousIntegration.Canon.Gitignore.Render(
-                canon: .init(canon))(over: nil)
+                canon: .init(canon)
+            )(over: nil)
             #expect(rendered == canon)
         }
     }
@@ -80,13 +88,17 @@ struct CICanonGitignoreTests {
             #expect(
                 Class.of(
                     repository: "swift-institute/institute-continuous-integration",
-                    manifest: "// swift-tools-version: 6.3") == .institute)
+                    manifest: "// swift-tools-version: 6.3"
+                ) == .institute
+            )
             #expect(Class.of(repository: "swift-primitives/x", manifest: "…") == .package)
             #expect(Class.of(repository: "swift-primitives/x", manifest: nil) == .scaffold)
             #expect(
                 Class.of(
                     repository: "swift-standards/x",
-                    manifest: #".executableTarget(name: "SVG Generator")"#) == .generator)
+                    manifest: #".executableTarget(name: "SVG Generator")"#
+                ) == .generator
+            )
         }
 
         @Test func `no repository is assigned before the convergence ruling`() {
@@ -101,12 +113,15 @@ struct CICanonGitignoreTests {
     struct `Edge Case` {
         @Test func `a pre canonical file is replaced rather than preserved as a tail`() throws {
             let rendered = try Institute.ContinuousIntegration.Canon.Gitignore.Render(
-                canon: .init(CICanonGitignoreTests.canon))(over: .init("\n\nlegacy/\n"))
+                canon: .init(CICanonGitignoreTests.canon)
+            )(over: .init("\n\nlegacy/\n"))
             #expect(rendered == CICanonGitignoreTests.canon)
         }
 
         @Test func `a file ending at the terminator is generated`() {
-            let file = Institute.ContinuousIntegration.Canon.Gitignore("/*\n\(Institute.ContinuousIntegration.Canon.Gitignore.terminator)")
+            let file = Institute.ContinuousIntegration.Canon.Gitignore(
+                "/*\n\(Institute.ContinuousIntegration.Canon.Gitignore.terminator)"
+            )
             #expect(file.isGenerated)
             #expect(file.generatedPrefix?.hasSuffix("\n") == true)
         }
@@ -114,7 +129,10 @@ struct CICanonGitignoreTests {
         @Test func `canon without a terminator is refused, not reported`() {
             // An unusable control-plane document is not a verdict about
             // any package.
-            #expect(throws: Institute.ContinuousIntegration.Canon.Gitignore.Render.Error.terminatorAbsent) {
+            #expect(
+                throws: Institute.ContinuousIntegration.Canon.Gitignore.Render.Error
+                    .terminatorAbsent
+            ) {
                 try Institute.ContinuousIntegration.Canon.Gitignore.Render(canon: .init("/*\n"))
             }
         }
@@ -126,20 +144,28 @@ struct CICanonGitignoreTests {
             Capability.allCases.map(\.rawValue) == [
                 "benchmark baseline", "snapshot baseline", "environment example",
                 "repository policy corpus", "fixture provenance manifest", "editor configuration",
-            ])
+            ]
+        )
         #expect(
             Capability.allCases.map(\.admission) == [
                 "!**/.benchmarks/", "!**/.snapshots/", "!/.env.example", "!/canon/",
                 "!**/Fixtures/MANIFEST.md", "!/.editorconfig",
-            ])
+            ]
+        )
     }
 
     @Test func `nested package policy is exact`() {
-        #expect(Institute.ContinuousIntegration.Canon.Gitignore.Nested.roots == ["Tests", "Benchmarks"])
-        #expect(Institute.ContinuousIntegration.Canon.Gitignore.Nested.text == ".build/\n.swiftpm/\n.benchmarks/\n")
+        #expect(
+            Institute.ContinuousIntegration.Canon.Gitignore.Nested.roots == ["Tests", "Benchmarks"]
+        )
+        #expect(
+            Institute.ContinuousIntegration.Canon.Gitignore.Nested.text
+                == ".build/\n.swiftpm/\n.benchmarks/\n"
+        )
         #expect(
             Institute.ContinuousIntegration.Canon.Gitignore.Nested.policies(
                 declarations: ["Tests/Package.swift"]
-            ) == ["Tests/.gitignore": ".build/\n.swiftpm/\n.benchmarks/\n"])
+            ) == ["Tests/.gitignore": ".build/\n.swiftpm/\n.benchmarks/\n"]
+        )
     }
 }

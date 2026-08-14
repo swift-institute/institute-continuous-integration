@@ -20,7 +20,10 @@ extension Institute.ContinuousIntegration.Canon.Gitignore {
             // line-ending conversion must not make its closed admission
             // vocabulary disappear from the parser.
             let normalized = canon.text.normalized(to: .lf)
-            guard normalized.contains(Institute.ContinuousIntegration.Canon.Gitignore.Capability.block)
+            guard
+                normalized.contains(
+                    Institute.ContinuousIntegration.Canon.Gitignore.Capability.block
+                )
             else { throw .capabilityBlockAbsent }
             self.canon = canon.text
         }
@@ -30,7 +33,9 @@ extension Institute.ContinuousIntegration.Canon.Gitignore {
 extension Institute.ContinuousIntegration.Canon.Gitignore.Render {
     /// The file to write into a repository. Existing bytes do not affect the
     /// result because no post-generation policy fragment is lawful.
-    public func callAsFunction(over existing: Institute.ContinuousIntegration.Canon.Gitignore?) -> String {
+    public func callAsFunction(
+        over existing: Institute.ContinuousIntegration.Canon.Gitignore?
+    ) -> String {
         _ = existing
         return canon
     }

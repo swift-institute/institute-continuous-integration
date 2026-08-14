@@ -6,6 +6,7 @@ import GitHub_Standard
 import Institute_Continuous_Integration
 import Institute_Continuous_Integration_Application
 import Institute_Continuous_Integration_Contract
+import Repository_Policy
 
 extension Main {
     /// The verbs the universal reusable workflow invokes. Each maps
@@ -27,7 +28,8 @@ extension Main {
 
     static func refuse(_ message: String) -> Never {
         FileHandle.standardError.write(
-            Data("institute-continuous-integration: \(message)\n".utf8))
+            Data("institute-continuous-integration: \(message)\n".utf8)
+        )
         exit(1)
     }
 
@@ -35,7 +37,9 @@ extension Main {
         let data: Data
         do {
             data = try JSONSerialization.data(
-                withJSONObject: payload, options: [.sortedKeys])
+                withJSONObject: payload,
+                options: [.sortedKeys]
+            )
         } catch {
             refuse("could not serialize payload: \(error)")
         }
@@ -71,6 +75,24 @@ extension Main {
     // MARK: - plan
 
     static func plan(_ rest: [String]) {
+        let policyPath = value("--policy", in: rest)
+        let configuration: RepositoryPolicy.Fleet.Configuration?
+        if policyPath.isEmpty {
+            configuration = nil
+        } else {
+            do {
+                let fleet = try RepositoryPolicy.Fleet.read(at: policyPath)
+                guard fleet.schemaVersion == 1 else {
+                    refuse("plan requires fleet policy schemaVersion 1")
+                }
+                configuration = try fleet.configuration(
+                    for: value("--subject-repository", in: rest)
+                )
+            } catch {
+                refuse("plan could not resolve fleet policy: \(error)")
+            }
+        }
+
         let today = value("--today", in: rest)
         var deschedule: [String: String] = [:]
         // Optional by construction, like the release-floor exception below:
@@ -86,14 +108,16 @@ extension Main {
                 let nightly = Institute.ContinuousIntegration.NightlyException(
                     image: nightlyImage,
                     upstreamIssue: value("--nightly-main-upstream-issue", in: rest),
-                    recheck: value("--nightly-main-recheck", in: rest))
+                    recheck: value("--nightly-main-recheck", in: rest)
+                )
                 if case .expired = try nightly.disposition(
                     today: today,
-                    subjectRepository: value("--subject-repository", in: rest))
-                {
+                    subjectRepository: value("--subject-repository", in: rest)
+                ) {
                     deschedule[
                         Institute.ContinuousIntegration.NightlyException
-                            .classifiedLeg.id] = "nightly-exception-expired"
+                            .classifiedLeg.id
+                    ] = "nightly-exception-expired"
                 }
             } catch {
                 refuse("plan refused: \(error)")
@@ -114,8 +138,10 @@ extension Main {
                         swiftVersion: swiftVersion,
                         image: floorImage,
                         upstreamRelease: value("--release-floor-upstream-release", in: rest),
-                        recheck: value("--release-floor-recheck", in: rest)),
-                today: today)
+                        recheck: value("--release-floor-recheck", in: rest)
+                    ),
+                today: today
+            )
         } catch {
             refuse("plan refused: \(error)")
         }
@@ -128,15 +154,19 @@ extension Main {
                 ref: value("--ref", in: rest),
                 headMessage: value("--head-message", in: rest),
                 event: event,
-                platformSupport: value("--platform-support", in: rest),
-                lintBundle: value("--lint-bundle", in: rest),
+                platformSupport: configuration?.platforms
+                    ?? value("--platform-support", in: rest),
+                lintBundle: configuration?.lintBundle
+                    ?? value("--lint-bundle", in: rest),
                 packageContentChanged: Institute.ContinuousIntegration.PackageDiff
                     .packageContentChanged(
                         event: event,
                         eventPath: value("--event-path", in: rest),
                         repository: value("--workflow-repository", in: rest),
-                        workspace: value("--workspace", in: rest)),
-                deschedule: deschedule)
+                        workspace: value("--workspace", in: rest)
+                    ),
+                deschedule: deschedule
+            )
         } catch {
             refuse("plan refused: \(error)")
         }
@@ -147,6 +177,9 @@ extension Main {
             "gating": plan.gating.map(\.id).joined(separator: ","),
             "package-content-changed": plan.packageContentChanged,
             "linux-image": linuxImage,
+            "lint-bundle": configuration?.lintBundle
+                ?? value("--lint-bundle", in: rest),
+            "embedded-target": configuration?.embeddedTarget ?? "",
             // `leg=reason` records; empty when nothing was descheduled.
             "descheduled": plan.descheduled
                 .map { "\($0.leg.id)=\($0.reason)" }
@@ -180,10 +213,12 @@ extension Main {
             // `leg=reason` records from the plan; the audit keys on ids.
             descheduled: value("--descheduled", in: rest)
                 .split(separator: ",")
-                .map { String($0.split(separator: "=")[0]) })
+                .map { String($0.split(separator: "=")[0]) }
+        )
         for finding in verdict.findings {
             FileHandle.standardError.write(
-                Data("institute-continuous-integration: \(finding)\n".utf8))
+                Data("institute-continuous-integration: \(finding)\n".utf8)
+            )
         }
         print(verdict.pass ? "pass" : "fail")
         exit(verdict.pass ? 0 : 1)
@@ -212,7 +247,8 @@ extension Main {
             operatingSystem: value("--os", in: rest),
             architecture: value("--arch", in: rest),
             provisioning: value("--provisioning", in: rest)
-                .split(separator: ",").map(String.init))
+                .split(separator: ",").map(String.init)
+        )
         do {
             try identity.validate()
         } catch {
@@ -232,7 +268,9 @@ extension Main {
                 guard let data = FileManager.default.contents(atPath: root + "/" + path)
                 else { refuse("bootstrap-manifest: unreadable executable \(path)") }
                 let executable = Institute.ContinuousIntegration.Bootstrap.Manifest.Executable(
-                    path: path, bytes: [UInt8](data).map(Byte.init))
+                    path: path,
+                    bytes: [UInt8](data).map(Byte.init)
+                )
                 executables.append(["path": executable.path, "digest": executable.digest])
             }
             if executables.isEmpty { refuse("bootstrap-manifest: no executables") }
@@ -247,7 +285,8 @@ extension Main {
             let root = value("--root", in: rest)
             guard
                 let data = FileManager.default.contents(
-                    atPath: value("--manifest", in: rest))
+                    atPath: value("--manifest", in: rest)
+                )
             else { refuse("bootstrap-verify: unreadable manifest") }
             let object = decoded(data, "bootstrap-verify manifest")
             guard
@@ -263,16 +302,19 @@ extension Main {
                 toolchain: identityObject["toolchain"] as? String ?? "",
                 operatingSystem: identityObject["operatingSystem"] as? String ?? "",
                 architecture: identityObject["architecture"] as? String ?? "",
-                provisioning: identityObject["provisioning"] as? [String] ?? [])
+                provisioning: identityObject["provisioning"] as? [String] ?? []
+            )
             let manifest = Institute.ContinuousIntegration.Bootstrap.Manifest(
                 identity: recorded,
                 key: key,
                 executables: executableObjects.map {
                     .init(
                         path: $0["path"] as? String ?? "",
-                        digest: $0["digest"] as? String ?? "")
+                        digest: $0["digest"] as? String ?? ""
+                    )
                 },
-                producerRun: producerRun)
+                producerRun: producerRun
+            )
             do {
                 try manifest.verify(against: identity) { path in
                     FileManager.default.contents(atPath: root + "/" + path)
@@ -285,7 +327,8 @@ extension Main {
                 """
                 verified: key \(identity.digest), \
                 \(executableObjects.count) executable(s), producer run \(producerRun)
-                """)
+                """
+            )
 
         case .control, .packageCommand:
             refuse("unreachable")

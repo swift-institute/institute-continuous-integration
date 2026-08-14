@@ -180,7 +180,8 @@ extension Institute.ContinuousIntegration.Validation {
 
             let `class` = Class.of(
                 repository: subject.repository,
-                manifest: Self.read(subject.path("Package.swift")))
+                manifest: Self.read(subject.path("Package.swift"))
+            )
             let path = canon ?? Self.resolvedCanonPath ?? Self.canonPath
             let classPath = Self.siblingCanonPath(of: path, for: `class`)
             guard let canonText = Self.read(classPath) else {
@@ -188,7 +189,8 @@ extension Institute.ContinuousIntegration.Validation {
             }
             do {
                 _ = try Institute.ContinuousIntegration.Canon.Gitignore.Render(
-                    canon: .init(canonText))
+                    canon: .init(canonText)
+                )
             } catch {
                 throw .missingSupportFile(path: classPath)
             }
@@ -200,9 +202,11 @@ extension Institute.ContinuousIntegration.Validation {
             guard let text = Self.read(subject.path(".gitignore")) else {
                 return [
                     Finding(
-                        repository: subject.repository, rule: conformance,
+                        repository: subject.repository,
+                        rule: conformance,
                         message: "no .gitignore; the canonical \(`class`.rawValue)-class "
-                            + "whitelist is absent")
+                            + "whitelist is absent"
+                    )
                 ]
             }
 
@@ -211,15 +215,21 @@ extension Institute.ContinuousIntegration.Validation {
             case false:
                 findings.append(
                     Finding(
-                        repository: subject.repository, rule: conformance,
-                        message: "no CANONICAL section; file predates the canonical whitelist"))
+                        repository: subject.repository,
+                        rule: conformance,
+                        message: "no CANONICAL section; file predates the canonical whitelist"
+                    )
+                )
 
             case true where text != canonText:
                 findings.append(
                     Finding(
-                        repository: subject.repository, rule: conformance,
+                        repository: subject.repository,
+                        rule: conformance,
                         message: "complete generated policy diverges from \(`class`.canonPath) "
-                            + "(class: \(`class`.rawValue)); handwritten tails are forbidden"))
+                            + "(class: \(`class`.rawValue)); handwritten tails are forbidden"
+                    )
+                )
 
             case true:
                 break
@@ -234,14 +244,21 @@ extension Institute.ContinuousIntegration.Validation {
                     if nestedText != Institute.ContinuousIntegration.Canon.Gitignore.Nested.text {
                         findings.append(
                             Finding(
-                                repository: subject.repository, rule: conformance,
-                                message: "declared nested package `\(root)/Package.swift` requires exact generated `\(root)/.gitignore` policy"))
+                                repository: subject.repository,
+                                rule: conformance,
+                                message:
+                                    "declared nested package `\(root)/Package.swift` requires exact generated `\(root)/.gitignore` policy"
+                            )
+                        )
                     }
                 } else if nestedText != nil {
                     findings.append(
                         Finding(
-                            repository: subject.repository, rule: conformance,
-                            message: "undeclared nested policy `\(root)/.gitignore` is forbidden"))
+                            repository: subject.repository,
+                            rule: conformance,
+                            message: "undeclared nested policy `\(root)/.gitignore` is forbidden"
+                        )
+                    )
                 }
             }
             let lawfulPolicyPaths = Set([".gitignore"] + declaredNested.map { "\($0)/.gitignore" })
@@ -249,8 +266,12 @@ extension Institute.ContinuousIntegration.Validation {
             where !lawfulPolicyPaths.contains(policyPath) {
                 findings.append(
                     Finding(
-                        repository: subject.repository, rule: conformance,
-                        message: "ignore policy `\(policyPath)` is not a declared generated policy location"))
+                        repository: subject.repository,
+                        rule: conformance,
+                        message:
+                            "ignore policy `\(policyPath)` is not a declared generated policy location"
+                    )
+                )
             }
 
             // 002 and 003 evaluate the repository's ACTUAL file,
@@ -259,13 +280,18 @@ extension Institute.ContinuousIntegration.Validation {
             // only via 001.
             let work = Self.work(for: `class`)
             let ignored = try Self.ignored(
-                under: text, probes: work + Self.junk + Self.unadmitted)
+                under: text,
+                probes: work + Self.junk + Self.unadmitted
+            )
             for probe in work where ignored.contains(probe.path) {
                 findings.append(
                     Finding(
-                        repository: subject.repository, rule: workLoss,
+                        repository: subject.repository,
+                        rule: workLoss,
                         message: "whitelist denies real work: `\(probe.path)` "
-                            + "would be silently untracked"))
+                            + "would be silently untracked"
+                    )
+                )
             }
             let tracked = Self.junk.filter { !ignored.contains($0.path) }
             if !tracked.isEmpty {
@@ -274,25 +300,35 @@ extension Institute.ContinuousIntegration.Validation {
                 // clean 002 above vacuous.
                 findings.append(
                     Finding(
-                        repository: subject.repository, rule: workLoss,
+                        repository: subject.repository,
+                        rule: workLoss,
                         message: "probe control failed — tool state not denied ("
                             + tracked.map { "`\($0.path)`" }.joined(separator: ", ")
-                            + "); this run's whitelist verdicts are not evidence"))
+                            + "); this run's whitelist verdicts are not evidence"
+                    )
+                )
             }
             for probe in Self.unadmitted where !ignored.contains(probe.path) {
                 findings.append(
                     Finding(
-                        repository: subject.repository, rule: shape,
+                        repository: subject.repository,
+                        rule: shape,
                         message: "not deny-by-default: unadmitted path `\(probe.path)` "
-                            + "would be tracked"))
+                            + "would be tracked"
+                    )
+                )
             }
             let indexed = try Self.indexedPaths(in: subject.root)
             let ignoredIndexed = try Self.ignoredIndexedPaths(indexed, in: subject.root)
             for path in ignoredIndexed {
                 findings.append(
                     Finding(
-                        repository: subject.repository, rule: indexedCoverage,
-                        message: "tracked index path is ignored by generated repository policy: `\(path)`"))
+                        repository: subject.repository,
+                        rule: indexedCoverage,
+                        message:
+                            "tracked index path is ignored by generated repository policy: `\(path)`"
+                    )
+                )
             }
             return findings
         }
@@ -310,7 +346,8 @@ extension Institute.ContinuousIntegration.Validation.Gitignore {
             // a test runner, a consumer package — still resolves the
             // document this validator was built against.
             ?? resolvedCanonPath(
-                startingAt: URL(filePath: #filePath).deletingLastPathComponent().path)
+                startingAt: URL(filePath: #filePath).deletingLastPathComponent().path
+            )
     }
 
     /// `canonPath` found by walking up from `directory`, or `nil` when
@@ -376,7 +413,8 @@ extension Institute.ContinuousIntegration.Validation.Gitignore {
     /// re-implemented: the fix is a larger budget for the same transient
     /// class, not a different mechanism.
     static func retryingTransientWindowsFailures<T>(
-        attempts: Int = 10, _ operation: () throws -> T
+        attempts: Int = 10,
+        _ operation: () throws -> T
     ) throws -> T {
         #if os(Windows)
             var lastError: Swift.Error!
@@ -428,7 +466,8 @@ extension Institute.ContinuousIntegration.Validation.Gitignore {
     ///   contract an unanswerable question is the exit-2 class. This is a
     ///   deliberate difference and it is unreachable on a working runner.
     static func ignored(
-        under gitignore: String, probes: [Probe]
+        under gitignore: String,
+        probes: [Probe]
     ) throws(GitHub.ContinuousIntegration.Validation.EnvironmentDefect) -> Set<String> {
         let root = FileManager.default.temporaryDirectory
             .appending(path: "ci-validation-gitignore-\(UUID().uuidString)")
@@ -451,7 +490,9 @@ extension Institute.ContinuousIntegration.Validation.Gitignore {
             do {
                 try Self.retryingTransientWindowsFailures {
                     try FileManager.default.createDirectory(
-                        at: directory, withIntermediateDirectories: true)
+                        at: directory,
+                        withIntermediateDirectories: true
+                    )
                 }
             } catch {
                 throw .unreadableSubject(root: root.path)
@@ -471,7 +512,9 @@ extension Institute.ContinuousIntegration.Validation.Gitignore {
         do {
             try Self.retryingTransientWindowsFailures {
                 try Data(gitignore.utf8).write(
-                    to: root.appending(path: ".gitignore"), options: .atomic)
+                    to: root.appending(path: ".gitignore"),
+                    options: .atomic
+                )
             }
         } catch {
             throw .unreadableSubject(root: root.path)
@@ -494,7 +537,8 @@ extension Institute.ContinuousIntegration.Validation.Gitignore {
 
     /// One `git` invocation in the throwaway tree, returning its status.
     private static func git(
-        _ arguments: [String], in root: URL
+        _ arguments: [String],
+        in root: URL
     ) throws(GitHub.ContinuousIntegration.Validation.EnvironmentDefect) -> Int32 {
         try git(arguments, in: root, input: nil).status
     }
@@ -507,11 +551,15 @@ extension Institute.ContinuousIntegration.Validation.Gitignore {
     ) throws(GitHub.ContinuousIntegration.Validation.EnvironmentDefect) -> [String] {
         let result = try git(
             ["ls-files", "--stage", "-z"],
-            in: URL(filePath: root), input: nil, environment: environment)
+            in: URL(filePath: root),
+            input: nil,
+            environment: environment
+        )
         guard result.status == 0 else { throw .unreadableSubject(root: root) }
         if result.output.isEmpty { return [] }
         var paths: [String] = []
-        for record in result.output.split(separator: 0, omittingEmptySubsequences: false).dropLast() {
+        for record in result.output.split(separator: 0, omittingEmptySubsequences: false).dropLast()
+        {
             guard let tab = record.firstIndex(of: 9) else { throw .unreadableSubject(root: root) }
             let header = record[..<tab].split(separator: 32)
             guard header.count == 3, header[2].elementsEqual([48]),
@@ -525,7 +573,9 @@ extension Institute.ContinuousIntegration.Validation.Gitignore {
     }
 
     /// Every effective per-directory policy input outside Git's own metadata.
-    static func policyPaths(in root: String) throws(GitHub.ContinuousIntegration.Validation.EnvironmentDefect) -> [String] {
+    static func policyPaths(
+        in root: String
+    ) throws(GitHub.ContinuousIntegration.Validation.EnvironmentDefect) -> [String] {
         let rootURL = URL(filePath: root)
         var directories: [(url: URL, relative: String)] = [(rootURL, "")]
         var paths: [String] = []
@@ -535,7 +585,8 @@ extension Institute.ContinuousIntegration.Validation.Gitignore {
                 contents = try Self.retryingTransientWindowsFailures {
                     try FileManager.default.contentsOfDirectory(
                         at: directory.url,
-                        includingPropertiesForKeys: [.isDirectoryKey, .isSymbolicLinkKey])
+                        includingPropertiesForKeys: [.isDirectoryKey, .isSymbolicLinkKey]
+                    )
                 }
             } catch {
                 throw .unreadableSubject(root: root)
@@ -567,7 +618,9 @@ extension Institute.ContinuousIntegration.Validation.Gitignore {
     /// `--no-index` flag is load-bearing: without it Git suppresses exactly
     /// the force-added path this rule exists to detect.
     static func ignoredIndexedPaths(
-        _ paths: [String], in root: String, noIndex: Bool = true
+        _ paths: [String],
+        in root: String,
+        noIndex: Bool = true
     ) throws(GitHub.ContinuousIntegration.Validation.EnvironmentDefect) -> [String] {
         guard !paths.isEmpty else { return [] }
         try validateRepositoryEnvironment(root)
@@ -580,7 +633,9 @@ extension Institute.ContinuousIntegration.Validation.Gitignore {
             data.append(0)
         }
         let result = try git(arguments, in: URL(filePath: root), input: input)
-        guard result.status == 0 || result.status == 1, result.output.last == 0 || result.output.isEmpty else {
+        guard result.status == 0 || result.status == 1,
+            result.output.last == 0 || result.output.isEmpty
+        else {
             throw .unreadableSubject(root: root)
         }
         var ignored: [String] = []
@@ -617,9 +672,13 @@ extension Institute.ContinuousIntegration.Validation.Gitignore {
     }
 
     static func git(
-        _ arguments: [String], in root: URL, input: Data?,
+        _ arguments: [String],
+        in root: URL,
+        input: Data?,
         environment: [String: String] = ProcessInfo.processInfo.environment
-    ) throws(GitHub.ContinuousIntegration.Validation.EnvironmentDefect) -> (status: Int32, output: Data) {
+    ) throws(GitHub.ContinuousIntegration.Validation.EnvironmentDefect) -> (
+        status: Int32, output: Data
+    ) {
         guard let executable = gitExecutable(in: ProcessInfo.processInfo.environment) else {
             throw .missingSupportFile(path: "git")
         }
@@ -759,7 +818,8 @@ extension Institute.ContinuousIntegration.Validation.Gitignore {
     }
 
     private static func controlledGitEnvironment(
-        _ ambient: [String: String], executable: URL
+        _ ambient: [String: String],
+        executable: URL
     ) -> [String: String] {
         #if os(Windows)
             let null = "NUL"

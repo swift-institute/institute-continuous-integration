@@ -90,7 +90,8 @@ extension Institute.ContinuousIntegration.Validation {
                             + "\(anchor.sources.count) source repositor"
                             + (anchor.sources.count == 1 ? "y" : "ies")
                             + ", but \(workflowRelative) does not exist -- the anchor "
-                            + "has nothing to anchor.")
+                            + "has nothing to anchor."
+                    )
                 ]
             }
 
@@ -103,7 +104,8 @@ extension Institute.ContinuousIntegration.Validation {
                         subject,
                         "\(workflowRelative): YAML parse failed: \(error.message) -- a "
                             + "workflow that cannot be read cannot be shown to carry its "
-                            + "pins.")
+                            + "pins."
+                    )
                 ]
             }
 
@@ -149,14 +151,16 @@ extension Institute.ContinuousIntegration.Validation.Anchor {
                     "\(workflow) carries neither generated step for pinned source "
                         + "`\(source.repository)` (expected `\(checkoutName)` and "
                         + "`\(identityName)`). Regenerate the trust-anchor block; do not "
-                        + "author it.")
+                        + "author it."
+                )
                 continue
 
             case (nil, .some):
                 problems.append(
                     "\(workflow) carries the identity check for `\(source.repository)` "
                         + "but not its pinned checkout `\(checkoutName)` -- the check would "
-                        + "read whatever else is in the workspace.")
+                        + "read whatever else is in the workspace."
+                )
                 continue
 
             case (.some, nil):
@@ -164,7 +168,8 @@ extension Institute.ContinuousIntegration.Validation.Anchor {
                     "\(workflow) checks out `\(source.repository)` at a pin but carries no "
                         + "`\(identityName)` step -- the fetched commit and tree are then "
                         + "never verified, and the pin is trusted on the fetcher's word "
-                        + "alone.")
+                        + "alone."
+                )
                 continue
 
             case (.some(let checkout), .some(let identity)):
@@ -173,21 +178,27 @@ extension Institute.ContinuousIntegration.Validation.Anchor {
                         "\(workflow) checks out `\(source.repository)` in job "
                             + "`\(checkout.job)` but verifies it in job `\(identity.job)` -- "
                             + "each job gets its own workspace, so the check runs against a "
-                            + "tree this pin never wrote.")
+                            + "tree this pin never wrote."
+                    )
                 } else if identity.index < checkout.index {
                     problems.append(
                         "\(workflow) runs `\(identityName)` before `\(checkoutName)` in job "
                             + "`\(checkout.job)` -- the identity check would report on a "
-                            + "workspace the pinned checkout has not written yet.")
+                            + "workspace the pinned checkout has not written yet."
+                    )
                 }
                 problems += difference(
                     shipped: checkout.node,
                     regenerated: anchor.checkoutStep(for: source),
-                    step: checkoutName, workflow: workflow)
+                    step: checkoutName,
+                    workflow: workflow
+                )
                 problems += difference(
                     shipped: identity.node,
                     regenerated: anchor.identityStep(for: source),
-                    step: identityName, workflow: workflow)
+                    step: identityName,
+                    workflow: workflow
+                )
             }
         }
         return problems
@@ -209,7 +220,8 @@ extension Institute.ContinuousIntegration.Validation.Anchor {
     /// is reported by the comparison rather than silently preferred: the
     /// emitter cannot produce two, so a duplicate is hand-authored.
     static func located(
-        _ name: String, in document: GitHub.ContinuousIntegration.Workflow.Document
+        _ name: String,
+        in document: GitHub.ContinuousIntegration.Workflow.Document
     ) -> Placement? {
         for job in document.jobs {
             for (index, step) in job.steps.enumerated() where step["name"]?.text == name {

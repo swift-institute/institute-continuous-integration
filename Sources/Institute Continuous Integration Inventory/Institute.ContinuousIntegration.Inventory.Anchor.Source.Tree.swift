@@ -47,7 +47,8 @@ extension Institute.ContinuousIntegration.Inventory.Anchor.Source {
                 .init([
                     (.text("path"), .text(path)),
                     (.text("oid"), .text(oid.rawValue)),
-                ]))
+                ])
+            )
         }
     }
 }

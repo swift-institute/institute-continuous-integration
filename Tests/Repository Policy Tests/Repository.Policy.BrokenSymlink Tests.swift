@@ -15,10 +15,12 @@ struct RepositoryPolicyBrokenSymlinkTests {
         #expect(FileManager.default.createFile(atPath: target.path, contents: Data()))
         try FileManager.default.createSymbolicLink(
             at: root.appending(path: "live"),
-            withDestinationURL: target)
+            withDestinationURL: target
+        )
         try FileManager.default.createSymbolicLink(
             atPath: root.appending(path: "broken").path,
-            withDestinationPath: "missing")
+            withDestinationPath: "missing"
+        )
 
         let findings = try RepositoryPolicy.BrokenSymlink.findings(at: root.path)
 

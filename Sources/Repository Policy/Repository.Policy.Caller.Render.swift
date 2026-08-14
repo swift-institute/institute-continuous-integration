@@ -1,12 +1,9 @@
 extension Repository.Policy.Caller {
-    /// Deterministic host projections of one caller spec. Two forms:
+    /// Deterministic host projections during the caller cutover.
     ///
-    /// - `current` — byte parity with the incumbent generate-caller.py
-    ///   TERMINAL form (wrapper call, tag trigger, legacy secrets); the
-    ///   F3 fixture-corpus parity gate compares against the incumbent.
-    /// - `direct` — the FT1-ratified no-tag leaf calling the universal
-    ///   reusable directly with the two-name secret map; activates in
-    ///   the F13/F14 caller wave.
+    /// `terminal` is the sole intended fleet output. `current` and `direct`
+    /// remain bounded migration renderings only until the convergence wave
+    /// has removed their final consumers.
     ///
     /// This renderer is a closed projection: it emits only admitted
     /// declarations (triggers/filters, root read ceiling, one
@@ -14,6 +11,38 @@ extension Repository.Policy.Caller {
     /// secret map). A declaration it cannot represent is STOP-F3-YAML,
     /// never a hand-authored escape.
     public enum Render {
+        /// The terminal generated caller. Package identity and desired-state
+        /// differences are resolved by the central policy owner after the
+        /// reusable hop, so every package receives these exact bytes.
+        public static var terminal: String {
+            [
+                "name: CI",
+                "",
+                "on:",
+                "  push:",
+                "    branches:",
+                "      - main",
+                "  pull_request:",
+                "    branches:",
+                "      - main",
+                "  workflow_dispatch:",
+                "",
+                "permissions:",
+                "  actions: read",
+                "  contents: read",
+                "",
+                "concurrency:",
+                "  group: ci-${{ github.ref }}",
+                "  cancel-in-progress: true",
+                "",
+                "jobs:",
+                "  ci:",
+                "    if: ${{ !github.event.repository.private }}",
+                "    name: ci / matrix",
+                "    uses: swift-institute/.github/.github/workflows/swift-ci.yml@main",
+            ].joined(separator: "\n") + "\n"
+        }
+
         public static func current(_ caller: Repository.Policy.Caller) -> String {
             var lines = [
                 "name: CI",

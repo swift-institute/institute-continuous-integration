@@ -66,12 +66,14 @@ extension Repository.Policy.Caller {
         ///   org would be the very confusion `Caller.sameOrganization`
         ///   exists to avoid.
         public static func caller(
-            _ text: String, repository: String
+            _ text: String,
+            repository: String
         ) throws(Repository.Policy.Caller.Error) -> Repository.Policy.Caller {
             let jobs = try self.jobs(text)
             guard let ci = jobs.first(where: { $0.name == "ci" }) else {
                 throw .unknownCustomization(
-                    "no `ci` job; found \(jobs.map(\.name).sorted())")
+                    "no `ci` job; found \(jobs.map(\.name).sorted())"
+                )
             }
             let form = try self.form(ci, alongside: jobs.map(\.name))
             let layer = try self.layer(ci, form: form)
@@ -86,8 +88,10 @@ extension Repository.Policy.Caller {
             }
 
             let caller = try Repository.Policy.Caller(
-                repository: repository, layer: layer,
-                inputs: canonical(inputs))
+                repository: repository,
+                layer: layer,
+                inputs: canonical(inputs)
+            )
 
             // The structural fixpoint. A single-job caller claims to be
             // this renderer's own output, so re-rendering it must
@@ -102,7 +106,9 @@ extension Repository.Policy.Caller {
                 let rendered =
                     form == .direct
                     ? Repository.Policy.Caller.Render.direct(
-                        caller, privateDependencyClosure: ci.declares("secrets:"))
+                        caller,
+                        privateDependencyClosure: ci.declares("secrets:")
+                    )
                     : Repository.Policy.Caller.Render.current(caller)
                 guard
                     try self.jobs(rendered).map(\.significantLines)
@@ -110,7 +116,8 @@ extension Repository.Policy.Caller {
                 else {
                     throw .unknownCustomization(
                         "single-job caller does not match the canonical \(form.rawValue) "
-                            + "shape (a customization this renderer does not model)")
+                            + "shape (a customization this renderer does not model)"
+                    )
                 }
             }
             return caller
@@ -128,7 +135,8 @@ extension Repository.Policy.Caller {
             let jobs = try self.jobs(text)
             guard let ci = jobs.first(where: { $0.name == "ci" }) else {
                 throw .unknownCustomization(
-                    "no `ci` job; found \(jobs.map(\.name).sorted())")
+                    "no `ci` job; found \(jobs.map(\.name).sorted())"
+                )
             }
             return try layer(ci, form: try form(ci, alongside: jobs.map(\.name)))
         }
@@ -137,11 +145,13 @@ extension Repository.Policy.Caller {
 
 extension Repository.Policy.Caller.Parse {
     static func form(
-        _ ci: Job, alongside names: [String]
+        _ ci: Job,
+        alongside names: [String]
     ) throws(Repository.Policy.Caller.Error) -> Form {
         if ci.declares("steps:") || ci.declares("runs-on:") {
             throw .unknownCustomization(
-                "`ci` job carries inline steps/runs-on, not a thin caller")
+                "`ci` job carries inline steps/runs-on, not a thin caller"
+            )
         }
         guard let uses = ci.uses else {
             throw .unknownCustomization("`ci` job has no uses: — not a reusable-workflow call")
@@ -151,7 +161,8 @@ extension Repository.Policy.Caller.Parse {
     }
 
     static func layer(
-        _ ci: Job, form: Form
+        _ ci: Job,
+        form: Form
     ) throws(Repository.Policy.Caller.Error) -> Repository.Policy.Caller.Layer {
         guard let uses = ci.uses else {
             throw .unknownCustomization("`ci` job has no uses:")
@@ -168,7 +179,8 @@ extension Repository.Policy.Caller.Parse {
             else {
                 throw .unknownCustomization(
                     "direct caller carries no recognised `lint-bundle:`, so its "
-                        + "layer cannot be recovered")
+                        + "layer cannot be recovered"
+                )
             }
             return layer
         }
@@ -178,19 +190,23 @@ extension Repository.Policy.Caller.Parse {
                 .first(where: { $0.wrapperOrganization == organization })
         else {
             throw .unknownCustomization(
-                "could not infer a known layer from uses: \(uses)")
+                "could not infer a known layer from uses: \(uses)"
+            )
         }
         guard uses == "\(organization)/.github/.github/workflows/swift-ci.yml@main" else {
             throw .unknownCustomization(
                 "ci uses \(uses), expected "
-                    + "\(organization)/.github/.github/workflows/swift-ci.yml@main")
+                    + "\(organization)/.github/.github/workflows/swift-ci.yml@main"
+            )
         }
         return layer
     }
 
     /// Whether the job set is one this type models.
     static func admit(
-        _ names: [String], form: Form, repository: String
+        _ names: [String],
+        form: Form,
+        repository: String
     ) throws(Repository.Policy.Caller.Error) {
         var admitted: Set<String> = ["ci"]
         if form == .legacy { admitted.insert("docs") }
@@ -202,13 +218,15 @@ extension Repository.Policy.Caller.Parse {
         }
         guard Set(names) == admitted else {
             throw .unknownCustomization(
-                "unexpected job set \(names.sorted()), expected \(admitted.sorted())")
+                "unexpected job set \(names.sorted()), expected \(admitted.sorted())"
+            )
         }
     }
 
     /// The `ci` job's caller-supplied `with:` inputs, in document order.
     static func inputs(
-        _ job: Job, includingRendererOwned: Bool = false
+        _ job: Job,
+        includingRendererOwned: Bool = false
     ) throws(Repository.Policy.Caller.Error) -> [(key: String, value: String)] {
         var recovered: [(key: String, value: String)] = []
         for (key, value) in try block(job, under: "with:") {
@@ -230,7 +248,8 @@ extension Repository.Policy.Caller.Parse {
     /// The legacy `docs:` job's overrides, recovered onto the terminal
     /// `docs-*` inputs and merged with the `ci` job's.
     static func merging(
-        _ inputs: [(key: String, value: String)], recoveredFrom docs: Job,
+        _ inputs: [(key: String, value: String)],
+        recoveredFrom docs: Job,
         layer: Repository.Policy.Caller.Layer
     ) throws(Repository.Policy.Caller.Error) -> [(key: String, value: String)] {
         let expected = "\(layer.wrapperOrganization)/.github/.github/workflows/swift-docs.yml@main"
@@ -240,7 +259,8 @@ extension Repository.Policy.Caller.Parse {
         guard uses == expected else {
             throw .unknownCustomization(
                 "docs uses \(uses), expected \(expected) "
-                    + "(cross-wrapper docs routes are typed exceptions)")
+                    + "(cross-wrapper docs routes are typed exceptions)"
+            )
         }
         var merged = inputs
         for (key, value) in try block(docs, under: "with:") {
@@ -251,7 +271,8 @@ extension Repository.Policy.Caller.Parse {
             if let existing = merged.first(where: { $0.key == terminal }) {
                 guard existing.value == value else {
                     throw .unknownCustomization(
-                        "docs job \(key) conflicts with ci job \(terminal)")
+                        "docs job \(key) conflicts with ci job \(terminal)"
+                    )
                 }
                 continue
             }
@@ -268,7 +289,8 @@ extension Repository.Policy.Caller.Parse {
     /// A child that is itself a block opener is a nesting this renderer
     /// never emits, and refusing it is what keeps `Parse` closed.
     static func block(
-        _ job: Job, under opener: String
+        _ job: Job,
+        under opener: String
     ) throws(Repository.Policy.Caller.Error) -> [(key: String, value: String)] {
         var children: [(key: String, value: String)] = []
         var openerIndent: Int?
@@ -282,7 +304,8 @@ extension Repository.Policy.Caller.Parse {
                     let value = String(line[line.index(after: separator)...]).trimmed
                     guard !value.isEmpty else {
                         throw .unknownCustomization(
-                            "nested mapping under `\(opener)`: \(key)")
+                            "nested mapping under `\(opener)`: \(key)"
+                        )
                     }
                     children.append((key: key, value: unquoted(value)))
                     continue
@@ -302,7 +325,10 @@ extension Repository.Policy.Caller.Parse {
     /// it.
     static func jobs(_ text: String) throws(Repository.Policy.Caller.Error) -> [Job] {
         let lines = text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
-        guard let start = lines.firstIndex(where: { significant($0)?.trimmed == "jobs:" && $0.indent == 0 })
+        guard
+            let start = lines.firstIndex(where: {
+                significant($0)?.trimmed == "jobs:" && $0.indent == 0
+            })
         else {
             throw .unknownCustomization("no top-level `jobs:` block")
         }
@@ -316,7 +342,9 @@ extension Repository.Policy.Caller.Parse {
             }
             if content.indent == 0 { break }
             if content.indent == 2, content.trimmed.hasSuffix(":"),
-                content.trimmed.dropLast().allSatisfy({ $0.isLetter || $0.isNumber || $0 == "-" || $0 == "_" })
+                content.trimmed.dropLast().allSatisfy({
+                    $0.isLetter || $0.isNumber || $0 == "-" || $0 == "_"
+                })
             {
                 if let name { jobs.append(Job(name: name, lines: body)) }
                 name = String(content.trimmed.dropLast())

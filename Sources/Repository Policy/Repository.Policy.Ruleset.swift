@@ -81,7 +81,9 @@ extension RepositoryPolicy {
         /// trusted control-plane receipt (Task 2-01/2-02,
         /// swift-institute/.github#253). No compatibility variant: no
         /// producer preceded it.
-        public static func protectedMainPrivatePayload(from url: URL) throws(ConfigurationError) -> Data {
+        public static func protectedMainPrivatePayload(
+            from url: URL
+        ) throws(ConfigurationError) -> Data {
             try protectedMainPackagePayload(
                 from: url,
                 requiredContexts: ["verification / workspace"]
@@ -142,7 +144,9 @@ extension RepositoryPolicy {
         /// rule of any type (including a smuggled `required_status_checks`)
         /// fails closed, as does a package-shaped payload (wrong name, and a
         /// `required_status_checks` rule the control set does not admit).
-        public static func protectedMainControlPayload(from url: URL) throws(ConfigurationError) -> Data {
+        public static func protectedMainControlPayload(
+            from url: URL
+        ) throws(ConfigurationError) -> Data {
             let (object, rules) = try identity(
                 from: url,
                 expectedName: "Institute protected main (control)"
@@ -219,7 +223,9 @@ extension RepositoryPolicy {
         }
 
         /// The pull-request transaction both contract classes pin identically.
-        private static func validatePullRequestRule(_ rules: [[String: Any]]) throws(ConfigurationError) {
+        private static func validatePullRequestRule(
+            _ rules: [[String: Any]]
+        ) throws(ConfigurationError) {
             guard
                 let review = rules.first(where: { $0["type"] as? String == "pull_request" })?[
                     "parameters"

@@ -22,7 +22,8 @@ extension Main {
             try run()
         } catch {
             FileHandle.standardError.write(
-                Data("institute-continuous-integration: \(error.message)\n".utf8))
+                Data("institute-continuous-integration: \(error.message)\n".utf8)
+            )
             exit(2)
         }
     }
@@ -38,7 +39,8 @@ extension Main {
         let action: Institute.ContinuousIntegration.Command.Gitignore.Action
         do throws(Institute.ContinuousIntegration.Command.Gitignore.Error) {
             action = try Institute.ContinuousIntegration.Command.Gitignore.parse(
-                Array(CommandLine.arguments.dropFirst()))
+                Array(CommandLine.arguments.dropFirst())
+            )
         } catch {
             throw .command(error)
         }
@@ -49,7 +51,9 @@ extension Main {
             let rendered: String
             do throws(Institute.ContinuousIntegration.Command.Gitignore.Error) {
                 rendered = try Institute.ContinuousIntegration.Command.Gitignore.render(
-                    canon: canon, target: existing)
+                    canon: canon,
+                    target: existing
+                )
             } catch {
                 throw .command(error)
             }
@@ -59,18 +63,24 @@ extension Main {
             let findings: [Institute.ContinuousIntegration.Validation.Finding]
             do throws(Institute.ContinuousIntegration.Validation.EnvironmentDefect) {
                 findings = try Institute.ContinuousIntegration.Command.Gitignore.findings(
-                    repository: repository, root: root, canon: canon)
+                    repository: repository,
+                    root: root,
+                    canon: canon
+                )
             } catch {
                 throw .environment(error)
             }
             print(
                 Institute.ContinuousIntegration.Command.Gitignore.encoded(findings: findings),
-                terminator: "")
+                terminator: ""
+            )
 
         case .fixtures(let corpus):
             let report: GitHub.ContinuousIntegration.Validation.Harness.Report
             do throws(Institute.ContinuousIntegration.Validation.EnvironmentDefect) {
-                report = try Institute.ContinuousIntegration.Command.Gitignore.fixtures(corpus: corpus)
+                report = try Institute.ContinuousIntegration.Command.Gitignore.fixtures(
+                    corpus: corpus
+                )
             } catch {
                 throw .environment(error)
             }

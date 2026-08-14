@@ -31,7 +31,13 @@ extension Repository.Policy {
         /// Rows sorted by coordinate identity, for order-normalized parity
         /// between generators whose directory traversal order differs.
         public var normalized: Census {
-            Census(rows: rows.sorted { ($0.repository, $0.path, $0.coordinateId) < ($1.repository, $1.path, $1.coordinateId) })
+            Census(
+                rows: rows.sorted {
+                    ($0.repository, $0.path, $0.coordinateId) < (
+                        $1.repository, $1.path, $1.coordinateId
+                    )
+                }
+            )
         }
 
         public static func quoted(_ field: String) -> String {

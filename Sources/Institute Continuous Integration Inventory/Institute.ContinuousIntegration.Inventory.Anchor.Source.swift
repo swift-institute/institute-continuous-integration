@@ -67,7 +67,8 @@ extension Institute.ContinuousIntegration.Inventory.Anchor {
                     (.text("checkout"), .text(checkout)),
                     (.text("commit"), .text(commit.rawValue)),
                     (.text("tree"), tree.node),
-                ]))
+                ])
+            )
         }
     }
 }

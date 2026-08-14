@@ -33,7 +33,10 @@ struct CIValidationGitignoreTests {
             for rule in ["GH-IGNORE-001", "GH-IGNORE-002", "GH-IGNORE-003", "GH-IGNORE-004"]
                 as [GitHub.ContinuousIntegration.Validation.Rule]
             {
-                #expect(Institute.ContinuousIntegration.Validation.Registry.validator(for: rule) is Gitignore)
+                #expect(
+                    Institute.ContinuousIntegration.Validation.Registry.validator(for: rule)
+                        is Gitignore
+                )
             }
         }
 
@@ -48,7 +51,8 @@ struct CIValidationGitignoreTests {
             let work = Gitignore.work(for: `class`)
             let ignored = try Gitignore.ignored(
                 under: CIValidationGitignoreTests.canon(for: `class`),
-                probes: work + Gitignore.junk + Gitignore.unadmitted)
+                probes: work + Gitignore.junk + Gitignore.unadmitted
+            )
             for probe in work {
                 #expect(!ignored.contains(probe.path), "\(`class`) work denied: \(probe.path)")
             }
@@ -58,25 +62,44 @@ struct CIValidationGitignoreTests {
             for probe in Gitignore.unadmitted {
                 #expect(
                     ignored.contains(probe.path),
-                    "\(`class`) admits the unadmitted: \(probe.path)")
+                    "\(`class`) admits the unadmitted: \(probe.path)"
+                )
             }
         }
 
         @Test func `a manifest makes a layer repository the package class`() {
-            #expect(Class.of(repository: "swift-primitives/swift-byte-primitives", manifest: "// swift-tools-version: 6.3") == .package)
+            #expect(
+                Class.of(
+                    repository: "swift-primitives/swift-byte-primitives",
+                    manifest: "// swift-tools-version: 6.3"
+                ) == .package
+            )
         }
 
         @Test func `no manifest makes a layer repository the scaffold class`() {
-            #expect(Class.of(repository: "swift-standards/swift-yaml-standard", manifest: nil) == .scaffold)
+            #expect(
+                Class.of(repository: "swift-standards/swift-yaml-standard", manifest: nil)
+                    == .scaffold
+            )
         }
 
         @Test func `the control plane org is the institute class, manifest or not`() {
             #expect(Class.of(repository: "swift-institute/.github", manifest: nil) == .institute)
-            #expect(Class.of(repository: "swift-institute/institute", manifest: "// swift-tools-version: 6.3") == .institute)
+            #expect(
+                Class.of(
+                    repository: "swift-institute/institute",
+                    manifest: "// swift-tools-version: 6.3"
+                ) == .institute
+            )
         }
 
         @Test func `a generation target is the generator class`() {
-            #expect(Class.of(repository: "swift-standards/x", manifest: #".target(name: "HTML Generation")"#) == .generator)
+            #expect(
+                Class.of(
+                    repository: "swift-standards/x",
+                    manifest: #".target(name: "HTML Generation")"#
+                ) == .generator
+            )
         }
 
         @Test func `a conformant package repository is clean`() throws {
@@ -97,11 +120,15 @@ struct CIValidationGitignoreTests {
             // `Gitignore.retryingTransientWindowsFailures`.
             try Gitignore.retryingTransientWindowsFailures {
                 try FileManager.default.createDirectory(
-                    at: nested, withIntermediateDirectories: true)
+                    at: nested,
+                    withIntermediateDirectories: true
+                )
             }
             try Gitignore.retryingTransientWindowsFailures {
                 try FileManager.default.createDirectory(
-                    at: canon.deletingLastPathComponent(), withIntermediateDirectories: true)
+                    at: canon.deletingLastPathComponent(),
+                    withIntermediateDirectories: true
+                )
             }
             defer { try? FileManager.default.removeItem(at: root) }
             try Gitignore.retryingTransientWindowsFailures {
@@ -112,7 +139,8 @@ struct CIValidationGitignoreTests {
             for `class` in Class.allCases {
                 #expect(
                     Gitignore.siblingCanonPath(of: canon.path, for: `class`)
-                        == root.appending(path: `class`.canonPath).path)
+                        == root.appending(path: `class`.canonPath).path
+                )
             }
         }
 
@@ -144,7 +172,8 @@ struct CIValidationGitignoreTests {
             #expect(
                 findings.contains {
                     $0.rule == "GH-IGNORE-004" && $0.message.contains(".build/force added.txt")
-                })
+                }
+            )
         }
 
         // A raw `\n` (0x0A) byte inside a path is not the CRLF class this
@@ -161,11 +190,17 @@ struct CIValidationGitignoreTests {
                 let repository = try CIValidationGitignoreTests.repository()
                 repository.write("/*\n", to: ".gitignore")
                 repository.write("evidence", to: "forced path\nwith newline.txt")
-                #expect(try repository.git(["add", "--force", "--", "forced path\nwith newline.txt"]) == 0)
+                #expect(
+                    try repository.git(["add", "--force", "--", "forced path\nwith newline.txt"])
+                        == 0
+                )
                 let paths = try Gitignore.indexedPaths(in: repository.root)
                 #expect(paths == ["forced path\nwith newline.txt"])
                 #expect(try Gitignore.ignoredIndexedPaths(paths, in: repository.root) == paths)
-                #expect(try Gitignore.ignoredIndexedPaths(paths, in: repository.root, noIndex: false).isEmpty)
+                #expect(
+                    try Gitignore.ignoredIndexedPaths(paths, in: repository.root, noIndex: false)
+                        .isEmpty
+                )
             }
         #endif
 
@@ -178,19 +213,24 @@ struct CIValidationGitignoreTests {
             #expect(
                 try repository.git(
                     ["read-tree", "--empty"],
-                    environment: ["GIT_INDEX_FILE": repository.path("alternate-index")]) == 0)
+                    environment: ["GIT_INDEX_FILE": repository.path("alternate-index")]
+                ) == 0
+            )
 
             #expect(
                 try Gitignore.indexedPaths(
                     in: repository.root,
                     environment: ["GIT_INDEX_FILE": repository.path("alternate-index")]
-                ) == ["tracked.txt"])
+                ) == ["tracked.txt"]
+            )
         }
 
         @Test func `large ignored index transport completes beyond pipe capacity`() throws {
             let repository = try CIValidationGitignoreTests.repository()
             repository.write("/*\n!/kept.txt\n", to: ".gitignore")
-            let paths = (0..<20_000).map { "generated/path-\($0)-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.txt" }
+            let paths = (0..<20_000).map {
+                "generated/path-\($0)-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.txt"
+            }
             #expect(try Gitignore.ignoredIndexedPaths(paths, in: repository.root) == paths)
             #expect(try Gitignore.ignoredIndexedPaths(["kept.txt"], in: repository.root).isEmpty)
         }
@@ -201,8 +241,15 @@ struct CIValidationGitignoreTests {
             repository.write(try CIValidationGitignoreTests.canon(for: .package), to: ".gitignore")
             repository.write("// swift-tools-version: 6.3", to: "Tests/Package.swift")
             var findings = try Gitignore().findings(in: repository.subject)
-            #expect(findings.contains { $0.rule == "GH-IGNORE-001" && $0.message.contains("Tests/.gitignore") })
-            repository.write(Institute.ContinuousIntegration.Canon.Gitignore.Nested.text, to: "Tests/.gitignore")
+            #expect(
+                findings.contains {
+                    $0.rule == "GH-IGNORE-001" && $0.message.contains("Tests/.gitignore")
+                }
+            )
+            repository.write(
+                Institute.ContinuousIntegration.Canon.Gitignore.Nested.text,
+                to: "Tests/.gitignore"
+            )
             findings = try Gitignore().findings(in: repository.subject)
             #expect(!findings.contains { $0.rule == "GH-IGNORE-001" })
         }
@@ -212,12 +259,14 @@ struct CIValidationGitignoreTests {
             repository.write("// swift-tools-version: 6.3", to: "Package.swift")
             repository.write(
                 try CIValidationGitignoreTests.canon(for: .package) + "# local tail\n",
-                to: ".gitignore")
+                to: ".gitignore"
+            )
             let findings = try Gitignore().findings(in: repository.subject)
             #expect(
                 findings.contains {
                     $0.rule == "GH-IGNORE-001" && $0.message.contains("handwritten tails")
-                })
+                }
+            )
         }
 
         @Test func `undeclared nested policy fires complete policy conformance`() throws {
@@ -229,7 +278,8 @@ struct CIValidationGitignoreTests {
             #expect(
                 findings.contains {
                     $0.rule == "GH-IGNORE-001" && $0.message.contains("Sources/Feature/.gitignore")
-                })
+                }
+            )
         }
     }
 
@@ -242,7 +292,9 @@ struct CIValidationGitignoreTests {
             // path at a time.
             let canon = try CIValidationGitignoreTests.canon(for: .package)
             let widened = canon.replacingOccurrences(
-                of: "!/Lint/\n", with: "!/Lint/\n!/Extra/\n")
+                of: "!/Lint/\n",
+                with: "!/Lint/\n!/Extra/\n"
+            )
             #expect(widened != canon)
             let repository = try CIValidationGitignoreTests.repository()
             repository.write("// swift-tools-version: 6.3", to: "Package.swift")
@@ -251,7 +303,9 @@ struct CIValidationGitignoreTests {
             #expect(findings.contains { $0.rule == "GH-IGNORE-001" })
             // And behaviorally: the extra path really would be tracked.
             let ignored = try Gitignore.ignored(
-                under: widened, probes: [.init("Extra/leak.txt")])
+                under: widened,
+                probes: [.init("Extra/leak.txt")]
+            )
             #expect(!ignored.contains("Extra/leak.txt"))
         }
 
@@ -276,7 +330,9 @@ struct CIValidationGitignoreTests {
             // "survives" and every 002 pass would be vacuous. The control
             // is the only thing that catches it.
             let ignored = try Gitignore.ignored(
-                under: "", probes: Gitignore.work(for: .package) + Gitignore.junk)
+                under: "",
+                probes: Gitignore.work(for: .package) + Gitignore.junk
+            )
             #expect(ignored.isEmpty)
             let tracked = Gitignore.junk.filter { !ignored.contains($0.path) }
             #expect(tracked.count == Gitignore.junk.count)
@@ -291,7 +347,11 @@ struct CIValidationGitignoreTests {
             repository.write("// swift-tools-version: 6.3", to: "Package.swift")
             repository.write("", to: ".gitignore")
             let findings = try Gitignore().findings(in: repository.subject)
-            #expect(findings.contains { $0.rule == "GH-IGNORE-002" && $0.message.contains("probe control failed") })
+            #expect(
+                findings.contains {
+                    $0.rule == "GH-IGNORE-002" && $0.message.contains("probe control failed")
+                }
+            )
             #expect(findings.contains { $0.rule == "GH-IGNORE-003" })
         }
 
@@ -301,7 +361,9 @@ struct CIValidationGitignoreTests {
             // under test, and every verdict in the run would reflect an
             // empty whitelist.
             let ignored = try Gitignore.ignored(
-                under: "/*\n", probes: Gitignore.work(for: .package))
+                under: "/*\n",
+                probes: Gitignore.work(for: .package)
+            )
             #expect(ignored.contains("Sources/Core/Type.swift"))
         }
 
@@ -310,7 +372,8 @@ struct CIValidationGitignoreTests {
             // there is not a repository of any class.
             let validator = Gitignore()
             let findings = try validator.findings(
-                in: .init(repository: "swift-institute/Skills", root: "/nonexistent"))
+                in: .init(repository: "swift-institute/Skills", root: "/nonexistent")
+            )
             #expect(findings.isEmpty)
         }
 
@@ -319,9 +382,13 @@ struct CIValidationGitignoreTests {
             repository.write("// swift-tools-version: 6.3", to: "Package.swift")
             let validator = Gitignore(canon: "/nonexistent/canon/gitignore-package.txt")
             let run = GitHub.ContinuousIntegration.Validation.Run.validate(
-                validator, of: repository.subject)
+                validator,
+                of: repository.subject
+            )
             #expect(run.findings.isEmpty)
-            #expect(run.exitCode == GitHub.ContinuousIntegration.Validation.EnvironmentDefect.exitCode)
+            #expect(
+                run.exitCode == GitHub.ContinuousIntegration.Validation.EnvironmentDefect.exitCode
+            )
         }
 
         @Test func `ambient repository exclude policy is an environment defect`() throws {
@@ -330,9 +397,13 @@ struct CIValidationGitignoreTests {
             repository.write("tracked", to: "tracked.txt")
             #expect(try repository.git(["add", "--force", "tracked.txt"]) == 0)
             let run = GitHub.ContinuousIntegration.Validation.Run.validate(
-                Gitignore(), of: repository.subject)
+                Gitignore(),
+                of: repository.subject
+            )
             #expect(run.findings.isEmpty)
-            #expect(run.exitCode == GitHub.ContinuousIntegration.Validation.EnvironmentDefect.exitCode)
+            #expect(
+                run.exitCode == GitHub.ContinuousIntegration.Validation.EnvironmentDefect.exitCode
+            )
         }
     }
 
@@ -347,11 +418,13 @@ struct CIValidationGitignoreTests {
             for `class`: Class in [.institute, .application, .generator] {
                 let ignored = try Gitignore.ignored(
                     under: CIValidationGitignoreTests.canon(for: `class`),
-                    probes: packageWork)
+                    probes: packageWork
+                )
                 for probe in packageWork {
                     #expect(
                         !ignored.contains(probe.path),
-                        "\(`class`) narrows the package class: \(probe.path)")
+                        "\(`class`) narrows the package class: \(probe.path)"
+                    )
                 }
             }
         }
@@ -379,7 +452,9 @@ extension CIValidationGitignoreTests {
     /// question entirely: `lfText` is guaranteed pure LF regardless of
     /// whether this test runs against an LF or an already-autocrlf'd
     /// CRLF working-tree file.
-    @Test func `a simulated Windows CRLF checkout of the real canon still reads identically`() throws {
+    @Test func `a simulated Windows CRLF checkout of the real canon still reads identically`()
+        throws
+    {
         let canonPath = try #require(Gitignore.resolvedCanonPath)
         let lfText = try #require(Gitignore.read(canonPath))
         let crlfPath = FileManager.default.temporaryDirectory

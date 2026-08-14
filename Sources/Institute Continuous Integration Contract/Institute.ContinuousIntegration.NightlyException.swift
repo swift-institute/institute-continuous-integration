@@ -76,7 +76,8 @@ extension Institute.ContinuousIntegration {
         /// returns ``Disposition/expired(recheck:today:)`` so the plan
         /// deschedules the classified leg and records why.
         public func disposition(
-            today: String, subjectRepository: String
+            today: String,
+            subjectRepository: String
         ) throws(Error) -> Disposition {
             guard !Self.classifiedLeg.gating else {
                 throw .classifiedGatingLeg(Self.classifiedLeg.id)
@@ -103,6 +104,8 @@ extension Institute.ContinuousIntegration {
         /// Delegates to the one owner of the `YYYY-MM-DD` shape
         /// (`Institute.ContinuousIntegration.isCalendarDate`). Same predicate, same verdicts —
         /// this exception's semantics are unchanged.
-        static func isDate(_ text: String) -> Bool { Institute.ContinuousIntegration.isCalendarDate(text) }
+        static func isDate(_ text: String) -> Bool {
+            Institute.ContinuousIntegration.isCalendarDate(text)
+        }
     }
 }

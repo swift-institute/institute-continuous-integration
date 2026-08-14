@@ -72,7 +72,8 @@ extension Institute.ContinuousIntegration.Validation.SkillHygiene.Pattern {
     /// they are excluded rather than reported.
     static let machinePath = Self(
         #"(?<![A-Za-z0-9_])(?:/Users/|/home/)(?!runner(?:[/\s]|$))[A-Za-z0-9._-]+/"#
-            + #"|[A-Za-z]:\\Users\\[A-Za-z0-9._-]+\\"#)
+            + #"|[A-Za-z]:\\Users\\[A-Za-z0-9._-]+\\"#
+    )
 
     /// Internal rule-ID citations.
     ///
@@ -84,7 +85,8 @@ extension Institute.ContinuousIntegration.Validation.SkillHygiene.Pattern {
             + #"INST-TEST|PATTERN|GH-REPO|SKILL|RES|EXP|BLOG|REFL|AUDIT|CONV|IDX|LEG|"#
             + #"NL-WET|RL|COPY|SEM|INFRA|CI|SOC|SUPER|HANDOFF|COLLAB|GIT|FREVIEW|SAVE|"#
             + #"RELEASE|META|PROMOTE|VERIFICATION|SKILL-CREATE|SKILL-LIFE)"#
-            + #"(?:-[A-Z][A-Z0-9]*)*-[0-9]+[a-z]?\]"#)
+            + #"(?:-[A-Z][A-Z0-9]*)*-[0-9]+[a-z]?\]"#
+    )
 
     /// Inline markdown links: `[text](target)`.
     ///
@@ -103,7 +105,8 @@ extension Institute.ContinuousIntegration.Validation.SkillHygiene.Pattern {
     /// worse than one that misses, because it teaches people the list
     /// does not work.
     static let reference = Self(
-        #"(?<![A-Za-z0-9._/-])([A-Za-z][A-Za-z0-9._-]*)/(\.?[A-Za-z][A-Za-z0-9._-]*)"#)
+        #"(?<![A-Za-z0-9._/-])([A-Za-z][A-Za-z0-9._-]*)/(\.?[A-Za-z][A-Za-z0-9._-]*)"#
+    )
 
     /// Namespaces the Institute owns, by shape rather than by
     /// enumeration.

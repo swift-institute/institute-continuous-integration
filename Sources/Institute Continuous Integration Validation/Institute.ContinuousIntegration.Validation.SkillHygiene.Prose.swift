@@ -26,9 +26,15 @@ extension Institute.ContinuousIntegration.Validation.SkillHygiene {
         private var relative: String { tree.relative(path) }
 
         private func finding(
-            _ rule: GitHub.ContinuousIntegration.Validation.Rule, _ subject: GitHub.ContinuousIntegration.Validation.Subject, _ message: String
+            _ rule: GitHub.ContinuousIntegration.Validation.Rule,
+            _ subject: GitHub.ContinuousIntegration.Validation.Subject,
+            _ message: String
         ) -> GitHub.ContinuousIntegration.Validation.Finding {
-            GitHub.ContinuousIntegration.Validation.Finding(repository: subject.repository, rule: rule, message: message)
+            GitHub.ContinuousIntegration.Validation.Finding(
+                repository: subject.repository,
+                rule: rule,
+                message: message
+            )
         }
 
         /// `skill-links` — every relative markdown link must resolve to a
@@ -37,7 +43,9 @@ extension Institute.ContinuousIntegration.Validation.SkillHygiene {
         /// Progressive disclosure means companion documents carry real
         /// content; a pointer that 404s silently removes what it was
         /// meant to disclose.
-        func linkFindings(for subject: GitHub.ContinuousIntegration.Validation.Subject) -> [GitHub.ContinuousIntegration.Validation.Finding] {
+        func linkFindings(
+            for subject: GitHub.ContinuousIntegration.Validation.Subject
+        ) -> [GitHub.ContinuousIntegration.Validation.Finding] {
             var findings: [GitHub.ContinuousIntegration.Validation.Finding] = []
             for match in Pattern.markdownLink.matches(in: text) {
                 guard let target = match.groups[1] else { continue }
@@ -56,32 +64,45 @@ extension Institute.ContinuousIntegration.Validation.SkillHygiene {
                 guard !tree.resolves(resolved) else { continue }
                 findings.append(
                     finding(
-                        Rules.links, subject,
+                        Rules.links,
+                        subject,
                         "\(relative): link target '\(target)' does not resolve to a file "
-                            + "in the repository"))
+                            + "in the repository"
+                    )
+                )
             }
             return findings
         }
 
         /// `skill-machine-path` and `skill-internal-rule-id`, both of
         /// which cite a line number and therefore run over lines.
-        func proseFindings(for subject: GitHub.ContinuousIntegration.Validation.Subject) -> [GitHub.ContinuousIntegration.Validation.Finding] {
+        func proseFindings(
+            for subject: GitHub.ContinuousIntegration.Validation.Subject
+        ) -> [GitHub.ContinuousIntegration.Validation.Finding] {
             var findings: [GitHub.ContinuousIntegration.Validation.Finding] = []
-            for (offset, line) in Institute.ContinuousIntegration.Validation.SkillHygiene.lines(of: text).enumerated() {
+            for (offset, line) in Institute.ContinuousIntegration.Validation.SkillHygiene.lines(
+                of: text
+            ).enumerated() {
                 let number = offset + 1
                 for match in Pattern.machinePath.matches(in: line) {
                     findings.append(
                         finding(
-                            Rules.machinePath, subject,
+                            Rules.machinePath,
+                            subject,
                             "\(relative):\(number): machine-local path '\(match.whole)' "
-                                + "in a public file"))
+                                + "in a public file"
+                        )
+                    )
                 }
                 for match in Pattern.internalRuleID.matches(in: line) {
                     findings.append(
                         finding(
-                            Rules.internalRuleID, subject,
+                            Rules.internalRuleID,
+                            subject,
                             "\(relative):\(number): internal rule ID '\(match.whole)' "
-                                + "in published prose; name the behaviour instead"))
+                                + "in published prose; name the behaviour instead"
+                        )
+                    )
                 }
             }
             return findings
@@ -119,7 +140,9 @@ extension Institute.ContinuousIntegration.Validation.SkillHygiene {
         ) -> [GitHub.ContinuousIntegration.Validation.Finding] {
             var findings: [GitHub.ContinuousIntegration.Validation.Finding] = []
             var seen: Set<String> = []
-            for (offset, line) in Institute.ContinuousIntegration.Validation.SkillHygiene.lines(of: text).enumerated() {
+            for (offset, line) in Institute.ContinuousIntegration.Validation.SkillHygiene.lines(
+                of: text
+            ).enumerated() {
                 let number = offset + 1
                 for match in Pattern.reference.matches(in: line) {
                     guard let owner = match.groups[1], let captured = match.groups[2] else {
@@ -132,19 +155,23 @@ extension Institute.ContinuousIntegration.Validation.SkillHygiene {
                     let name = String(
                         captured.reversed()
                             .drop(while: { Self.trailingPunctuation.contains($0) })
-                            .reversed())
+                            .reversed()
+                    )
                     if name.isEmpty || name == "." { continue }
                     let token = "\(owner)/\(name)"
                     if sanctioned.contains(token) || seen.contains(token) { continue }
                     seen.insert(token)
                     findings.append(
                         finding(
-                            Rules.unsanctionedReference, subject,
+                            Rules.unsanctionedReference,
+                            subject,
                             "\(relative):\(number): '\(token)' is not in "
                                 + "\(Institute.ContinuousIntegration.Validation.SkillHygiene.sanctionedReferences). "
                                 + "If publishing it is intended, add it there in this change; "
                                 + "this check asks only whether the reference is new, not "
-                                + "whether it discloses anything"))
+                                + "whether it discloses anything"
+                        )
+                    )
                 }
             }
             return findings

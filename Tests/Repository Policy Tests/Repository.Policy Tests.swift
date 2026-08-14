@@ -856,10 +856,9 @@ struct RepositoryPolicyTests {
 
         #expect(policy.schemaVersion == 1)
 
-        // The generic package thin-caller grant admits exactly the designed
-        // `uses:` targets: the three layer swift-ci and swift-docs wrappers,
-        // plus the notify-linter-republish reusable the rule-pack repositories
-        // call on push to main.
+        // The generic package thin-caller grant admits only the terminal
+        // one-hop reusable. Layer wrappers, docs wrappers, and leaf-side
+        // notification jobs are superseded architecture.
         let generic = try #require(
             policy.actionGrants.first {
                 $0.repository == nil && $0.path == ".github/workflows/ci.yml"
@@ -870,13 +869,7 @@ struct RepositoryPolicyTests {
         #expect(generic.triggers == ["pull_request", "push", "workflow_dispatch"])
         #expect(
             generic.uses == [
-                "swift-foundations/.github/.github/workflows/swift-ci.yml@main",
-                "swift-foundations/.github/.github/workflows/swift-docs.yml@main",
-                "swift-institute/.github/.github/workflows/notify-linter-republish.yml@main",
-                "swift-primitives/.github/.github/workflows/swift-ci.yml@main",
-                "swift-primitives/.github/.github/workflows/swift-docs.yml@main",
-                "swift-standards/.github/.github/workflows/swift-ci.yml@main",
-                "swift-standards/.github/.github/workflows/swift-docs.yml@main",
+                "swift-institute/.github/.github/workflows/swift-ci.yml@main"
             ]
         )
 
@@ -887,6 +880,11 @@ struct RepositoryPolicyTests {
         }
         #expect(linterGrants.count == 2)
         #expect(linterGrants.allSatisfy { $0.repositoryClass == .tool })
+        #expect(
+            linterGrants.first { $0.path == ".github/workflows/ci.yml" }?.uses == [
+                "swift-institute/.github/.github/workflows/swift-ci.yml@main"
+            ]
+        )
         #expect(
             linterGrants.first { $0.path == ".github/workflows/lint.yml" }?.kind
                 == .toolWorkflow
@@ -1004,8 +1002,8 @@ struct RepositoryPolicyTests {
         #expect(exemptedRepository.passed)
         #expect(exemptedRepository.exemptionsApplied == 1)
 
-        // The admitted rule-pack shape passes: layer wrapper plus the
-        // notify-linter-republish target in one thin caller.
+        // A former rule-pack leaf is now a negative control: neither its
+        // layer wrapper nor its notification hop is terminally admitted.
         let rulePack = try RepositoryPolicy.validateSurface(
             repository: "swift-primitives/swift-linter-primitives",
             repositoryClass: .package,
@@ -1022,7 +1020,11 @@ struct RepositoryPolicyTests {
             ],
             policy: policy
         )
-        #expect(rulePack.passed)
+        #expect(
+            rulePack.violations.map(\.identifier) == [
+                "REPO-ACTIONS-004", "REPO-ACTIONS-004",
+            ]
+        )
     }
 
     // The `reviewAfter` key was removed from the exemption schema

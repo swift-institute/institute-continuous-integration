@@ -52,14 +52,19 @@ extension Repository.Policy.Metadata.Draft {
         packageDescription: String = ""
     ) throws(Repository.Policy.Metadata.Error) {
         self = try Self.classified(
-            target: target, titles: titles, packageDescription: packageDescription)
+            target: target,
+            titles: titles,
+            packageDescription: packageDescription
+        )
     }
 
     /// The classification itself, as one expression per branch. Separate
     /// from the initializer only because an initializer cannot return
     /// early from a branch without leaving `self` half-assigned.
     private static func classified(
-        target: String, titles: Titles, packageDescription: String
+        target: String,
+        titles: Titles,
+        packageDescription: String
     ) throws(Repository.Policy.Metadata.Error) -> Self {
         let parts = target.split(separator: "/", omittingEmptySubsequences: false)
         guard parts.count == 2, !parts[0].isEmpty, !parts[1].isEmpty else {
@@ -73,53 +78,75 @@ extension Repository.Policy.Metadata.Draft {
         if owner == "swift-ietf", let identifier = name.remainder(after: "swift-bcp-") {
             let title = titles["bcp", identifier]
             return Self(
-                target: target, kind: .namedStandard,
+                target: target,
+                kind: .namedStandard,
                 metadata: .init(
                     description: title.map { "Swift implementation of BCP \(identifier): \($0)." }
                         ?? "Swift implementation of BCP \(identifier): "
                         + "TODO add title to spec-titles.yaml.",
                     topics: ["standards", "ietf", "bcp", "bcp-\(identifier)", placeholderTopic],
-                    homepage: homepage))
+                    homepage: homepage
+                )
+            )
         }
 
         if !authority.isEmpty, let identifier = name.remainder(after: "swift-\(authority)-") {
             return specification(
-                target: target, layer: layer, authority: authority, identifier: identifier,
-                titles: titles)
+                target: target,
+                layer: layer,
+                authority: authority,
+                identifier: identifier,
+                titles: titles
+            )
         }
 
         if name == ".github" {
             return Self(
-                target: target, kind: .organizationDefaults,
+                target: target,
+                kind: .organizationDefaults,
                 metadata: .init(
                     description: "Organization-level community-health defaults for \(owner).",
-                    topics: [], homepage: ""))
+                    topics: [],
+                    homepage: ""
+                )
+            )
         }
 
         if let stub = name.websiteStubLayer {
             return Self(
-                target: target, kind: .websiteStub,
+                target: target,
+                kind: .websiteStub,
                 metadata: .init(
                     description: "Stub for the future swift-\(stub).org website. Content will "
                         + "be developed; for now, see \(homepage).",
-                    topics: [], homepage: homepage))
+                    topics: [],
+                    homepage: homepage
+                )
+            )
         }
 
         if name.hasSuffix("-primitives") {
             return Self(
-                target: target, kind: .primitive,
+                target: target,
+                kind: .primitive,
                 metadata: .init(
                     description: packageDescription.isEmpty
                         ? "TODO content phrase for Swift." : "\(packageDescription) for Swift.",
-                    topics: ["primitives", placeholderTopic], homepage: homepage))
+                    topics: ["primitives", placeholderTopic],
+                    homepage: homepage
+                )
+            )
         }
 
         return Self(
-            target: target, kind: .other,
+            target: target,
+            kind: .other,
             metadata: .init(
                 description: "TODO content phrase for Swift.",
                 topics: [layer.isEmpty ? "foundations" : layer, placeholderTopic],
-                homepage: homepage))
+                homepage: homepage
+            )
+        )
     }
 
     /// The two authority-spec branches: a numbered spec, and a spec named
@@ -131,17 +158,25 @@ extension Repository.Policy.Metadata.Draft {
     /// the description and the topic set gains `iso-iec` — so the second
     /// lookup cannot be folded into the first.
     private static func specification(
-        target: String, layer: String, authority: String, identifier: String, titles: Titles
+        target: String,
+        layer: String,
+        authority: String,
+        identifier: String,
+        titles: Titles
     ) -> Self {
         let upper = authority.uppercased()
         guard identifier.isSpecificationNumber else {
             let title = titles[authority, identifier]
             return Self(
-                target: target, kind: .namedStandard,
+                target: target,
+                kind: .namedStandard,
                 metadata: .init(
                     description: title.map { "Swift implementation of \(upper) \($0)." }
                         ?? "Swift implementation of \(upper) TODO-standard-name.",
-                    topics: [layer, authority, placeholderTopic], homepage: homepage))
+                    topics: [layer, authority, placeholderTopic],
+                    homepage: homepage
+                )
+            )
         }
         var name = upper
         var title = titles[authority, identifier]
@@ -155,12 +190,16 @@ extension Repository.Policy.Metadata.Draft {
             topics = [layer, authority, "\(authority)-\(identifier)", placeholderTopic]
         }
         return Self(
-            target: target, kind: .singleSpec,
+            target: target,
+            kind: .singleSpec,
             metadata: .init(
                 description: title.map { "Swift implementation of \(name) \(identifier): \($0)." }
                     ?? "Swift implementation of \(name) \(identifier): "
                     + "TODO add title to spec-titles.yaml.",
-                topics: topics, homepage: homepage))
+                topics: topics,
+                homepage: homepage
+            )
+        )
     }
 
     /// The Institute layer an organization belongs to, or the empty
@@ -208,7 +247,9 @@ extension String {
 
     /// The layer named by a `swift-<layer>.org` repository, or `nil`.
     fileprivate var websiteStubLayer: String? {
-        guard hasSuffix(".org"), let layer = String(dropLast(4)).remainder(after: "swift-") else { return nil }
+        guard hasSuffix(".org"), let layer = String(dropLast(4)).remainder(after: "swift-") else {
+            return nil
+        }
         return layer
     }
 

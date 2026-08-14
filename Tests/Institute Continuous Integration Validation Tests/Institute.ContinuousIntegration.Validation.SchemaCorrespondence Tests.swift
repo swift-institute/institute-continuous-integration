@@ -27,13 +27,17 @@ struct CIValidationSchemaCorrespondenceTests {
         return url.path
     }
 
-    static func scenario(_ kind: String, _ name: String) -> Institute.ContinuousIntegration.Validation.SchemaCorrespondence {
+    static func scenario(
+        _ kind: String,
+        _ name: String
+    ) -> Institute.ContinuousIntegration.Validation.SchemaCorrespondence {
         let directory = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
             .appendingPathComponent("Fixtures/schema-correspondence/\(kind)/\(name)").path
         return .init(
             schemaFile: "\(directory)/metadata-schema.json",
             syncWorkflowFile: "\(directory)/sync-metadata.yml",
-            readmeValidatorFile: "\(directory)/validate-readme.py")
+            readmeValidatorFile: "\(directory)/validate-readme.py"
+        )
     }
 
     static var subject: GitHub.ContinuousIntegration.Validation.Subject {
@@ -85,7 +89,8 @@ struct CIValidationSchemaCorrespondenceTests {
         /// A missing input file is the exit-2 class, never a pass.
         @Test func `a missing schema is a defect, not a clean run`() {
             let validator = Institute.ContinuousIntegration.Validation.SchemaCorrespondence(
-                schemaFile: "/nonexistent/metadata-schema.json")
+                schemaFile: "/nonexistent/metadata-schema.json"
+            )
             #expect(throws: GitHub.ContinuousIntegration.Validation.EnvironmentDefect.self) {
                 try validator.findings(in: CIValidationSchemaCorrespondenceTests.subject)
             }
@@ -112,7 +117,9 @@ struct CIValidationSchemaCorrespondenceTests {
                 FAMILIES = ["A", "C"]
                 """
             let constants = Validator.moduleLevelStringSequences(
-                in: source, names: ["EXEMPTIONS", "FAMILIES"])
+                in: source,
+                names: ["EXEMPTIONS", "FAMILIES"]
+            )
             #expect(constants["EXEMPTIONS"] == ["a", "b"])
             #expect(constants["FAMILIES"] == ["A", "C"])
         }
@@ -126,9 +133,12 @@ struct CIValidationSchemaCorrespondenceTests {
         /// the reading decision the corpus's `pass/consistent` scenario
         /// cannot express while its fixture stays LF on disk here.
         @Test func `a CRLF checkout still splits into lines`() {
-            let source = "\"\"\"doc\"\"\"\r\nEXEMPTIONS = ('vendored-upstream',)\r\n\r\nFAMILIES = ('A', 'E')\r\n"
+            let source =
+                "\"\"\"doc\"\"\"\r\nEXEMPTIONS = ('vendored-upstream',)\r\n\r\nFAMILIES = ('A', 'E')\r\n"
             let constants = Validator.moduleLevelStringSequences(
-                in: source, names: ["EXEMPTIONS", "FAMILIES"])
+                in: source,
+                names: ["EXEMPTIONS", "FAMILIES"]
+            )
             #expect(constants["EXEMPTIONS"] == ["vendored-upstream"])
             #expect(constants["FAMILIES"] == ["A", "E"])
         }
@@ -148,7 +158,8 @@ struct CIValidationSchemaCorrespondenceTests {
         @Test func `identifier match is exact`() {
             let constants = Validator.moduleLevelStringSequences(
                 in: "README_EXEMPTIONS = (\"x\",)\nEXEMPTIONS2 = (\"y\",)\n",
-                names: ["EXEMPTIONS"])
+                names: ["EXEMPTIONS"]
+            )
             #expect(constants["EXEMPTIONS"] == .some(nil))
         }
 
@@ -157,7 +168,9 @@ struct CIValidationSchemaCorrespondenceTests {
         /// a key must start with a letter.
         @Test func `settings-key scan`() {
             let keys = Validator.settingsKeys(
-                in: ".settings.alpha .settings.b2 .settings.snake_case .settings.9no x.settings.deep")
+                in:
+                    ".settings.alpha .settings.b2 .settings.snake_case .settings.9no x.settings.deep"
+            )
             #expect(keys == ["alpha", "b2", "snake", "deep"])
         }
 

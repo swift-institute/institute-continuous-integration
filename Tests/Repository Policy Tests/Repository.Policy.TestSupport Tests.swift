@@ -20,9 +20,12 @@ struct `Repository Policy Test Support Tests` {
                         .target(name: "Example"),
                         .product(
                             name: "Upstream Test Support",
-                            package: "upstream"),
-                    ])
-            ])
+                            package: "upstream"
+                        ),
+                    ]
+                )
+            ]
+        )
 
         #expect(RepositoryPolicy.TestSupport.findings(in: evaluation).isEmpty)
     }
@@ -41,14 +44,18 @@ struct `Repository Policy Test Support Tests` {
                     kind: .regular,
                     dependencies: [
                         .product(name: "Foreign Runtime", package: "foreign")
-                    ])
-            ])
+                    ]
+                )
+            ]
+        )
 
         #expect(
             RepositoryPolicy.TestSupport.findings(in: evaluation) == [
                 .init(
                     target: "Example Test Support",
-                    dependency: "Foreign Runtime")
-            ])
+                    dependency: "Foreign Runtime"
+                )
+            ]
+        )
     }
 }

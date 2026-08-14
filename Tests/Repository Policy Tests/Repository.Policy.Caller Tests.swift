@@ -5,10 +5,38 @@ import Testing
 @Suite
 struct RepositoryPolicyCallerTests {
     @Test
+    func `terminal form is one byte-identical caller`() throws {
+        let expected = Repository.Policy.Caller.Render.terminal
+        #expect(expected.hasSuffix("\n"))
+        #expect(expected.contains("  ci:\n    if: ${{ !github.event.repository.private }}"))
+        #expect(expected.contains("    name: ci / matrix"))
+        #expect(
+            expected.contains(
+                "    uses: swift-institute/.github/.github/workflows/swift-ci.yml@main"
+            )
+        )
+        #expect(!expected.contains("with:"))
+        #expect(!expected.contains("secrets:"))
+        #expect(!expected.contains("notify-linter-republish"))
+        #expect(!expected.contains("tags:"))
+
+        for layer in Repository.Policy.Caller.Layer.allCases {
+            let caller = try Repository.Policy.Caller(
+                repository: "\(layer.wrapperOrganization)/swift-example",
+                layer: layer,
+                inputs: [(key: "platform-support", value: "windows")]
+            )
+            #expect(Repository.Policy.Caller.Render.terminal == expected)
+            #expect(!Repository.Policy.Caller.Render.terminal.contains(caller.repository))
+        }
+    }
+
+    @Test
     func currentFormMatchesIncumbentShape() throws {
         let caller = try Repository.Policy.Caller(
             repository: "swift-primitives/swift-bool-primitives",
-            layer: .primitives)
+            layer: .primitives
+        )
         let text = Repository.Policy.Caller.Render.current(caller)
         #expect(text.contains("uses: swift-primitives/.github/.github/workflows/swift-ci.yml@main"))
         #expect(text.contains("secrets: inherit"))
@@ -20,8 +48,10 @@ struct RepositoryPolicyCallerTests {
     @Test
     func crossOrgCurrentFormForwardsLegacyFourSecrets() throws {
         let caller = try Repository.Policy.Caller(
-            repository: "swift-ietf/swift-rfc-2045", layer: .standards,
-            inputs: [(key: "platform-support", value: "macos-linux")])
+            repository: "swift-ietf/swift-rfc-2045",
+            layer: .standards,
+            inputs: [(key: "platform-support", value: "macos-linux")]
+        )
         let text = Repository.Policy.Caller.Render.current(caller)
         #expect(text.contains("uses: swift-standards/.github/.github/workflows/swift-ci.yml@main"))
         #expect(!text.contains("secrets: inherit"))
@@ -34,11 +64,13 @@ struct RepositoryPolicyCallerTests {
     @Test
     func inputsEmitInCanonicalOrderRegardlessOfSpecOrder() throws {
         let caller = try Repository.Policy.Caller(
-            repository: "swift-foundations/swift-demo", layer: .institute,
+            repository: "swift-foundations/swift-demo",
+            layer: .institute,
             inputs: [
                 (key: "docs-umbrella-module", value: "Demo"),
                 (key: "swift-version", value: "6.2"),
-            ])
+            ]
+        )
         let text = Repository.Policy.Caller.Render.current(caller)
         let swiftVersion = try #require(text.range(of: "swift-version: 6.2"))
         let docs = try #require(text.range(of: "docs-umbrella-module: Demo"))
@@ -50,12 +82,15 @@ struct RepositoryPolicyCallerTests {
         let caller = try Repository.Policy.Caller(
             repository: "swift-institute/institute-continuous-integration",
             layer: .institute,
-            inputs: [(key: "tier", value: "build")])
+            inputs: [(key: "tier", value: "build")]
+        )
         let text = Repository.Policy.Caller.Render.direct(caller)
         #expect(text.contains("      tier: build"))
 
         let parsed = try Repository.Policy.Caller.Parse.caller(
-            text, repository: caller.repository)
+            text,
+            repository: caller.repository
+        )
         #expect(parsed.inputs.map(\.key) == caller.inputs.map(\.key))
         #expect(parsed.inputs.map(\.value) == caller.inputs.map(\.value))
     }
@@ -64,7 +99,8 @@ struct RepositoryPolicyCallerTests {
     func directFormHasNoTagTriggerAndCallsUniversal() throws {
         let caller = try Repository.Policy.Caller(
             repository: "swift-primitives/swift-bool-primitives",
-            layer: .primitives)
+            layer: .primitives
+        )
         let text = Repository.Policy.Caller.Render.direct(caller)
         #expect(!text.contains("tags:"))
         #expect(text.contains("uses: swift-institute/.github/.github/workflows/swift-ci.yml@main"))
@@ -75,12 +111,18 @@ struct RepositoryPolicyCallerTests {
         // segment rides the job name, keeping `ci / matrix / <job>`.
         #expect(
             text.contains(
-                "  ci:\n    if: ${{ !github.event.repository.private }}\n    name: ci / matrix\n    uses:"))
+                "  ci:\n    if: ${{ !github.event.repository.private }}\n    name: ci / matrix\n    uses:"
+            )
+        )
         let withSecrets = Repository.Policy.Caller.Render.direct(
-            caller, privateDependencyClosure: true)
+            caller,
+            privateDependencyClosure: true
+        )
         #expect(
             withSecrets.contains(
-                "      SWIFT_INSTITUTE_BOT_APP_PRIVATE_KEY: ${{ secrets.SWIFT_INSTITUTE_BOT_APP_PRIVATE_KEY }}"))
+                "      SWIFT_INSTITUTE_BOT_APP_PRIVATE_KEY: ${{ secrets.SWIFT_INSTITUTE_BOT_APP_PRIVATE_KEY }}"
+            )
+        )
         #expect(!withSecrets.contains("PRIVATE_REPO_TOKEN"))
         #expect(!withSecrets.contains("secrets: inherit"))
     }
@@ -98,11 +140,16 @@ struct RepositoryPolicyCallerTests {
         var corpus: [String] = []
         for layer in Repository.Policy.Caller.Layer.allCases {
             let ordinary = try Repository.Policy.Caller(
-                repository: "\(layer.wrapperOrganization)/swift-demo", layer: layer)
+                repository: "\(layer.wrapperOrganization)/swift-demo",
+                layer: layer
+            )
             corpus.append(Repository.Policy.Caller.Render.direct(ordinary))
             corpus.append(
                 Repository.Policy.Caller.Render.direct(
-                    ordinary, privateDependencyClosure: true))
+                    ordinary,
+                    privateDependencyClosure: true
+                )
+            )
         }
         for repository in Repository.Policy.Caller.linterRulePackRepositories {
             let layer: Repository.Policy.Caller.Layer =
@@ -111,7 +158,9 @@ struct RepositoryPolicyCallerTests {
                 : repository.hasPrefix("swift-standards/") ? .standards : .institute
             corpus.append(
                 Repository.Policy.Caller.Render.direct(
-                    try Repository.Policy.Caller(repository: repository, layer: layer)))
+                    try Repository.Policy.Caller(repository: repository, layer: layer)
+                )
+            )
         }
 
         var totalJobs = 0
@@ -151,10 +200,13 @@ struct RepositoryPolicyCallerTests {
     @Test
     func parityFormDoesNotCarryTheVisibilityGate() throws {
         let caller = try Repository.Policy.Caller(
-            repository: "swift-primitives/swift-bool-primitives", layer: .primitives)
+            repository: "swift-primitives/swift-bool-primitives",
+            layer: .primitives
+        )
         #expect(
             !Repository.Policy.Caller.Render.current(caller)
-                .contains("github.event.repository.private"))
+                .contains("github.event.repository.private")
+        )
     }
 
     @Test
@@ -165,18 +217,24 @@ struct RepositoryPolicyCallerTests {
             (.institute, "institute"),
         ] {
             let caller = try Repository.Policy.Caller(
-                repository: "\(layer.wrapperOrganization)/swift-demo", layer: layer)
+                repository: "\(layer.wrapperOrganization)/swift-demo",
+                layer: layer
+            )
             let text = Repository.Policy.Caller.Render.direct(caller)
             #expect(text.contains("      lint-bundle: \(bundle)"))
         }
         // Caller inputs follow the layer-owned line in canonical order.
         let withInputs = try Repository.Policy.Caller(
-            repository: "swift-standards/swift-demo", layer: .standards,
-            inputs: [(key: "platform-support", value: "macos-linux")])
+            repository: "swift-standards/swift-demo",
+            layer: .standards,
+            inputs: [(key: "platform-support", value: "macos-linux")]
+        )
         let text = Repository.Policy.Caller.Render.direct(withInputs)
         #expect(
             text.contains(
-                "    with:\n      lint-bundle: standards\n      platform-support: macos-linux"))
+                "    with:\n      lint-bundle: standards\n      platform-support: macos-linux"
+            )
+        )
     }
 
     @Test
@@ -192,9 +250,19 @@ struct RepositoryPolicyCallerTests {
             #expect(
                 text.contains(
                     "if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main'"
-                        + " && !github.event.repository.private }}"))
-            #expect(text.contains("uses: swift-institute/.github/.github/workflows/notify-linter-republish.yml@main"))
-            #expect(text.contains("      SWIFT_INSTITUTE_BOT_APP_PRIVATE_KEY: ${{ secrets.SWIFT_INSTITUTE_BOT_APP_PRIVATE_KEY }}"))
+                        + " && !github.event.repository.private }}"
+                )
+            )
+            #expect(
+                text.contains(
+                    "uses: swift-institute/.github/.github/workflows/notify-linter-republish.yml@main"
+                )
+            )
+            #expect(
+                text.contains(
+                    "      SWIFT_INSTITUTE_BOT_APP_PRIVATE_KEY: ${{ secrets.SWIFT_INSTITUTE_BOT_APP_PRIVATE_KEY }}"
+                )
+            )
             #expect(!text.contains("SWIFT_INSTITUTE_BOT_APP_CLIENT_ID"))
         }
     }
@@ -202,12 +270,18 @@ struct RepositoryPolicyCallerTests {
     @Test
     func ordinaryRepositoriesDoNotCarryTheNotifyJob() throws {
         let caller = try Repository.Policy.Caller(
-            repository: "swift-primitives/swift-bool-primitives", layer: .primitives)
+            repository: "swift-primitives/swift-bool-primitives",
+            layer: .primitives
+        )
         #expect(!Repository.Policy.Caller.Render.direct(caller).contains("notify-linter-republish"))
         // Near miss: a similarly named repo NOT in the exact-coordinate set.
         let nearMiss = try Repository.Policy.Caller(
-            repository: "swift-primitives/swift-linter-rules-tools", layer: .primitives)
-        #expect(!Repository.Policy.Caller.Render.direct(nearMiss).contains("notify-linter-republish"))
+            repository: "swift-primitives/swift-linter-rules-tools",
+            layer: .primitives
+        )
+        #expect(
+            !Repository.Policy.Caller.Render.direct(nearMiss).contains("notify-linter-republish")
+        )
     }
 
     /// F14 cutover: the App id is a variable, never a forwarded secret.
@@ -219,11 +293,13 @@ struct RepositoryPolicyCallerTests {
         #expect(
             Repository.Policy.Caller.terminalSecretNames == [
                 "SWIFT_INSTITUTE_BOT_APP_PRIVATE_KEY"
-            ])
+            ]
+        )
         #expect(
             Repository.Policy.Caller.terminalVariableNames == [
                 "SWIFT_INSTITUTE_BOT_APP_ID"
-            ])
+            ]
+        )
         // The two sets are disjoint: no name may be both.
         for name in Repository.Policy.Caller.terminalVariableNames {
             #expect(!Repository.Policy.Caller.terminalSecretNames.contains(name))
@@ -235,11 +311,16 @@ struct RepositoryPolicyCallerTests {
         var rendered: [String] = []
         for layer in Repository.Policy.Caller.Layer.allCases {
             let ordinary = try Repository.Policy.Caller(
-                repository: "\(layer.wrapperOrganization)/swift-demo", layer: layer)
+                repository: "\(layer.wrapperOrganization)/swift-demo",
+                layer: layer
+            )
             rendered.append(Repository.Policy.Caller.Render.direct(ordinary))
             rendered.append(
                 Repository.Policy.Caller.Render.direct(
-                    ordinary, privateDependencyClosure: true))
+                    ordinary,
+                    privateDependencyClosure: true
+                )
+            )
         }
         for repository in Repository.Policy.Caller.linterRulePackRepositories {
             let layer: Repository.Policy.Caller.Layer =
@@ -248,7 +329,9 @@ struct RepositoryPolicyCallerTests {
                 : repository.hasPrefix("swift-standards/") ? .standards : .institute
             rendered.append(
                 Repository.Policy.Caller.Render.direct(
-                    try Repository.Policy.Caller(repository: repository, layer: layer)))
+                    try Repository.Policy.Caller(repository: repository, layer: layer)
+                )
+            )
         }
 
         // Positive control: the corpus is non-empty and does contain the
@@ -257,7 +340,8 @@ struct RepositoryPolicyCallerTests {
         #expect(
             rendered.contains {
                 $0.contains("SWIFT_INSTITUTE_BOT_APP_PRIVATE_KEY")
-            })
+            }
+        )
 
         for text in rendered {
             #expect(!text.contains("secrets.SWIFT_INSTITUTE_BOT_APP_ID"))

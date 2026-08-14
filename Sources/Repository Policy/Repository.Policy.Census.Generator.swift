@@ -73,7 +73,11 @@ extension Repository.Policy.Census {
                 let githubRoot = repo.root + "/.github"
                 for rel in Self.walk(root: repo.root, under: githubRoot) {
                     try Self.rows(
-                        for: rel, repo: repo, hasher: hasher, into: &rows)
+                        for: rel,
+                        repo: repo,
+                        hasher: hasher,
+                        into: &rows
+                    )
                 }
             }
             rows.append(Self.leafCallerFamilyRow)
@@ -117,7 +121,9 @@ extension Repository.Policy.Census {
         // MARK: per-file coordinates
 
         static func rows(
-            for rel: String, repo: Repo, hasher: Hasher,
+            for rel: String,
+            repo: Repo,
+            hasher: Hasher,
             into rows: inout [Row]
         ) throws(Error) {
             let full = repo.root + "/" + rel
@@ -136,14 +142,27 @@ extension Repository.Policy.Census {
             default: engine = "other"
             }
             func row(
-                _ kind: Kind, _ id: String, line: Int, engine: String,
-                digest: String, notes: String = ""
+                _ kind: Kind,
+                _ id: String,
+                line: Int,
+                engine: String,
+                digest: String,
+                notes: String = ""
             ) -> Row {
                 Row(
-                    repository: repo.name, headSha: repo.headSha, path: rel,
-                    coordinateKind: kind, coordinateId: id, line: line,
-                    engine: engine, excerptSha256: digest, family: fam,
-                    intendedOwner: owner, disposition: "reduce", notes: notes)
+                    repository: repo.name,
+                    headSha: repo.headSha,
+                    path: rel,
+                    coordinateKind: kind,
+                    coordinateId: id,
+                    line: line,
+                    engine: engine,
+                    excerptSha256: digest,
+                    family: fam,
+                    intendedOwner: owner,
+                    disposition: "reduce",
+                    notes: notes
+                )
             }
             // Collected locally: the regex enumeration closures below are
             // escaping, and an escaping closure cannot capture the `rows`
@@ -152,8 +171,13 @@ extension Repository.Policy.Census {
             defer { rows.append(contentsOf: collected) }
             collected.append(
                 row(
-                    .file, "file:\(rel)", line: 1, engine: engine,
-                    digest: hasher.digest(raw)))
+                    .file,
+                    "file:\(rel)",
+                    line: 1,
+                    engine: engine,
+                    digest: hasher.digest(raw)
+                )
+            )
             guard engine == "actions-yaml" else { return }
 
             let ns = text as NSString
@@ -169,49 +193,61 @@ extension Repository.Policy.Census {
 
             let expression = try Self.expression(
                 "\\$\\{\\{.*?\\}\\}",
-                options: [.dotMatchesLineSeparators])
+                options: [.dotMatchesLineSeparators]
+            )
             var i = 0
             expression.enumerateMatches(
-                in: text, range: NSRange(location: 0, length: ns.length)
+                in: text,
+                range: NSRange(location: 0, length: ns.length)
             ) { match, _, _ in
                 guard let match else { return }
                 let excerpt = ns.substring(with: match.range)
                 collected.append(
                     row(
-                        .expression, "expr:\(rel):\(i)",
+                        .expression,
+                        "expr:\(rel):\(i)",
                         line: lineNumber(at: match.range.location),
                         engine: "actions-expression",
-                        digest: hasher.digest(Data(excerpt.utf8))))
+                        digest: hasher.digest(Data(excerpt.utf8))
+                    )
+                )
                 i += 1
             }
 
             let uses = try Self.expression(
                 "^\\s*(?:-\\s+)?uses:\\s*(\\S+)",
-                options: [.anchorsMatchLines])
+                options: [.anchorsMatchLines]
+            )
             i = 0
             uses.enumerateMatches(
-                in: text, range: NSRange(location: 0, length: ns.length)
+                in: text,
+                range: NSRange(location: 0, length: ns.length)
             ) { match, _, _ in
                 guard let match else { return }
                 let target = ns.substring(with: match.range(at: 1))
                 collected.append(
                     row(
-                        .usesEdge, "uses:\(rel):\(i)",
+                        .usesEdge,
+                        "uses:\(rel):\(i)",
                         line: lineNumber(at: match.range.location),
                         engine: "actions-yaml",
                         digest: hasher.digest(Data(target.utf8)),
-                        notes: target))
+                        notes: target
+                    )
+                )
                 i += 1
             }
 
             let lines = text.components(separatedBy: "\n")
             let runPattern = try Self.expression(
                 "^(\\s*)run:\\s*(\\||>|\\|-|>-)?",
-                options: [.anchorsMatchLines])
+                options: [.anchorsMatchLines]
+            )
             let command = try Self.expression("^\\s*([A-Za-z0-9_.\\/-]+)")
             i = 0
             runPattern.enumerateMatches(
-                in: text, range: NSRange(location: 0, length: ns.length)
+                in: text,
+                range: NSRange(location: 0, length: ns.length)
             ) { match, _, _ in
                 guard let match else { return }
                 let startLine = lineNumber(at: match.range.location)
@@ -222,7 +258,8 @@ extension Repository.Policy.Census {
                     while j < lines.count {
                         let candidate = lines[j]
                         let stripped = candidate.trimmingCharacters(in: .whitespaces)
-                        let candidateIndent = candidate.count - candidate.drop { $0 == " " || $0 == "\t" }.count
+                        let candidateIndent =
+                            candidate.count - candidate.drop { $0 == " " || $0 == "\t" }.count
                         if !stripped.isEmpty && candidateIndent <= indent { break }
                         block.append(candidate)
                         j += 1
@@ -234,21 +271,30 @@ extension Repository.Policy.Census {
                 let body = block.joined(separator: "\n")
                 collected.append(
                     row(
-                        .runBlock, "run:\(rel):\(i)", line: startLine,
+                        .runBlock,
+                        "run:\(rel):\(i)",
+                        line: startLine,
                         engine: "shell",
-                        digest: hasher.digest(Data(body.utf8))))
+                        digest: hasher.digest(Data(body.utf8))
+                    )
+                )
                 for (k, blockLine) in block.enumerated() {
                     let blockRange = NSRange(location: 0, length: (blockLine as NSString).length)
-                    guard let commandMatch = command.firstMatch(in: blockLine, range: blockRange) else { continue }
+                    guard let commandMatch = command.firstMatch(in: blockLine, range: blockRange)
+                    else { continue }
                     let token = (blockLine as NSString).substring(with: commandMatch.range(at: 1))
                     if skipCommands.contains(token) { continue }
                     if blockLine.trimmingCharacters(in: .whitespaces).hasPrefix("#") { continue }
                     collected.append(
                         row(
-                            .commandReference, "cmd:\(rel):\(i):\(k)",
-                            line: startLine + 1 + k, engine: "shell",
+                            .commandReference,
+                            "cmd:\(rel):\(i):\(k)",
+                            line: startLine + 1 + k,
+                            engine: "shell",
                             digest: hasher.digest(Data(token.utf8)),
-                            notes: token))
+                            notes: token
+                        )
+                    )
                 }
                 i += 1
             }
@@ -273,13 +319,18 @@ extension Repository.Policy.Census {
             Row(
                 repository: "17-organization fleet",
                 headSha: "per-repo (review-inputs/reclosure/v1-per-root.json)",
-                path: ".github/workflows/ci.yml", coordinateKind: .file,
-                coordinateId: "family:leaf-callers", line: 1,
-                engine: "actions-yaml", excerptSha256: "",
+                path: ".github/workflows/ci.yml",
+                coordinateKind: .file,
+                coordinateId: "family:leaf-callers",
+                line: 1,
+                engine: "actions-yaml",
+                excerptSha256: "",
                 family: "generated-leaf-caller",
                 intendedOwner: "Repository Policy (generated projection; F13/F14)",
                 disposition: "regenerate",
-                notes: "449 callers; per-repo heads and caller blob SHAs frozen in v1-per-root.json (digest 56d8309c...)")
+                notes:
+                    "449 callers; per-repo heads and caller blob SHAs frozen in v1-per-root.json (digest 56d8309c...)"
+            )
         }
 
         static var sentinelRows: [Row] {
@@ -312,12 +363,21 @@ extension Repository.Policy.Census {
             ]
             return sentinels.map { name, detail, cause in
                 Row(
-                    repository: "sentinel", headSha: "", path: "",
-                    coordinateKind: .family, coordinateId: "sentinel:\(name)",
-                    line: 0, engine: "", excerptSha256: "", family: name,
+                    repository: "sentinel",
+                    headSha: "",
+                    path: "",
+                    coordinateKind: .family,
+                    coordinateId: "sentinel:\(name)",
+                    line: 0,
+                    engine: "",
+                    excerptSha256: "",
+                    family: name,
                     intendedOwner: "typed at owning transaction",
-                    disposition: "sentinel", measurement: "UNMEASURED",
-                    cause: cause, notes: detail)
+                    disposition: "sentinel",
+                    measurement: "UNMEASURED",
+                    cause: cause,
+                    notes: detail
+                )
             }
         }
     }

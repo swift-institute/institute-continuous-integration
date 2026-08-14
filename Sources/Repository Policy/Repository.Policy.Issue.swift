@@ -81,7 +81,8 @@ extension RepositoryPolicy.Issue {
         public let status: String
         public let supersededBy: String?
 
-        public init(grammarVersion: Int, status: String, supersededBy: String? = nil) throws(Error) {
+        public init(grammarVersion: Int, status: String, supersededBy: String? = nil) throws(Error)
+        {
             guard grammarVersion == 1 else {
                 throw Error.unsupportedVersion(grammarVersion)
             }
@@ -209,7 +210,10 @@ extension RepositoryPolicy.Issue {
             }
         }
 
-        private static func fields(in body: String, profile: Profile) throws(Error) -> [String: String] {
+        private static func fields(
+            in body: String,
+            profile: Profile
+        ) throws(Error) -> [String: String] {
             var result = [String: String]()
             let lines = body.split(separator: "\n", omittingEmptySubsequences: false)
             var index = 0
@@ -240,7 +244,10 @@ extension RepositoryPolicy.Issue {
             return result
         }
 
-        private static func required(_ name: String, in fields: [String: String]) throws(Error) -> String {
+        private static func required(
+            _ name: String,
+            in fields: [String: String]
+        ) throws(Error) -> String {
             guard let value = fields[name], !value.isEmpty else { throw Error.missingField(name) }
             return value
         }
@@ -379,7 +386,10 @@ extension RepositoryPolicy.Issue {
         /// Plans a rewrite only for an open, Active Issue whose supplied guard
         /// still names its current body. Calling this method never mutates an
         /// Issue or reads its history.
-        public static func plan(snapshot: Snapshot, guard expected: Guard) throws(Error) -> Compaction? {
+        public static func plan(
+            snapshot: Snapshot,
+            guard expected: Guard
+        ) throws(Error) -> Compaction? {
             guard snapshot.revision == expected.revision, snapshot.digest == expected.digest else {
                 throw Error.staleGuard
             }

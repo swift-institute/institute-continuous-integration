@@ -1,5 +1,4 @@
 import ContinuousIntegration
-import CoreFoundation
 import Foundation
 import Institute_Continuous_Integration
 import Institute_Continuous_Integration_Contract
@@ -67,8 +66,10 @@ extension Institute.ContinuousIntegration {
                         response: response
                     )
                 }
-                return Institute.ContinuousIntegration.Package.Content(declaredRoots: packageRoots(in: workspace))
-                    .changed(changes)
+                return Institute.ContinuousIntegration.Package.Content(
+                    declaredRoots: packageRoots(in: workspace)
+                )
+                .changed(changes)
             } catch { return true }
         }
 
@@ -109,7 +110,9 @@ extension Institute.ContinuousIntegration {
                     commits.append(sha)
                 }
             }
-            guard commits.count == expected, Set(commits).count == expected else { throw .comparison }
+            guard commits.count == expected, Set(commits).count == expected else {
+                throw .comparison
+            }
             var changes: [Institute.ContinuousIntegration.Package.Content.Change] = []
             for commit in commits {
                 changes += try files(
@@ -241,8 +244,8 @@ extension Institute.ContinuousIntegration {
         /// that cannot be represented exactly as Swift's `Int` for an event
         /// field whose schema is an integer.
         static func integer(_ value: Any?) -> Int? {
-            guard let number = value as? NSNumber,
-                CFGetTypeID(number) != CFBooleanGetTypeID(),
+            guard !(value is Bool),
+                let number = value as? NSNumber,
                 ["c", "C", "s", "S", "i", "I", "l", "L", "q", "Q"].contains(
                     String(cString: number.objCType)
                 )

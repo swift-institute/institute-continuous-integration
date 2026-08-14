@@ -24,12 +24,20 @@ extension Institute.ContinuousIntegration.Validation.SkillHygiene {
             self.tree = tree
         }
 
-        func findings(for subject: GitHub.ContinuousIntegration.Validation.Subject) -> [GitHub.ContinuousIntegration.Validation.Finding] {
+        func findings(
+            for subject: GitHub.ContinuousIntegration.Validation.Subject
+        ) -> [GitHub.ContinuousIntegration.Validation.Finding] {
             let relative = tree.relative(path)
 
-            func finding(_ rule: GitHub.ContinuousIntegration.Validation.Rule, _ message: String) -> GitHub.ContinuousIntegration.Validation.Finding {
+            func finding(
+                _ rule: GitHub.ContinuousIntegration.Validation.Rule,
+                _ message: String
+            ) -> GitHub.ContinuousIntegration.Validation.Finding {
                 GitHub.ContinuousIntegration.Validation.Finding(
-                    repository: subject.repository, rule: rule, message: "\(relative): \(message)")
+                    repository: subject.repository,
+                    rule: rule,
+                    message: "\(relative): \(message)"
+                )
             }
 
             guard let text = tree.text(at: path) else {
@@ -41,7 +49,8 @@ extension Institute.ContinuousIntegration.Validation.SkillHygiene {
                     finding(
                         Rules.frontmatter,
                         "no terminated YAML frontmatter block "
-                            + "(expected a leading '---' line and a closing '---' line)")
+                            + "(expected a leading '---' line and a closing '---' line)"
+                    )
                 ]
             }
 
@@ -50,7 +59,10 @@ extension Institute.ContinuousIntegration.Validation.SkillHygiene {
                 node = try GitHub.ContinuousIntegration.Workflow.YAML.Parser.parse(block)
             } catch {
                 return [
-                    finding(Rules.frontmatter, "frontmatter does not parse as YAML: \(error.message)")
+                    finding(
+                        Rules.frontmatter,
+                        "frontmatter does not parse as YAML: \(error.message)"
+                    )
                 ]
             }
 
@@ -83,7 +95,9 @@ extension Institute.ContinuousIntegration.Validation.SkillHygiene {
                     finding(
                         Rules.identity,
                         "`name` is '\(name)' but the directory is '\(directory)'; "
-                            + "they must match so the skill projects unambiguously"))
+                            + "they must match so the skill projects unambiguously"
+                    )
+                )
             }
             return findings
         }

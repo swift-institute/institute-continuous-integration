@@ -51,7 +51,10 @@ extension Institute.ContinuousIntegration {
         public let recheck: String
 
         public init(
-            swiftVersion: String, image: String, upstreamRelease: String, recheck: String
+            swiftVersion: String,
+            image: String,
+            upstreamRelease: String,
+            recheck: String
         ) {
             self.swiftVersion = swiftVersion
             self.image = image
@@ -75,7 +78,9 @@ extension Institute.ContinuousIntegration {
         /// `swift:<floor>` image. Present, it must validate first: an
         /// exception that cannot justify itself never resolves to an image.
         public static func resolve(
-            swiftVersion: String, exception: Self?, today: String
+            swiftVersion: String,
+            exception: Self?,
+            today: String
         ) throws(Error) -> String {
             guard let exception else { return stableImage(swiftVersion: swiftVersion) }
             try exception.validate(today: today)
@@ -84,7 +89,9 @@ extension Institute.ContinuousIntegration {
 
         public func validate(today: String) throws(Error) {
             let components = swiftVersion.split(
-                separator: ".", omittingEmptySubsequences: false)
+                separator: ".",
+                omittingEmptySubsequences: false
+            )
             guard (2...3).contains(components.count),
                 components.allSatisfy({ !$0.isEmpty && $0.allSatisfy(\.isNumber) })
             else { throw .swiftVersion(swiftVersion) }
@@ -98,7 +105,8 @@ extension Institute.ContinuousIntegration {
             guard upstreamRelease == Self.releaseCoordinate(swiftVersion: swiftVersion)
             else { throw .upstreamRelease(upstreamRelease) }
 
-            guard Institute.ContinuousIntegration.isCalendarDate(recheck), Institute.ContinuousIntegration.isCalendarDate(today)
+            guard Institute.ContinuousIntegration.isCalendarDate(recheck),
+                Institute.ContinuousIntegration.isCalendarDate(today)
             else { throw .recheck(recheck) }
             guard recheck <= Self.boundary
             else { throw .beyondBoundary(recheck: recheck, boundary: Self.boundary) }

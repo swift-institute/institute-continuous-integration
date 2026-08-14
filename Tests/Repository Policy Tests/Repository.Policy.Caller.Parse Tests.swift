@@ -48,11 +48,14 @@ struct RepositoryPolicyCallerParseTests {
                 secrets: inherit
             """
         let spec = try Repository.Policy.Caller.Parse.caller(
-            text, repository: "swift-standards/swift-demo-standard")
+            text,
+            repository: "swift-standards/swift-demo-standard"
+        )
         #expect(
             spec.inputs.map(\.key) == [
                 "platform-support", "docs-umbrella-module", "docs-exclude-modules",
-            ])
+            ]
+        )
         #expect(spec.inputs.first { $0.key == "docs-umbrella-module" }?.value == "Demo")
     }
 
@@ -74,7 +77,8 @@ struct RepositoryPolicyCallerParseTests {
             """
         #expect(
             throws: Repository.Policy.Caller.Error.unknownCustomization(
-                "`ci` job carries inline steps/runs-on, not a thin caller")
+                "`ci` job carries inline steps/runs-on, not a thin caller"
+            )
         ) {
             try Repository.Policy.Caller.Parse.caller(text, repository: "swift-iso/swift-x")
         }
@@ -91,7 +95,8 @@ struct RepositoryPolicyCallerParseTests {
             """
         #expect(
             throws: Repository.Policy.Caller.Error.unknownCustomization(
-                "unapproved with: key bespoke-knob")
+                "unapproved with: key bespoke-knob"
+            )
         ) {
             try Repository.Policy.Caller.Parse.caller(text, repository: "swift-iso/swift-x")
         }
@@ -173,7 +178,8 @@ struct RepositoryPolicyCallerParseTests {
             """
         #expect(
             throws: Repository.Policy.Caller.Error.unknownCustomization(
-                "integrated-docs is present but not true")
+                "integrated-docs is present but not true"
+            )
         ) {
             try Repository.Policy.Caller.Parse.caller(text, repository: "swift-iso/swift-x")
         }

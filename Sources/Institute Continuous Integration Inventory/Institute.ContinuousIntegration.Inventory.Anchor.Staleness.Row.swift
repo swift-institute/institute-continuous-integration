@@ -50,15 +50,19 @@ extension Institute.ContinuousIntegration.Inventory.Anchor.Staleness {
                     (.text("pinned"), .text(pinned.rawValue)),
                     (
                         .text("head"),
-                        head.map { GitHub.ContinuousIntegration.Workflow.YAML.Node.text($0.rawValue) } ?? .null
+                        head.map {
+                            GitHub.ContinuousIntegration.Workflow.YAML.Node.text($0.rawValue)
+                        } ?? .null
                     ),
                     (
                         .text("distance"),
-                        distance.map(GitHub.ContinuousIntegration.Workflow.YAML.Node.integer) ?? .null
+                        distance.map(GitHub.ContinuousIntegration.Workflow.YAML.Node.integer)
+                            ?? .null
                     ),
                     (.text("measured"), .boolean(isMeasured)),
                     (.text("current"), .boolean(isCurrent)),
-                ]))
+                ])
+            )
         }
     }
 }

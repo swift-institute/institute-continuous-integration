@@ -34,10 +34,14 @@ extension Institute.ContinuousIntegration.Inventory {
             .mapping(
                 .init([
                     (.text("job"), .text(job)),
-                    (.text("step"), step.map(GitHub.ContinuousIntegration.Workflow.YAML.Node.text) ?? .null),
+                    (
+                        .text("step"),
+                        step.map(GitHub.ContinuousIntegration.Workflow.YAML.Node.text) ?? .null
+                    ),
                     (.text("path"), path ?? .null),
                     (.text("key"), key ?? .null),
-                ]))
+                ])
+            )
         }
     }
 }

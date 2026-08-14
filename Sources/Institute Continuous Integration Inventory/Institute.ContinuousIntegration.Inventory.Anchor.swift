@@ -121,9 +121,13 @@ extension Institute.ContinuousIntegration.Inventory.Anchor {
     public func checkoutStep(
         for source: Source
     ) -> GitHub.ContinuousIntegration.Workflow.YAML.Node {
-        var entries: [(key: GitHub.ContinuousIntegration.Workflow.YAML.Node, value: GitHub.ContinuousIntegration.Workflow.YAML.Node)] = [
-            (.text("name"), .text(Self.checkoutName(of: source)))
-        ]
+        var entries:
+            [(
+                key: GitHub.ContinuousIntegration.Workflow.YAML.Node,
+                value: GitHub.ContinuousIntegration.Workflow.YAML.Node
+            )] = [
+                (.text("name"), .text(Self.checkoutName(of: source)))
+            ]
         if let condition { entries.append((.text("if"), .text(condition))) }
         entries.append((.text("uses"), .text(action)))
         entries.append(
@@ -135,8 +139,10 @@ extension Institute.ContinuousIntegration.Inventory.Anchor {
                         (.text("ref"), .text(source.commit.rawValue)),
                         (.text("path"), .text(source.checkout)),
                         (.text("persist-credentials"), .boolean(false)),
-                    ]))
-            ))
+                    ])
+                )
+            )
+        )
         return .mapping(.init(entries))
     }
 
@@ -144,9 +150,13 @@ extension Institute.ContinuousIntegration.Inventory.Anchor {
     public func identityStep(
         for source: Source
     ) -> GitHub.ContinuousIntegration.Workflow.YAML.Node {
-        var entries: [(key: GitHub.ContinuousIntegration.Workflow.YAML.Node, value: GitHub.ContinuousIntegration.Workflow.YAML.Node)] = [
-            (.text("name"), .text(Self.identityName(of: source)))
-        ]
+        var entries:
+            [(
+                key: GitHub.ContinuousIntegration.Workflow.YAML.Node,
+                value: GitHub.ContinuousIntegration.Workflow.YAML.Node
+            )] = [
+                (.text("name"), .text(Self.identityName(of: source)))
+            ]
         if let condition { entries.append((.text("if"), .text(condition))) }
         entries.append((.text("id"), .text(Self.identityIdentifier(of: source))))
         entries.append((.text("shell"), .text("bash")))
@@ -194,13 +204,21 @@ extension Institute.ContinuousIntegration.Inventory.Anchor {
 
 extension Institute.ContinuousIntegration.Inventory.Anchor {
     public var node: GitHub.ContinuousIntegration.Workflow.YAML.Node {
-        var entries: [(key: GitHub.ContinuousIntegration.Workflow.YAML.Node, value: GitHub.ContinuousIntegration.Workflow.YAML.Node)] = [
-            (.text("schema_version"), .integer(Self.schemaVersion)),
-            (.text("producer"), .text(producer)),
-            (.text("action"), .text(action)),
-        ]
+        var entries:
+            [(
+                key: GitHub.ContinuousIntegration.Workflow.YAML.Node,
+                value: GitHub.ContinuousIntegration.Workflow.YAML.Node
+            )] = [
+                (.text("schema_version"), .integer(Self.schemaVersion)),
+                (.text("producer"), .text(producer)),
+                (.text("action"), .text(action)),
+            ]
         entries.append(
-            (.text("condition"), condition.map(GitHub.ContinuousIntegration.Workflow.YAML.Node.text) ?? .null))
+            (
+                .text("condition"),
+                condition.map(GitHub.ContinuousIntegration.Workflow.YAML.Node.text) ?? .null
+            )
+        )
         entries.append((.text("sources"), .sequence(sources.map(\.node))))
         return .mapping(.init(entries))
     }
@@ -239,7 +257,8 @@ extension Institute.ContinuousIntegration.Inventory.Anchor {
         guard version == Self.schemaVersion else {
             throw .unreadableAnchor(
                 message: "the manifest declares schema \(version); this reader owns schema "
-                    + "\(Self.schemaVersion)")
+                    + "\(Self.schemaVersion)"
+            )
         }
         guard let producer = manifest["producer"] as? String else {
             throw .unreadableAnchor(message: "the manifest declares no `producer` string")
@@ -262,7 +281,8 @@ extension Institute.ContinuousIntegration.Inventory.Anchor {
             }
             guard let checkout = source["checkout"] as? String else {
                 throw .unreadableAnchor(
-                    message: "`\(repository)` declares no `checkout` path")
+                    message: "`\(repository)` declares no `checkout` path"
+                )
             }
             guard let commit = source["commit"] as? String else {
                 throw .unreadableAnchor(message: "`\(repository)` declares no `commit`")
@@ -272,16 +292,23 @@ extension Institute.ContinuousIntegration.Inventory.Anchor {
                 let treeOID = tree["oid"] as? String
             else {
                 throw .unreadableAnchor(
-                    message: "`\(repository)` declares no `tree` object with `path` and `oid`")
+                    message: "`\(repository)` declares no `tree` object with `path` and `oid`"
+                )
             }
             sources.append(
                 Source(
                     repository: repository,
                     checkout: checkout,
                     commit: try Revision(commit),
-                    tree: Source.Tree(path: treePath, oid: try Revision(treeOID))))
+                    tree: Source.Tree(path: treePath, oid: try Revision(treeOID))
+                )
+            )
         }
         try self.init(
-            producer: producer, action: action, condition: condition, sources: sources)
+            producer: producer,
+            action: action,
+            condition: condition,
+            sources: sources
+        )
     }
 }

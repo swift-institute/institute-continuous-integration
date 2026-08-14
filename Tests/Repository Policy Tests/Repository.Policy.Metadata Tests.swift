@@ -15,10 +15,12 @@ struct RepositoryPolicyMetadataTests {
               '8601': 'Date and time'
             iso-iec:
               '9945': 'Portable Operating System Interface (POSIX)'
-            """)
+            """
+    )
 
     static func draft(
-        _ target: String, packageDescription: String = ""
+        _ target: String,
+        packageDescription: String = ""
     ) throws
         -> Repository.Policy.Metadata.Draft
     {
@@ -33,7 +35,8 @@ struct RepositoryPolicyMetadataTests {
             #expect(
                 draft.metadata.description
                     == "Swift implementation of RFC 3986: "
-                    + "Uniform Resource Identifier (URI) Generic Syntax.")
+                    + "Uniform Resource Identifier (URI) Generic Syntax."
+            )
             #expect(draft.metadata.topics == ["standards", "rfc", "rfc-3986", "TODO-domain-tag"])
         }
 
@@ -50,7 +53,9 @@ struct RepositoryPolicyMetadataTests {
 
         @Test func `a primitive takes its own package description`() throws {
             let draft = try RepositoryPolicyMetadataTests.draft(
-                "swift-primitives/swift-byte-primitives", packageDescription: "Byte primitives")
+                "swift-primitives/swift-byte-primitives",
+                packageDescription: "Byte primitives"
+            )
             #expect(draft.kind == .primitive)
             #expect(draft.metadata.description == "Byte primitives for Swift.")
         }
@@ -59,7 +64,8 @@ struct RepositoryPolicyMetadataTests {
             // What makes a draft a draft. Without it a heuristic seed
             // reads as an authored document.
             let rendered = Repository.Policy.Metadata.Draft.Render(generatedOn: "2026-08-07")(
-                try RepositoryPolicyMetadataTests.draft("swift-ietf/swift-rfc-3986"))
+                try RepositoryPolicyMetadataTests.draft("swift-ietf/swift-rfc-3986")
+            )
             #expect(rendered.contains("# REVIEW BEFORE MERGE"))
             #expect(rendered.contains("# Detected class: L2-single-spec"))
             #expect(rendered.hasSuffix("\n"))
