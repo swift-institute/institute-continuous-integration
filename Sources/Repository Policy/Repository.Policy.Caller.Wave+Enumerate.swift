@@ -13,6 +13,7 @@ extension Repository.Policy.Caller.Wave {
         var candidates: [RepositoryPolicy.Repository] = []
         var repositoryCounts: [String: Int] = [:]
         var repositoryNames: [String] = []
+        var notPublicCounts: [String: Int] = [:]
         for organization in organizations {
             let listing = try await calling {
                 try await client.waveRepositories(organization: organization)
@@ -41,6 +42,9 @@ extension Repository.Policy.Caller.Wave {
                 repositoryNames.append(repository.fullName)
                 if let reason = RepositoryPolicy.staticExclusion(of: repository) {
                     excluded[reason.rawValue, default: 0] += 1
+                    if reason == .notPublic {
+                        notPublicCounts[organization, default: 0] += 1
+                    }
                     continue
                 }
                 candidates.append(repository)
@@ -67,13 +71,27 @@ extension Repository.Policy.Caller.Wave {
         guard !subjects.isEmpty else {
             throw .population("active fleet enumeration produced zero eligible callers")
         }
+        // A zero-subject organization is a typed census fact, never a
+        // preflight matrix row (wave run 31817391995, swift-riscv). The
+        // reason distinguishes an organization the public wave cannot
+        // even see from one whose public repositories all fell to
+        // eligibility.
+        var exclusionReasons: [String: String] = [:]
+        for organization in organizations
+        where !subjects.contains(where: { $0.repository.hasPrefix(organization + "/") }) {
+            exclusionReasons[organization] =
+                notPublicCounts[organization] == repositoryCounts[organization]
+                ? Population.OrganizationExclusion.privateOnly
+                : Population.OrganizationExclusion.noSubjects
+        }
         let population = Population(
             organizations: organizations,
             examined: examined,
             repositoryCounts: repositoryCounts,
             repositories: repositoryNames,
             excluded: excluded,
-            subjects: subjects.sorted(by: { $0.repository < $1.repository })
+            subjects: subjects.sorted(by: { $0.repository < $1.repository }),
+            organizationExclusionReasons: exclusionReasons
         )
         try population.validate()
         return population
