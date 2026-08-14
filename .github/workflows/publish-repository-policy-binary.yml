@@ -94,7 +94,7 @@ jobs:
             echo 'container=swift:6.3@sha256:69bf1f0281e13d82c9e49d67c2dd1dcc8c00bad738c860f4323d7078787ec8ea'
             echo 'os=linux'
             echo 'arch=x86_64'
-            echo 'provisioning=static-swift-stdlib,uuid-dev,build-id-none'
+            echo 'provisioning=static-swift-stdlib,uuid-dev,build-id-none,swift-modhash-removed,debug-stripped'
           } > /tmp/IDENTITY
           digest="$(sha256sum /tmp/IDENTITY | cut -d' ' -f1)"
           echo "digest=$digest" >> "$GITHUB_OUTPUT"
@@ -115,7 +115,10 @@ jobs:
             --product repository-policy \
             --static-swift-stdlib \
             -Xlinker --build-id=none
-          install -m 0755 .build/release/repository-policy /tmp/repository-policy
+          command -v objcopy
+          objcopy --remove-section=.swift_modhash --strip-debug \
+            .build/release/repository-policy /tmp/repository-policy.normalized
+          install -m 0755 /tmp/repository-policy.normalized /tmp/repository-policy
 
       - name: Prove repository-policy executable
         shell: bash
@@ -129,6 +132,10 @@ jobs:
           command -v readelf
           if readelf -n /tmp/repository-policy | grep -Fq 'Build ID'; then
             echo '::error::repository-policy contains a nondeterministic ELF build ID'
+            exit 1
+          fi
+          if readelf -S /tmp/repository-policy | grep -Fq '.swift_modhash'; then
+            echo '::error::repository-policy contains nondeterministic Swift module hashes'
             exit 1
           fi
 
