@@ -14,9 +14,12 @@ actor RepositoryPolicyCallerWaveMockClient: Repository.Policy.Caller.Wave.Client
     var oldBlob = "old-blob"
     var newBlob = "new-blob"
     var rulesetData: Data
+    var rulesetID: Int64?
     var replacementCount = 0
+    var creationCount = 0
     var moveFailure = false
     var restorationFailure = false
+    var convergenceFailure = false
     var moveHeadOnOpen = false
     let emptyRepositories: Bool
     let callerAbsent: Bool
@@ -24,9 +27,11 @@ actor RepositoryPolicyCallerWaveMockClient: Repository.Policy.Caller.Wave.Client
     init(
         ruleset: Data,
         emptyRepositories: Bool = false,
-        callerAbsent: Bool = false
+        callerAbsent: Bool = false,
+        rulesetAbsent: Bool = false
     ) {
         rulesetData = ruleset
+        rulesetID = rulesetAbsent ? nil : 7
         self.emptyRepositories = emptyRepositories
         self.callerAbsent = callerAbsent
     }
@@ -93,7 +98,7 @@ actor RepositoryPolicyCallerWaveMockClient: Repository.Policy.Caller.Wave.Client
     ) async throws(RepositoryPolicy.GitHubClient.Error)
         -> [Repository.Policy.Caller.Wave.RulesetReference]
     {
-        [.init(id: 7, name: "Institute protected main")]
+        rulesetID.map { [.init(id: $0, name: "Institute protected main")] } ?? []
     }
 
     func ruleset(
@@ -110,6 +115,10 @@ actor RepositoryPolicyCallerWaveMockClient: Repository.Policy.Caller.Wave.Client
     ) async throws(RepositoryPolicy.GitHubClient.Error) {
         let object = try? JSONSerialization.jsonObject(with: payload) as? [String: Any]
         let bypass = object?["bypass_actors"] as? [Any] ?? []
+        if bypass.isEmpty, convergenceFailure {
+            convergenceFailure = false
+            throw .precondition("convergence failed")
+        }
         if bypass.isEmpty, restorationFailure {
             throw .precondition("restore failed")
         }
@@ -118,6 +127,19 @@ actor RepositoryPolicyCallerWaveMockClient: Repository.Policy.Caller.Wave.Client
         }
         rulesetData = payload
         replacementCount += 1
+    }
+
+    func createRuleset(
+        _: String,
+        payload: Data
+    ) async throws(RepositoryPolicy.GitHubClient.Error) -> Int64 {
+        guard rulesetID == nil else {
+            throw .precondition("ruleset already exists")
+        }
+        rulesetID = 7
+        rulesetData = payload
+        creationCount += 1
+        return 7
     }
 
     func createBlob(
@@ -155,6 +177,11 @@ actor RepositoryPolicyCallerWaveMockClient: Repository.Policy.Caller.Wave.Client
         oldBlob = value
     }
 
+    func setCaller(bytes: Data, blob: String) {
+        oldCaller = bytes
+        oldBlob = blob
+    }
+
     func setMoveFailure() {
         moveFailure = true
     }
@@ -163,11 +190,19 @@ actor RepositoryPolicyCallerWaveMockClient: Repository.Policy.Caller.Wave.Client
         restorationFailure = true
     }
 
+    func setConvergenceFailure() {
+        convergenceFailure = true
+    }
+
     func setMoveHeadOnOpen() {
         moveHeadOnOpen = true
     }
 
     func replacements() -> Int {
         replacementCount
+    }
+
+    func creations() -> Int {
+        creationCount
     }
 }

@@ -352,6 +352,18 @@ extension RepositoryPolicy {
             }
         }
 
+        public func callerWaveCreateRuleset(
+            _ fullName: String,
+            payload: Data
+        ) async throws(Error) -> Int64 {
+            let path = "/repos/\(fullName)/rulesets"
+            let response = try await request(method: "POST", path: path, body: payload)
+            guard response.status == 201 else {
+                throw error(method: "POST", path: path, response: response)
+            }
+            return try decode(WaveRuleset.self, from: response.data, path: path).id
+        }
+
         public func callerWaveCreateBlob(
             _ fullName: String,
             content: Data

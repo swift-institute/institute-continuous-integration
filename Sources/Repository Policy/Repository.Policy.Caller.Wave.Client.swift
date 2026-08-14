@@ -33,6 +33,10 @@ extension Repository.Policy.Caller.Wave {
             id: Int64,
             payload: Data
         ) async throws(RepositoryPolicy.GitHubClient.Error)
+        func createRuleset(
+            _ repository: String,
+            payload: Data
+        ) async throws(RepositoryPolicy.GitHubClient.Error) -> Int64
         func createBlob(
             _ repository: String,
             content: Data

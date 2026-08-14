@@ -32,6 +32,12 @@ permissions: {}
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - 'Sources/Repository Policy/**'
+      - 'Sources/Repository Policy CLI/**'
+      - 'Tests/Repository Policy Tests/**'
+      - '.github/workflows/publish-repository-policy-binary.yml'
+      - '.github/workflows/publish-ci-binaries.yml'
   schedule:
     - cron: '41 */6 * * *'
   workflow_dispatch:

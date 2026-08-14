@@ -5,7 +5,9 @@ extension Main {
     static func callerWave(_ arguments: [String]) async throws(Error) {
         guard let operation = arguments.first else {
             throw .configuration(
-                RepositoryPolicy.ConfigurationError("caller-wave requires apply or restore")
+                RepositoryPolicy.ConfigurationError(
+                    "caller-wave requires census, recensus, apply, or restore"
+                )
             )
         }
         let values = try callerWaveValues(Array(arguments.dropFirst()))
@@ -47,6 +49,59 @@ extension Main {
                     + "eligible=\(population.subjects.count)"
             )
 
+        case "recensus":
+            guard values.count == 3,
+                let fleetPath = values["--fleet"],
+                let callerPath = values["--caller"],
+                let output = values["--output"]
+            else {
+                throw .configuration(
+                    RepositoryPolicy.ConfigurationError(
+                        "caller-wave recensus requires --fleet <policy> --caller <path> "
+                            + "--output <path>"
+                    )
+                )
+            }
+            let fleet: RepositoryPolicy.Fleet
+            do {
+                fleet = try RepositoryPolicy.Fleet.read(at: fleetPath)
+            } catch {
+                throw .io("could not read caller-wave fleet policy at \(fleetPath): \(error)")
+            }
+            let caller = try data(at: callerPath, label: "terminal caller")
+            let population: Repository.Policy.Caller.Wave.Population
+            do throws(Repository.Policy.Caller.Wave.Error) {
+                population = try await Repository.Policy.Caller.Wave.enumerate(
+                    client: client,
+                    fleet: fleet
+                )
+            } catch {
+                throw .wave(error)
+            }
+            let receipt = Repository.Policy.Caller.Wave.recensus(
+                population: population,
+                caller: caller
+            )
+            do {
+                try encode(receipt, to: URL(filePath: output))
+            } catch {
+                throw .io("could not write caller-wave recensus at \(output): \(error)")
+            }
+            guard receipt.accepted else {
+                let mismatches = receipt.observations.filter { !$0.matches }.map(\.repository)
+                throw .wave(
+                    .verification(
+                        "terminal caller recensus found \(mismatches.count) mismatches: "
+                            + mismatches.joined(separator: ", ")
+                    )
+                )
+            }
+            print(
+                "repository-policy: caller-wave recensus accepted "
+                    + "examined=\(receipt.examined) eligible=\(receipt.observations.count) "
+                    + "digest=\(receipt.canonicalDigest)"
+            )
+
         case "apply":
             try await applyCallerWave(values, client: client)
 
@@ -62,10 +117,17 @@ extension Main {
                 at: recovery,
                 label: "caller-wave recovery"
             )
+            guard let ruleset = snapshot.ruleset else {
+                print(
+                    "repository-policy: caller-wave recovery for \(snapshot.repository) "
+                        + "contains no opened ruleset"
+                )
+                return
+            }
             do throws(Repository.Policy.Caller.Wave.Error) {
                 try await Repository.Policy.Caller.Wave.restore(
                     client: client,
-                    snapshot: snapshot.ruleset
+                    snapshot: ruleset
                 )
             } catch {
                 throw .wave(error)
@@ -75,7 +137,7 @@ extension Main {
         default:
             throw .configuration(
                 RepositoryPolicy.ConfigurationError(
-                    "caller-wave operation must be apply or restore"
+                    "caller-wave operation must be census, recensus, apply, or restore"
                 )
             )
         }

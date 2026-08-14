@@ -72,6 +72,18 @@ extension Repository.Policy.Caller.Wave {
             return (try? Self.data(normalized)) == opened
         }
 
+        public static func normalized(_ live: Data) throws(Error) -> Data {
+            let object = try Self.object(live, label: "ruleset")
+            let keys = ["name", "target", "enforcement", "bypass_actors", "conditions", "rules"]
+            return try Self.data(
+                Dictionary(
+                    uniqueKeysWithValues: keys.compactMap { key in
+                        object[key].map { (key, $0) }
+                    }
+                )
+            )
+        }
+
         private static func object(
             _ data: Data,
             label: String

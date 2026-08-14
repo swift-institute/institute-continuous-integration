@@ -45,6 +45,13 @@ extension RepositoryPolicy.GitHubClient: Repository_Policy.Repository.Policy.Cal
         try await callerWaveReplaceRuleset(repository, id: id, payload: payload)
     }
 
+    public func createRuleset(
+        _ repository: String,
+        payload: Data
+    ) async throws(Error) -> Int64 {
+        try await callerWaveCreateRuleset(repository, payload: payload)
+    }
+
     public func createBlob(_ repository: String, content: Data) async throws(Error) -> String {
         try await callerWaveCreateBlob(repository, content: content)
     }

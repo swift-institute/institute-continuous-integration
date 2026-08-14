@@ -20,6 +20,26 @@ extension Repository.Policy.Caller.Wave {
         let newBlob = try await calling {
             try await client.createBlob(request.repository, content: request.caller)
         }
+        let prepared = try await prepareRuleset(
+            client: client,
+            request: request,
+            oldHead: oldHead,
+            oldCaller: oldCaller,
+            preserve: preserve
+        )
+        if prepared.changed {
+            try recording(
+                Event(
+                    phase: "ruleset-converged",
+                    repository: request.repository,
+                    oldHead: oldHead,
+                    oldBlob: oldBlob,
+                    ruleset: prepared.snapshot.id,
+                    bypassClosed: true
+                ),
+                through: record
+            )
+        }
         if oldBlob == newBlob {
             let receipt = Receipt(
                 repository: request.repository,
@@ -27,7 +47,9 @@ extension Repository.Policy.Caller.Wave {
                 newHead: oldHead,
                 oldBlob: oldBlob,
                 newBlob: oldBlob,
-                changed: false,
+                ruleset: prepared.snapshot.id,
+                callerChanged: false,
+                rulesetChanged: prepared.changed,
                 bypassClosed: true
             )
             try recording(
@@ -38,6 +60,7 @@ extension Repository.Policy.Caller.Wave {
                     newHead: oldHead,
                     oldBlob: oldBlob,
                     newBlob: oldBlob,
+                    ruleset: prepared.snapshot.id,
                     bypassClosed: true
                 ),
                 through: record
@@ -45,42 +68,14 @@ extension Repository.Policy.Caller.Wave {
             return receipt
         }
 
-        let references = try await calling { try await client.rulesets(request.repository) }
-            .filter { $0.name == "Institute protected main" }
-        guard references.count == 1, let reference = references.first else {
-            throw .ruleset(
-                "\(request.repository): expected one Institute protected main ruleset, found \(references.count)"
-            )
-        }
-        let liveRuleset = try await calling {
-            try await client.ruleset(request.repository, id: reference.id)
-        }
-        let snapshot = try RulesetSnapshot(
-            repository: request.repository,
-            id: reference.id,
-            live: liveRuleset,
-            canonical: request.canonicalRuleset,
-            integrationID: request.integrationID
-        )
-        do {
-            try preserve(
-                Recovery(
-                    repository: request.repository,
-                    rollbackHead: oldHead,
-                    caller: oldCaller,
-                    ruleset: snapshot
-                )
-            )
-        } catch {
-            throw .journal("\(request.repository): could not preserve recovery payload: \(error)")
-        }
+        let snapshot = prepared.snapshot
         try recording(
             Event(
                 phase: "window-opening",
                 repository: request.repository,
                 oldHead: oldHead,
                 oldBlob: oldBlob,
-                ruleset: reference.id
+                ruleset: snapshot.id
             ),
             through: record
         )
@@ -88,7 +83,7 @@ extension Repository.Policy.Caller.Wave {
         try await calling {
             try await client.replaceRuleset(
                 request.repository,
-                id: reference.id,
+                id: snapshot.id,
                 payload: snapshot.opened
             )
         }
@@ -131,7 +126,7 @@ extension Repository.Policy.Caller.Wave {
                     newHead: verifiedHead,
                     oldBlob: oldBlob,
                     newBlob: verifiedCaller.blob,
-                    ruleset: reference.id,
+                    ruleset: snapshot.id,
                     bypassClosed: true
                 ),
                 through: record
@@ -142,7 +137,9 @@ extension Repository.Policy.Caller.Wave {
                 newHead: verifiedHead,
                 oldBlob: oldBlob,
                 newBlob: verifiedCaller.blob,
-                changed: true,
+                ruleset: snapshot.id,
+                callerChanged: true,
+                rulesetChanged: prepared.changed,
                 bypassClosed: true
             )
         } catch let primary as Error {
@@ -180,6 +177,127 @@ extension Repository.Policy.Caller.Wave {
             )
         }
         try await verifyRuleset(client: client, snapshot: snapshot, opened: false)
+    }
+
+    private static func prepareRuleset<C: Client>(
+        client: C,
+        request: Request,
+        oldHead: String,
+        oldCaller: CallerSource,
+        preserve: (Recovery) throws -> Void
+    ) async throws(Error) -> PreparedRuleset {
+        let references = try await calling { try await client.rulesets(request.repository) }
+            .filter { $0.name == "Institute protected main" }
+        guard references.count <= 1 else {
+            throw .ruleset(
+                "\(request.repository): found \(references.count) Institute protected main rulesets"
+            )
+        }
+        guard let reference = references.first else {
+            try preserving(
+                Recovery(
+                    repository: request.repository,
+                    rollbackHead: oldHead,
+                    caller: oldCaller,
+                    priorRuleset: nil,
+                    ruleset: nil
+                ),
+                through: preserve
+            )
+            let id = try await calling {
+                try await client.createRuleset(
+                    request.repository,
+                    payload: request.canonicalRuleset
+                )
+            }
+            let live = try await calling {
+                try await client.ruleset(request.repository, id: id)
+            }
+            let snapshot = try RulesetSnapshot(
+                repository: request.repository,
+                id: id,
+                live: live,
+                canonical: request.canonicalRuleset,
+                integrationID: request.integrationID
+            )
+            try preserving(
+                Recovery(
+                    repository: request.repository,
+                    rollbackHead: oldHead,
+                    caller: oldCaller,
+                    priorRuleset: nil,
+                    ruleset: snapshot
+                ),
+                through: preserve
+            )
+            return PreparedRuleset(snapshot: snapshot, changed: true)
+        }
+
+        let live = try await calling {
+            try await client.ruleset(request.repository, id: reference.id)
+        }
+        let prior = try RulesetSnapshot(
+            repository: request.repository,
+            id: reference.id,
+            live: live,
+            canonical: live,
+            integrationID: request.integrationID
+        )
+        try preserving(
+            Recovery(
+                repository: request.repository,
+                rollbackHead: oldHead,
+                caller: oldCaller,
+                priorRuleset: prior,
+                ruleset: prior
+            ),
+            through: preserve
+        )
+        let canonical = try RulesetSnapshot.normalized(request.canonicalRuleset)
+        guard prior.restore != canonical else {
+            return PreparedRuleset(snapshot: prior, changed: false)
+        }
+
+        do {
+            try await calling {
+                try await client.replaceRuleset(
+                    request.repository,
+                    id: reference.id,
+                    payload: request.canonicalRuleset
+                )
+            }
+            let readback = try await calling {
+                try await client.ruleset(request.repository, id: reference.id)
+            }
+            let snapshot = try RulesetSnapshot(
+                repository: request.repository,
+                id: reference.id,
+                live: readback,
+                canonical: request.canonicalRuleset,
+                integrationID: request.integrationID
+            )
+            try preserving(
+                Recovery(
+                    repository: request.repository,
+                    rollbackHead: oldHead,
+                    caller: oldCaller,
+                    priorRuleset: prior,
+                    ruleset: snapshot
+                ),
+                through: preserve
+            )
+            return PreparedRuleset(snapshot: snapshot, changed: true)
+        } catch let primary {
+            do {
+                try await restore(client: client, snapshot: prior)
+            } catch let restoreError {
+                throw .restoration(
+                    primary: primary.description,
+                    restore: restoreError.description
+                )
+            }
+            throw primary
+        }
     }
 
     private static func verifyRuleset<C: Client>(
@@ -239,6 +357,17 @@ extension Repository.Policy.Caller.Wave {
             try record(event)
         } catch {
             throw .journal("\(event.repository): could not append \(event.phase): \(error)")
+        }
+    }
+
+    private static func preserving(
+        _ recovery: Recovery,
+        through preserve: (Recovery) throws -> Void
+    ) throws(Error) {
+        do {
+            try preserve(recovery)
+        } catch {
+            throw .journal("\(recovery.repository): could not preserve recovery payload: \(error)")
         }
     }
 

@@ -54,6 +54,86 @@ struct RepositoryPolicyCallerWaveTests {
     }
 
     @Test
+    func recensusAcceptsOnlyByteIdenticalCallers() {
+        let population = Repository.Policy.Caller.Wave.Population(
+            organizations: ["swift-primitives"],
+            examined: 2,
+            excluded: [:],
+            subjects: [
+                .init(
+                    repository: "swift-primitives/a",
+                    head: "head-a",
+                    caller: .init(blob: "blob-a", bytes: Data("terminal\n".utf8))
+                ),
+                .init(
+                    repository: "swift-primitives/b",
+                    head: "head-b",
+                    caller: .init(blob: "blob-b", bytes: Data("terminal\n".utf8))
+                ),
+            ]
+        )
+
+        let receipt = Repository.Policy.Caller.Wave.recensus(
+            population: population,
+            caller: Data("terminal\n".utf8)
+        )
+        let matches = receipt.observations.map(\.matches)
+
+        #expect(receipt.accepted)
+        #expect(receipt.observations.count == 2)
+        #expect(matches == [true, true])
+        #expect(receipt.observations.map(\.digest) == [receipt.canonicalDigest, receipt.canonicalDigest])
+    }
+
+    @Test
+    func recensusRecordsAndRefusesEveryDivergentCaller() {
+        let population = Repository.Policy.Caller.Wave.Population(
+            organizations: ["swift-primitives"],
+            examined: 2,
+            excluded: [:],
+            subjects: [
+                .init(
+                    repository: "swift-primitives/a",
+                    head: "head-a",
+                    caller: .init(blob: "blob-a", bytes: Data("terminal\n".utf8))
+                ),
+                .init(
+                    repository: "swift-primitives/b",
+                    head: "head-b",
+                    caller: .init(blob: "blob-b", bytes: Data("legacy\n".utf8))
+                ),
+            ]
+        )
+
+        let receipt = Repository.Policy.Caller.Wave.recensus(
+            population: population,
+            caller: Data("terminal\n".utf8)
+        )
+
+        #expect(!receipt.accepted)
+        #expect(receipt.observations.filter { !$0.matches }.map(\.repository) == ["swift-primitives/b"])
+        #expect(receipt.observations[1].digest != receipt.canonicalDigest)
+    }
+
+    @Test
+    func recensusRefusesAnEmptyPopulation() {
+        let population = Repository.Policy.Caller.Wave.Population(
+            organizations: [],
+            examined: 0,
+            excluded: [:],
+            subjects: []
+        )
+
+        let receipt = Repository.Policy.Caller.Wave.recensus(
+            population: population,
+            caller: Data("terminal\n".utf8)
+        )
+
+        #expect(!receipt.accepted)
+        #expect(receipt.observations.isEmpty)
+    }
+
+    @Test
     func appliesForwardCommitAndRestoresRuleset() async throws {
         let canonical = try ruleset()
         let client = RepositoryPolicyCallerWaveMockClient(ruleset: canonical)
@@ -67,13 +147,45 @@ struct RepositoryPolicyCallerWaveTests {
         )
 
         #expect(receipt.changed)
+        #expect(receipt.callerChanged)
+        #expect(!receipt.rulesetChanged)
         #expect(receipt.oldHead == "old-head")
         #expect(receipt.newHead == "new-head")
         #expect(receipt.bypassClosed)
         #expect(recovery?.caller.bytes == Data("old\n".utf8))
         #expect(recovery?.rollbackHead == "old-head")
+        #expect(recovery?.ruleset?.id == 7)
         #expect(events.map(\.phase) == ["window-opening", "applied"])
         #expect(await client.replacements() == 2)
+    }
+
+    @Test
+    func createsMissingRulesetEvenWhenCallerIsAlreadyTerminal() async throws {
+        let canonical = try ruleset()
+        let client = RepositoryPolicyCallerWaveMockClient(
+            ruleset: canonical,
+            rulesetAbsent: true
+        )
+        await client.setCaller(bytes: Data("new\n".utf8), blob: "new-blob")
+        var recovery: Repository.Policy.Caller.Wave.Recovery?
+        var events: [Repository.Policy.Caller.Wave.Event] = []
+
+        let receipt = try await Repository.Policy.Caller.Wave.run(
+            client: client,
+            request: request(canonical: canonical, expectedBlob: "new-blob"),
+            preserve: { recovery = $0 },
+            record: { events.append($0) }
+        )
+
+        #expect(receipt.changed)
+        #expect(!receipt.callerChanged)
+        #expect(receipt.rulesetChanged)
+        #expect(receipt.newHead == "old-head")
+        #expect(recovery?.priorRuleset == nil)
+        #expect(recovery?.ruleset?.id == 7)
+        #expect(events.map(\.phase) == ["ruleset-converged", "already-terminal"])
+        #expect(await client.creations() == 1)
+        #expect(await client.replacements() == 0)
     }
 
     @Test
@@ -111,10 +223,40 @@ struct RepositoryPolicyCallerWaveTests {
     }
 
     @Test
-    func noncanonicalRulesetRefusesBeforeWindow() async throws {
+    func noncanonicalRulesetConvergesBeforeWindow() async throws {
         let canonical = try ruleset()
         let divergent = try ruleset(enforcement: "disabled")
         let client = RepositoryPolicyCallerWaveMockClient(ruleset: divergent)
+        var recovery: Repository.Policy.Caller.Wave.Recovery?
+        var events: [Repository.Policy.Caller.Wave.Event] = []
+
+        let receipt = try await Repository.Policy.Caller.Wave.run(
+            client: client,
+            request: request(canonical: canonical),
+            preserve: { recovery = $0 },
+            record: { events.append($0) }
+        )
+        let divergentNormalized = try Repository.Policy.Caller.Wave.RulesetSnapshot.normalized(
+            divergent
+        )
+        let canonicalNormalized = try Repository.Policy.Caller.Wave.RulesetSnapshot.normalized(
+            canonical
+        )
+
+        #expect(receipt.callerChanged)
+        #expect(receipt.rulesetChanged)
+        #expect(recovery?.priorRuleset?.restore == divergentNormalized)
+        #expect(recovery?.ruleset?.restore == canonicalNormalized)
+        #expect(events.map(\.phase) == ["ruleset-converged", "window-opening", "applied"])
+        #expect(await client.replacements() == 3)
+    }
+
+    @Test
+    func failedRulesetConvergenceRestoresThePriorContract() async throws {
+        let canonical = try ruleset()
+        let divergent = try ruleset(enforcement: "disabled")
+        let client = RepositoryPolicyCallerWaveMockClient(ruleset: divergent)
+        await client.setConvergenceFailure()
 
         await #expect(throws: Repository.Policy.Caller.Wave.Error.self) {
             try await Repository.Policy.Caller.Wave.run(
@@ -124,7 +266,16 @@ struct RepositoryPolicyCallerWaveTests {
                 record: { _ in }
             )
         }
-        #expect(await client.replacements() == 0)
+
+        let restored = try await client.ruleset("swift-institute/example", id: 7)
+        let restoredNormalized = try Repository.Policy.Caller.Wave.RulesetSnapshot.normalized(
+            restored
+        )
+        let divergentNormalized = try Repository.Policy.Caller.Wave.RulesetSnapshot.normalized(
+            divergent
+        )
+        #expect(await client.replacements() == 1)
+        #expect(restoredNormalized == divergentNormalized)
     }
 
     @Test
@@ -179,11 +330,14 @@ struct RepositoryPolicyCallerWaveTests {
         #expect(await client.replacements() == 1)
     }
 
-    private func request(canonical: Data) -> Repository.Policy.Caller.Wave.Request {
+    private func request(
+        canonical: Data,
+        expectedBlob: String = "old-blob"
+    ) -> Repository.Policy.Caller.Wave.Request {
         .init(
             repository: "swift-institute/example",
             expectedHead: "old-head",
-            expectedBlob: "old-blob",
+            expectedBlob: expectedBlob,
             caller: Data("new\n".utf8),
             canonicalRuleset: canonical,
             integrationID: 3_543_256,

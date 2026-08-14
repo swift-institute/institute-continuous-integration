@@ -3,17 +3,20 @@ extension Repository.Policy.Caller.Wave {
         public let repository: String
         public let rollbackHead: String
         public let caller: CallerSource
-        public let ruleset: RulesetSnapshot
+        public let priorRuleset: RulesetSnapshot?
+        public let ruleset: RulesetSnapshot?
 
         public init(
             repository: String,
             rollbackHead: String,
             caller: CallerSource,
-            ruleset: RulesetSnapshot
+            priorRuleset: RulesetSnapshot?,
+            ruleset: RulesetSnapshot?
         ) {
             self.repository = repository
             self.rollbackHead = rollbackHead
             self.caller = caller
+            self.priorRuleset = priorRuleset
             self.ruleset = ruleset
         }
     }
