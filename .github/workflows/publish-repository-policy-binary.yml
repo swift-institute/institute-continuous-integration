@@ -83,7 +83,6 @@ jobs:
             echo "os=linux"
             echo "arch=x86_64"
             echo "provisioning=static-swift-stdlib,uuid-dev"
-            echo "built-at=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
             cat /tmp/heads
           } > /tmp/MANIFEST
           cat /tmp/MANIFEST
