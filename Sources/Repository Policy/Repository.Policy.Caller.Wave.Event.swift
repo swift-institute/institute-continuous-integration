@@ -8,6 +8,9 @@ extension Repository.Policy.Caller.Wave {
         public let newBlob: String?
         public let ruleset: Int64?
         public let bypassClosed: Bool?
+        public let populationDigest: String?
+        public let policyDigest: String?
+        public let policySource: String?
 
         public init(
             phase: String,
@@ -17,7 +20,10 @@ extension Repository.Policy.Caller.Wave {
             oldBlob: String? = nil,
             newBlob: String? = nil,
             ruleset: Int64? = nil,
-            bypassClosed: Bool? = nil
+            bypassClosed: Bool? = nil,
+            populationDigest: String? = nil,
+            policyDigest: String? = nil,
+            policySource: String? = nil
         ) {
             self.phase = phase
             self.repository = repository
@@ -27,6 +33,9 @@ extension Repository.Policy.Caller.Wave {
             self.newBlob = newBlob
             self.ruleset = ruleset
             self.bypassClosed = bypassClosed
+            self.populationDigest = populationDigest
+            self.policyDigest = policyDigest
+            self.policySource = policySource
         }
     }
 }

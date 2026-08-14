@@ -13,15 +13,23 @@ extension Repository.Policy.Caller.Wave {
         public var description: String {
             switch self {
             case .client(let error): return error.description
+
             case .invalidRepository(let message): return message
+
             case .population(let message): return message
+
             case .movedHead(let repository, let expected, let actual):
                 return "\(repository): main moved from \(expected) to \(actual)"
+
             case .movedBlob(let repository, let expected, let actual):
                 return "\(repository): caller moved from \(expected) to \(actual)"
+
             case .ruleset(let message): return message
+
             case .journal(let message): return message
+
             case .verification(let message): return message
+
             case .restoration(let primary, let restore):
                 return "\(primary); ruleset restoration also failed: \(restore)"
             }

@@ -10,6 +10,9 @@ extension Repository.Policy.Caller.Wave {
         public let rulesetChanged: Bool
         public let changed: Bool
         public let bypassClosed: Bool
+        public let population: Commitment
+        public let policyDigest: String
+        public let policySource: String
 
         public init(
             repository: String,
@@ -20,7 +23,10 @@ extension Repository.Policy.Caller.Wave {
             ruleset: Int64,
             callerChanged: Bool,
             rulesetChanged: Bool,
-            bypassClosed: Bool
+            bypassClosed: Bool,
+            population: Commitment,
+            policyDigest: String,
+            policySource: String
         ) {
             self.repository = repository
             self.oldHead = oldHead
@@ -32,6 +38,9 @@ extension Repository.Policy.Caller.Wave {
             self.rulesetChanged = rulesetChanged
             self.changed = callerChanged || rulesetChanged
             self.bypassClosed = bypassClosed
+            self.population = population
+            self.policyDigest = policyDigest
+            self.policySource = policySource
         }
     }
 }

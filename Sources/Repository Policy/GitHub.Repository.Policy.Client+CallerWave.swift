@@ -1,6 +1,25 @@
 import Foundation
 
 extension RepositoryPolicy.GitHubClient: Repository_Policy.Repository.Policy.Caller.Wave.Client {
+    public func capacity(
+        requiredRequests: Int
+    ) async throws(Error) -> Repository_Policy.Repository.Policy.Caller.Wave.Capacity {
+        try await callerWaveCapacity(requiredRequests: requiredRequests)
+    }
+
+    public func waveRepositories(
+        organization: String
+    ) async throws(Error) -> Repository_Policy.Repository.Policy.Caller.Wave.Listing {
+        try await callerWaveRepositories(organization: organization)
+    }
+
+    public func rootManifest(
+        _ repository: String,
+        head: String
+    ) async throws(Error) -> Repository_Policy.Repository.Policy.Caller.Wave.Manifest? {
+        try await callerWaveManifest(repository, head: head)
+    }
+
     public func waveRepository(
         _ name: String
     ) async throws(Error) -> Repository_Policy.Repository.Policy.Caller.Wave.Repository {
@@ -72,5 +91,9 @@ extension RepositoryPolicy.GitHubClient: Repository_Policy.Repository.Policy.Cal
 
     public func moveMain(_ repository: String, to head: String) async throws(Error) {
         try await callerWaveMoveMain(repository, to: head)
+    }
+
+    public func pause(attempt: Int) async {
+        await callerWavePause(attempt: attempt)
     }
 }

@@ -68,8 +68,7 @@ struct CIInventoryAnchorTests {
                 "",
             ])
         func `nothing but a canonical object name is accepted`(_ text: String) throws {
-            #expect(throws: Institute.ContinuousIntegration.Inventory.Error.malformedRevision(text))
-            {
+            #expect(throws: Institute.ContinuousIntegration.Inventory.Error.malformedRevision(text)) {
                 try Anchor.Revision(text)
             }
         }

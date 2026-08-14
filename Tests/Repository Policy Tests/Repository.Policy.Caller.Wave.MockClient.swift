@@ -2,11 +2,15 @@ import Foundation
 import Repository_Policy
 
 actor RepositoryPolicyCallerWaveMockClient: Repository.Policy.Caller.Wave.Client {
+    var remainingRequests = 5_000
     var repository = Repository.Policy.Caller.Wave.Repository(
+        id: 1,
         visibility: "public",
         archived: false,
         disabled: false,
-        defaultBranch: "main"
+        defaultBranch: "main",
+        canPush: true,
+        canAdminister: true
     )
     var currentHead = "old-head"
     var oldCaller = Data("old\n".utf8)
@@ -20,7 +24,14 @@ actor RepositoryPolicyCallerWaveMockClient: Repository.Policy.Caller.Wave.Client
     var moveFailure = false
     var restorationFailure = false
     var convergenceFailure = false
+    var persistentConvergenceFailure = false
     var moveHeadOnOpen = false
+    var openingResponseLost = false
+    var closingResponseLost = false
+    var commitFailure = false
+    var rulesetReadFailures = 0
+    var readFailureAfterOpening = false
+    var moveHeadAfterManifestRead = false
     let emptyRepositories: Bool
     let callerAbsent: Bool
 
@@ -36,28 +47,48 @@ actor RepositoryPolicyCallerWaveMockClient: Repository.Policy.Caller.Wave.Client
         self.callerAbsent = callerAbsent
     }
 
-    func repositories(
-        organization: String
-    ) async throws(RepositoryPolicy.GitHubClient.Error) -> [RepositoryPolicy.Repository] {
-        if emptyRepositories { return [] }
-        return [
-            .init(
-                id: 1,
-                name: "example",
-                fullName: "\(organization)/example",
-                visibility: "public",
-                archived: false,
-                disabled: false,
-                fork: false,
-                size: 1
-            )
-        ]
+    func capacity(
+        requiredRequests: Int
+    ) async throws(RepositoryPolicy.GitHubClient.Error)
+        -> Repository.Policy.Caller.Wave.Capacity
+    {
+        .init(remaining: remainingRequests, required: requiredRequests, resetAt: 1_787_000_000)
     }
 
-    func rootManifestKind(
-        _: String
-    ) async throws(RepositoryPolicy.GitHubClient.Error) -> String? {
-        "file"
+    func waveRepositories(
+        organization: String
+    ) async throws(RepositoryPolicy.GitHubClient.Error)
+        -> Repository.Policy.Caller.Wave.Listing
+    {
+        if emptyRepositories { return .init(repositories: [], expected: 0) }
+        return .init(
+            repositories: [
+                .init(
+                    id: 1,
+                    name: "example",
+                    fullName: "\(organization)/example",
+                    visibility: "public",
+                    archived: false,
+                    disabled: false,
+                    fork: false,
+                    size: 1
+                )
+            ],
+            expected: 1
+        )
+    }
+
+    func rootManifest(
+        _: String,
+        head _: String
+    ) async throws(RepositoryPolicy.GitHubClient.Error)
+        -> Repository.Policy.Caller.Wave.Manifest?
+    {
+        if moveHeadAfterManifestRead {
+            moveHeadAfterManifestRead = false
+            currentHead = "moved-during-manifest-read"
+        }
+        return .init(kind: "file", blob: "manifest-blob")
     }
 
     func waveRepository(
@@ -105,7 +136,11 @@ actor RepositoryPolicyCallerWaveMockClient: Repository.Policy.Caller.Wave.Client
         _: String,
         id _: Int64
     ) async throws(RepositoryPolicy.GitHubClient.Error) -> Data {
-        rulesetData
+        if rulesetReadFailures > 0 {
+            rulesetReadFailures -= 1
+            throw .transport(path: "ruleset", message: "injected read failure")
+        }
+        return rulesetData
     }
 
     func replaceRuleset(
@@ -115,8 +150,10 @@ actor RepositoryPolicyCallerWaveMockClient: Repository.Policy.Caller.Wave.Client
     ) async throws(RepositoryPolicy.GitHubClient.Error) {
         let object = try? JSONSerialization.jsonObject(with: payload) as? [String: Any]
         let bypass = object?["bypass_actors"] as? [Any] ?? []
+        let prior = try? JSONSerialization.jsonObject(with: rulesetData) as? [String: Any]
+        let priorBypass = prior?["bypass_actors"] as? [Any] ?? []
         if bypass.isEmpty, convergenceFailure {
-            convergenceFailure = false
+            if !persistentConvergenceFailure { convergenceFailure = false }
             throw .precondition("convergence failed")
         }
         if bypass.isEmpty, restorationFailure {
@@ -127,6 +164,18 @@ actor RepositoryPolicyCallerWaveMockClient: Repository.Policy.Caller.Wave.Client
         }
         rulesetData = payload
         replacementCount += 1
+        if !bypass.isEmpty, readFailureAfterOpening {
+            readFailureAfterOpening = false
+            rulesetReadFailures = 1
+        }
+        if !bypass.isEmpty, openingResponseLost {
+            openingResponseLost = false
+            throw .transport(path: "ruleset", message: "opening response lost")
+        }
+        if bypass.isEmpty, !priorBypass.isEmpty, closingResponseLost {
+            closingResponseLost = false
+            throw .transport(path: "ruleset", message: "closing response lost")
+        }
     }
 
     func createRuleset(
@@ -156,7 +205,10 @@ actor RepositoryPolicyCallerWaveMockClient: Repository.Policy.Caller.Wave.Client
         blob _: String,
         message _: String
     ) async throws(RepositoryPolicy.GitHubClient.Error) -> String {
-        "new-head"
+        if commitFailure {
+            throw .transport(path: "commit", message: "injected process interruption")
+        }
+        return "new-head"
     }
 
     func moveMain(
@@ -169,8 +221,26 @@ actor RepositoryPolicyCallerWaveMockClient: Repository.Policy.Caller.Wave.Client
         currentHead = head
     }
 
+    func pause(attempt _: Int) async {}
+
     func setHead(_ value: String) {
         currentHead = value
+    }
+
+    func setMoveHeadAfterManifestRead() {
+        moveHeadAfterManifestRead = true
+    }
+
+    func setPermissions(push: Bool, administration: Bool) {
+        repository = .init(
+            id: repository.id,
+            visibility: repository.visibility,
+            archived: repository.archived,
+            disabled: repository.disabled,
+            defaultBranch: repository.defaultBranch,
+            canPush: push,
+            canAdminister: administration
+        )
     }
 
     func setBlob(_ value: String) {
@@ -190,12 +260,55 @@ actor RepositoryPolicyCallerWaveMockClient: Repository.Policy.Caller.Wave.Client
         restorationFailure = true
     }
 
-    func setConvergenceFailure() {
+    func setConvergenceFailure(persistent: Bool = false) {
         convergenceFailure = true
+        persistentConvergenceFailure = persistent
     }
 
     func setMoveHeadOnOpen() {
         moveHeadOnOpen = true
+    }
+
+    func setOpeningResponseLost() {
+        openingResponseLost = true
+    }
+
+    func setClosingResponseLost() {
+        closingResponseLost = true
+    }
+
+    func setCommitFailure() {
+        commitFailure = true
+    }
+
+    func setRulesetReadFailures(_ count: Int) {
+        rulesetReadFailures = count
+    }
+
+    func setReadFailureAfterOpening() {
+        readFailureAfterOpening = true
+    }
+
+    func openBypass(integrationID: Int64) throws {
+        guard var object = try JSONSerialization.jsonObject(with: rulesetData) as? [String: Any]
+        else {
+            throw RepositoryPolicy.GitHubClient.Error.precondition("ruleset is not an object")
+        }
+        object["bypass_actors"] = [
+            [
+                "actor_id": integrationID,
+                "actor_type": "Integration",
+                "bypass_mode": "always",
+            ]
+        ]
+        rulesetData = try JSONSerialization.data(withJSONObject: object, options: [.sortedKeys])
+    }
+
+    func bypassOpen(integrationID: Int64) -> Bool {
+        Repository.Policy.Caller.Wave.RulesetSnapshot.containsIntegration(
+            rulesetData,
+            integrationID: integrationID
+        )
     }
 
     func replacements() -> Int {

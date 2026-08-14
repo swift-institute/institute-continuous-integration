@@ -2,12 +2,16 @@ import Foundation
 
 extension Repository.Policy.Caller.Wave {
     public protocol Client: Sendable {
-        func repositories(
+        func capacity(
+            requiredRequests: Int
+        ) async throws(RepositoryPolicy.GitHubClient.Error) -> Capacity
+        func waveRepositories(
             organization: String
-        ) async throws(RepositoryPolicy.GitHubClient.Error) -> [RepositoryPolicy.Repository]
-        func rootManifestKind(
-            _ repository: String
-        ) async throws(RepositoryPolicy.GitHubClient.Error) -> String?
+        ) async throws(RepositoryPolicy.GitHubClient.Error) -> Listing
+        func rootManifest(
+            _ repository: String,
+            head: String
+        ) async throws(RepositoryPolicy.GitHubClient.Error) -> Manifest?
         func waveRepository(
             _ name: String
         ) async throws(RepositoryPolicy.GitHubClient.Error)
@@ -51,5 +55,6 @@ extension Repository.Policy.Caller.Wave {
             _ repository: String,
             to head: String
         ) async throws(RepositoryPolicy.GitHubClient.Error)
+        func pause(attempt: Int) async
     }
 }

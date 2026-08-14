@@ -17,6 +17,16 @@ on:
   schedule:
     - cron: '11 */6 * * *'
   workflow_dispatch:
+    inputs:
+      failure_control:
+        description: Pointer-safety negative control (protected main only)
+        required: true
+        default: none
+        type: choice
+        options:
+          - none
+          - existing-mismatch
+          - failed-readback
 
 concurrency:
   group: publish-repository-policy-binary
@@ -25,6 +35,7 @@ concurrency:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    environment: repository-policy-publisher
     container: swift:6.3@sha256:69bf1f0281e13d82c9e49d67c2dd1dcc8c00bad738c860f4323d7078787ec8ea # 6.3.3
     timeout-minutes: 45
     permissions:
@@ -37,6 +48,20 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+
+      - name: Require the exact protected-main source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          [ "$GITHUB_REF" = 'refs/heads/main' ] || {
+            echo "::error::publication is restricted to refs/heads/main"
+            exit 1
+          }
+          protected_main="$(git ls-remote origin refs/heads/main | cut -f1)"
+          [ -n "$protected_main" ]
+          [ "$GITHUB_SHA" = "$protected_main" ]
+          [ "$(git rev-parse HEAD)" = "$protected_main" ]
 
       - name: Provision publisher dependencies
         shell: bash
@@ -53,68 +78,45 @@ jobs:
           apt-get update -qq
           apt-get install -qq -y gh
 
-      - name: Compute composite identity
+      - name: Resolve the complete dependency graph once
         id: identity
         shell: bash
         run: |
           set -euo pipefail
-          git config --global --add safe.directory '*'
-          : > /tmp/heads
-          for dependency in \
-            swift-foundations/swift-ascii \
-            swift-foundations/swift-continuous-integration \
-            swift-foundations/swift-github-continuous-integration \
-            swift-foundations/swift-package-manager \
-            swift-standards/swift-github-standard \
-            swift-primitives/swift-byte-primitives \
-            swift-standards/swift-fips-180-4
-          do
-            head="$(git ls-remote "https://github.com/${dependency}.git" main | cut -f1)"
-            [ -n "$head" ] || { echo "::error::no main HEAD for ${dependency}"; exit 1; }
-            echo "${dependency}=${head}" >> /tmp/heads
-          done
-          digest="$( { echo "$GITHUB_SHA"; cut -d= -f2 /tmp/heads; } | sort | sha256sum | cut -d' ' -f1)"
+          swift package resolve
+          test -s Package.resolved
+          cp Package.resolved /tmp/repository-policy.resolution.json
+          resolution_sha="$(sha256sum /tmp/repository-policy.resolution.json | cut -d' ' -f1)"
+          {
+            echo "source-revision=$GITHUB_SHA"
+            echo "resolution-sha256=$resolution_sha"
+            echo 'toolchain=swift-6.3'
+            echo 'container=swift:6.3@sha256:69bf1f0281e13d82c9e49d67c2dd1dcc8c00bad738c860f4323d7078787ec8ea'
+            echo 'os=linux'
+            echo 'arch=x86_64'
+            echo 'provisioning=static-swift-stdlib,uuid-dev'
+          } > /tmp/IDENTITY
+          digest="$(sha256sum /tmp/IDENTITY | cut -d' ' -f1)"
           echo "digest=$digest" >> "$GITHUB_OUTPUT"
           {
             echo "digest=$digest"
-            echo "source-revision=$GITHUB_SHA"
-            echo "toolchain=swift-6.3"
-            echo "container=swift:6.3@sha256:69bf1f0281e13d82c9e49d67c2dd1dcc8c00bad738c860f4323d7078787ec8ea"
-            echo "os=linux"
-            echo "arch=x86_64"
-            echo "provisioning=static-swift-stdlib,uuid-dev"
-            cat /tmp/heads
+            cat /tmp/IDENTITY
+            echo "resolution-asset=repository-policy-${digest}.resolution.json"
           } > /tmp/MANIFEST
           cat /tmp/MANIFEST
 
-      - name: Check current pointer
-        id: freshness
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-          DIGEST: ${{ steps.identity.outputs.digest }}
-        run: |
-          set -euo pipefail
-          stale=true
-          if [ "$GITHUB_EVENT_NAME" = "schedule" ]; then
-            current="$(gh release download repository-policy-binaries --pattern CURRENT --output - 2>/dev/null || true)"
-            if [ "$current" = "$DIGEST" ]; then
-              stale=false
-              echo "Published repository-policy identity is current."
-            fi
-          fi
-          echo "stale=$stale" >> "$GITHUB_OUTPUT"
-
       - name: Build repository-policy
-        if: ${{ steps.freshness.outputs.stale == 'true' }}
         shell: bash
         run: |
           set -euo pipefail
-          swift build -c release --product repository-policy --static-swift-stdlib
+          swift build \
+            --disable-automatic-resolution \
+            -c release \
+            --product repository-policy \
+            --static-swift-stdlib
           install -m 0755 .build/release/repository-policy /tmp/repository-policy
 
       - name: Prove repository-policy executable
-        if: ${{ steps.freshness.outputs.stale == 'true' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -125,22 +127,40 @@ jobs:
           grep -F 'github.event.repository.private' /tmp/terminal-caller.yml
 
       - name: Publish immutable bundle and advance CURRENT last
-        if: ${{ steps.freshness.outputs.stale == 'true' }}
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
           DIGEST: ${{ steps.identity.outputs.digest }}
+          FAILURE_CONTROL: ${{ inputs.failure_control || 'none' }}
         run: |
           set -euo pipefail
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
           stage="$(mktemp -d)"
           binary="repository-policy-${DIGEST}"
           manifest="repository-policy-${DIGEST}.manifest"
+          resolution="repository-policy-${DIGEST}.resolution.json"
           checksums="repository-policy-${DIGEST}.sha256"
           install -m 0755 /tmp/repository-policy "$stage/$binary"
           cp /tmp/MANIFEST "$stage/$manifest"
-          (cd "$stage" && sha256sum "$binary" "$manifest" > "$checksums")
+          cp /tmp/repository-policy.resolution.json "$stage/$resolution"
+          (cd "$stage" && sha256sum "$binary" "$manifest" "$resolution" > "$checksums")
           (cd "$stage" && sha256sum -c "$checksums")
+
+          prior_current="$(gh release download repository-policy-binaries \
+            --pattern CURRENT --output - 2>/dev/null || true)"
+          verify_control_pointer() {
+            status=$?
+            if [ "$FAILURE_CONTROL" != 'none' ]; then
+              current="$(gh release download repository-policy-binaries \
+                --pattern CURRENT --output - 2>/dev/null || true)"
+              if [ "$current" != "$prior_current" ]; then
+                echo '::error::failure control changed CURRENT'
+                exit 97
+              fi
+            fi
+            exit "$status"
+          }
+          trap verify_control_pointer EXIT
 
           if ! gh release view repository-policy-binaries >/dev/null 2>&1; then
             gh release create repository-policy-binaries \
@@ -150,24 +170,55 @@ jobs:
               --target "$GITHUB_SHA"
           fi
 
-          for asset in "$binary" "$manifest" "$checksums"; do
-            if gh release view repository-policy-binaries \
-              --json assets --jq '.assets[].name' | grep -Fxq "$asset"
-            then
+          gh release view repository-policy-binaries \
+            --json assets --jq '.assets[].name' > "$stage/assets"
+          if [ "$FAILURE_CONTROL" != 'none' ]; then
+            [ -n "$prior_current" ] || {
+              echo '::error::failure controls require an existing CURRENT pointer'
+              exit 1
+            }
+            for asset in "$binary" "$manifest" "$resolution" "$checksums"; do
+              grep -Fxq "$asset" "$stage/assets" || {
+                echo "::error::failure control requires existing asset $asset"
+                exit 1
+              }
+            done
+          fi
+          if [ "$FAILURE_CONTROL" = 'existing-mismatch' ]; then
+            printf '\nINJECTED-MISMATCH\n' >> "$stage/$manifest"
+          fi
+          mkdir "$stage/existing"
+          for asset in "$binary" "$manifest" "$resolution" "$checksums"; do
+            if grep -Fxq "$asset" "$stage/assets"; then
               gh release download repository-policy-binaries \
-                --pattern "$asset" --dir "$stage/readback"
-              cmp "$stage/$asset" "$stage/readback/$asset"
-            else
+                --pattern "$asset" --dir "$stage/existing"
+              cmp "$stage/$asset" "$stage/existing/$asset"
+            fi
+          done
+
+          for asset in "$binary" "$manifest" "$resolution" "$checksums"; do
+            if ! grep -Fxq "$asset" "$stage/assets"; then
               gh release upload repository-policy-binaries "$stage/$asset"
             fi
           done
 
           readback="$(mktemp -d)"
           gh release download repository-policy-binaries \
-            --pattern "$binary" --pattern "$manifest" --pattern "$checksums" \
+            --pattern "$binary" --pattern "$manifest" --pattern "$resolution" \
+            --pattern "$checksums" \
             --dir "$readback"
+          if [ "$FAILURE_CONTROL" = 'failed-readback' ]; then
+            printf '\nINJECTED-READBACK-FAILURE\n' >> "$readback/$manifest"
+          fi
           (cd "$readback" && sha256sum -c "$checksums")
-          cmp "$stage/$manifest" "$readback/$manifest"
+          for asset in "$binary" "$manifest" "$resolution" "$checksums"; do
+            cmp "$stage/$asset" "$readback/$asset"
+          done
+
+          [ "$FAILURE_CONTROL" = 'none' ] || {
+            echo '::error::requested pointer-safety control did not fail'
+            exit 96
+          }
 
           printf '%s\n' "$DIGEST" > "$stage/CURRENT"
           gh release upload repository-policy-binaries "$stage/CURRENT" --clobber

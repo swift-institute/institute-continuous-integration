@@ -74,8 +74,7 @@ struct InstituteValidationCorpusTests {
                     at: root,
                     includingPropertiesForKeys: [.isDirectoryKey]
                 )
-                where (try? subject.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true
-                {
+                where (try? subject.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true {
                     guard
                         try Institute.ContinuousIntegration.Validation.Gitignore.git(
                             ["init", "-q", "."],
@@ -116,8 +115,7 @@ struct InstituteValidationCorpusTests {
         }
     }
 
-    static func run(in corpus: Validation.Corpus) throws -> (outcomes: [Outcome], unowned: [String])
-    {
+    static func run(in corpus: Validation.Corpus) throws -> (outcomes: [Outcome], unowned: [String]) {
         var outcomes: [Outcome] = []
         var unowned: [String] = []
         for directory in try corpus.ruleDirectories() {
