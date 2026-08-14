@@ -754,12 +754,13 @@ struct RepositoryPolicyCallerWaveTests {
         request: Repository.Policy.Caller.Wave.Request
     ) async throws -> Repository.Policy.Caller.Wave.Recovery {
         let evidence = try attestation(fixture: "attestation-positive")
-        return (try await Repository.Policy.Caller.Wave.preflight(
+        let result = try await Repository.Policy.Caller.Wave.preflight(
             client: client,
             request: request,
             attestation: evidence.attestation,
             attestationDigest: evidence.digest
-        )).recovery
+        )
+        return result.recovery
     }
 
     private func attestation(

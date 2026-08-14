@@ -169,10 +169,11 @@ extension Main {
             "--policy-digest", "--policy-source", "--attestation", "--recovery", "--receipt",
         ]
         try require(values, keys: required, operation: "preflight")
-        let attestation: (
-            attestation: Repository.Policy.Caller.Wave.Attestation,
-            digest: String
-        )
+        let attestation:
+            (
+                attestation: Repository.Policy.Caller.Wave.Attestation,
+                digest: String
+            )
         do throws(Repository.Policy.Caller.Wave.Error) {
             attestation = try Repository.Policy.Caller.Wave.Attestation.read(
                 at: values["--attestation"]!
