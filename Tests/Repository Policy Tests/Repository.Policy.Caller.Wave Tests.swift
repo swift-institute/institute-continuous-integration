@@ -643,7 +643,15 @@ struct RepositoryPolicyCallerWaveTests {
         }
     }
 
-    @Test(arguments: ["attestation-missing-contents", "attestation-missing-administration"])
+    /// `attestation-missing-workflows` is the fifth negative control,
+    /// carrying exactly the two grants the pre-fix wave minted: an App
+    /// token without `workflows: write` cannot rewrite a workflow file
+    /// (run 31826746776), so its attestation must refuse at preflight.
+    @Test(arguments: [
+        "attestation-missing-contents",
+        "attestation-missing-administration",
+        "attestation-missing-workflows",
+    ])
     func preflightRefusesAnAttestationWithoutTheRequiredWriteGrant(
         fixture: String
     ) async throws {
