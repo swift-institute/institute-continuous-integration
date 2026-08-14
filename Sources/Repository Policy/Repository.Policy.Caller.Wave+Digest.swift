@@ -12,7 +12,7 @@ extension Repository.Policy.Caller.Wave {
         return FIPS_180_4.SHA256.digest(bytes.map(Byte.init)).hex
     }
 
-    static func digest(_ data: Data) -> String {
+    public static func digest(_ data: Data) -> String {
         FIPS_180_4.SHA256.digest([UInt8](data).map(Byte.init)).hex
     }
 
@@ -24,5 +24,14 @@ extension Repository.Policy.Caller.Wave {
         } catch {
             throw .verification("transaction evidence did not encode: \(error)")
         }
+    }
+
+    /// The exact bytes an evidence file carries on disk. Digests recorded in
+    /// receipts refer to these bytes, so independent verifiers can compare a
+    /// file checksum against a recorded digest without re-encoding.
+    public static func evidenceData<T: Encodable>(_ value: T) throws(Error) -> Data {
+        var data = try stableData(value)
+        data.append(0x0A)
+        return data
     }
 }

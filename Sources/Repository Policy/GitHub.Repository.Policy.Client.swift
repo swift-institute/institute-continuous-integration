@@ -363,9 +363,7 @@ extension RepositoryPolicy {
                 visibility: repository.visibility,
                 archived: repository.archived,
                 disabled: repository.disabled,
-                defaultBranch: repository.defaultBranch,
-                canPush: repository.permissions.push,
-                canAdminister: repository.permissions.admin
+                defaultBranch: repository.defaultBranch
             )
         }
 
@@ -744,7 +742,6 @@ extension RepositoryPolicy {
             let archived: Bool
             let disabled: Bool
             let defaultBranch: String
-            let permissions: WavePermissions
 
             enum CodingKeys: String, CodingKey {
                 case id
@@ -752,13 +749,7 @@ extension RepositoryPolicy {
                 case archived
                 case disabled
                 case defaultBranch = "default_branch"
-                case permissions
             }
-        }
-
-        private struct WavePermissions: Decodable {
-            let push: Bool
-            let admin: Bool
         }
 
         private struct WaveOrganization: Decodable {

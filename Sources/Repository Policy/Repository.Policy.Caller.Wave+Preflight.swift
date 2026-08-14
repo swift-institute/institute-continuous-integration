@@ -3,7 +3,9 @@ import Foundation
 extension Repository.Policy.Caller.Wave {
     public static func preflight<C: Client>(
         client: C,
-        request: Request
+        request: Request,
+        attestation: Attestation,
+        attestationDigest: String
     ) async throws(Error) -> (recovery: Recovery, receipt: Preflight) {
         guard request.population.repositories > 0, request.population.subjects > 0 else {
             throw .population("caller-wave preflight received an empty population commitment")
@@ -15,6 +17,7 @@ extension Repository.Policy.Caller.Wave {
         guard components.count == 2, !components[0].isEmpty, !components[1].isEmpty else {
             throw .invalidRepository("invalid repository coordinate \(request.repository)")
         }
+        try attestation.authorize(repository: request.repository)
 
         let repository = try await calling {
             try await client.waveRepository(request.repository)
@@ -82,9 +85,8 @@ extension Repository.Policy.Caller.Wave {
             organization: String(components[0]),
             repository: request.repository,
             population: request.population,
-            recoveryDigest: digest(try stableData(recovery)),
-            canPush: repository.canPush,
-            canAdminister: repository.canAdminister,
+            recoveryDigest: digest(try evidenceData(recovery)),
+            attestationDigest: attestationDigest,
             accepted: true
         )
         return (recovery, receipt)
@@ -101,11 +103,6 @@ extension Repository.Policy.Caller.Wave {
             repository.defaultBranch == "main"
         else {
             throw .invalidRepository("\(request.repository): not an active public main repository")
-        }
-        guard repository.canPush, repository.canAdminister else {
-            throw .invalidRepository(
-                "\(request.repository): App lacks contents-write or administration-write access"
-            )
         }
     }
 

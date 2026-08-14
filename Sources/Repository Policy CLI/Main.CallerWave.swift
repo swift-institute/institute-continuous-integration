@@ -5,10 +5,14 @@ extension Main {
     static func callerWave(_ arguments: [String]) async throws(Error) {
         guard let operation = arguments.first else {
             throw waveConfiguration(
-                "caller-wave requires census, capacity, preflight, apply, close, recensus, or restore"
+                "caller-wave requires census, capacity, attest, preflight, apply, close, "
+                    + "recensus, or restore"
             )
         }
         let values = try callerWaveValues(Array(arguments.dropFirst()))
+        if operation == "attest" {
+            return try attestCallerWave(values)
+        }
         let client = try callerWaveClient()
         switch operation {
         case "census":
@@ -34,10 +38,63 @@ extension Main {
 
         default:
             throw waveConfiguration(
-                "caller-wave operation must be census, capacity, preflight, apply, close, "
-                    + "recensus, or restore"
+                "caller-wave operation must be census, capacity, attest, preflight, apply, "
+                    + "close, recensus, or restore"
             )
         }
+    }
+
+    private static func attestCallerWave(_ values: [String: String]) throws(Error) {
+        let required = [
+            "--organization", "--app-client-id", "--app-slug", "--installation-id",
+            "--repositories", "--permissions", "--run-id", "--output",
+        ]
+        try require(values, keys: required, operation: "attest")
+        guard let installationID = Int64(values["--installation-id"]!), installationID > 0 else {
+            throw waveConfiguration("caller-wave --installation-id must be a positive integer")
+        }
+        guard let runID = Int64(values["--run-id"]!), runID > 0 else {
+            throw waveConfiguration("caller-wave --run-id must be a positive integer")
+        }
+        let organization = values["--organization"]!
+        let appClientID = values["--app-client-id"]!
+        let appSlug = values["--app-slug"]!
+        guard !organization.isEmpty, !appClientID.isEmpty, !appSlug.isEmpty else {
+            throw waveConfiguration("caller-wave attest identity values must be nonempty")
+        }
+        let repositories = values["--repositories"]!.split(separator: ",").map(String.init)
+        guard !repositories.isEmpty else {
+            throw waveConfiguration("caller-wave attest --repositories must be nonempty")
+        }
+        var permissions: [String: String] = [:]
+        for entry in values["--permissions"]!.split(separator: ",") {
+            let pair = entry.split(separator: "=", omittingEmptySubsequences: false)
+            guard pair.count == 2, !pair[0].isEmpty, !pair[1].isEmpty,
+                permissions.updateValue(String(pair[1]), forKey: String(pair[0])) == nil
+            else {
+                throw waveConfiguration(
+                    "caller-wave attest --permissions must be unique permission=grant pairs"
+                )
+            }
+        }
+        guard !permissions.isEmpty else {
+            throw waveConfiguration("caller-wave attest --permissions must be nonempty")
+        }
+        let attestation = Repository.Policy.Caller.Wave.Attestation(
+            appClientID: appClientID,
+            appSlug: appSlug,
+            installationID: installationID,
+            organization: organization,
+            repositories: repositories,
+            permissions: permissions,
+            runID: runID,
+            issuedAt: ISO8601DateFormatter().string(from: Date())
+        )
+        try encode(attestation, to: URL(filePath: values["--output"]!))
+        print(
+            "repository-policy: caller-wave attested \(organization) "
+                + "repositories=\(repositories.count) installation=\(installationID)"
+        )
     }
 
     private static func capacityCallerWave(
@@ -109,9 +166,20 @@ extension Main {
     ) async throws(Error) {
         let required = [
             "--repository", "--population", "--caller", "--policy", "--integration-id",
-            "--policy-digest", "--policy-source", "--recovery", "--receipt",
+            "--policy-digest", "--policy-source", "--attestation", "--recovery", "--receipt",
         ]
         try require(values, keys: required, operation: "preflight")
+        let attestation: (
+            attestation: Repository.Policy.Caller.Wave.Attestation,
+            digest: String
+        )
+        do throws(Repository.Policy.Caller.Wave.Error) {
+            attestation = try Repository.Policy.Caller.Wave.Attestation.read(
+                at: values["--attestation"]!
+            )
+        } catch {
+            throw .wave(error)
+        }
         let population: Repository.Policy.Caller.Wave.Population = try decode(
             at: values["--population"]!,
             label: "caller-wave population"
@@ -142,7 +210,9 @@ extension Main {
         do throws(Repository.Policy.Caller.Wave.Error) {
             result = try await Repository.Policy.Caller.Wave.preflight(
                 client: client,
-                request: request
+                request: request,
+                attestation: attestation.attestation,
+                attestationDigest: attestation.digest
             )
         } catch {
             throw .wave(error)
@@ -479,11 +549,15 @@ extension Main {
     }
 
     private static func encode<T: Encodable>(_ value: T, to url: URL) throws(Error) {
+        // Evidence files must carry the exact canonical bytes the library
+        // digests, so recorded digests equal an independent file checksum.
+        let data: Data
+        do throws(Repository.Policy.Caller.Wave.Error) {
+            data = try Repository.Policy.Caller.Wave.evidenceData(value)
+        } catch {
+            throw .wave(error)
+        }
         do {
-            let encoder = JSONEncoder()
-            encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-            var data = try encoder.encode(value)
-            data.append(0x0A)
             try FileManager.default.createDirectory(
                 at: url.deletingLastPathComponent(),
                 withIntermediateDirectories: true
