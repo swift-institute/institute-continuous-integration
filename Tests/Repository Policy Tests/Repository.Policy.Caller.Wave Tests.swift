@@ -25,6 +25,107 @@ struct RepositoryPolicyCallerWaveTests {
         )
     }
 
+    /// The negative control for wave run 31817391995's swift-riscv
+    /// failure: a fabricated organization whose only repository is
+    /// private yields a typed `private-only` exclusion and no matrix
+    /// row — never a preflight failure.
+    @Test
+    func privateOnlyOrganizationBecomesATypedExclusionNotAMatrixRow() async throws {
+        let canonical = try ruleset()
+        let client = RepositoryPolicyCallerWaveMockClient(
+            ruleset: canonical,
+            privateOrganizations: ["swift-riscv"]
+        )
+        let population = try await Repository.Policy.Caller.Wave.enumerate(
+            client: client,
+            fleet: try fleet(organizations: ["swift-primitives", "swift-riscv"])
+        )
+
+        // The full organization set still records the fleet exactly.
+        #expect(population.organizations == ["swift-primitives", "swift-riscv"])
+        // The matrix set carries only subject-bearing organizations.
+        #expect(population.subjectOrganizations == ["swift-primitives"])
+        #expect(
+            population.organizationExclusions == [
+                .init(
+                    organization: "swift-riscv",
+                    reason: Repository.Policy.Caller.Wave.Population
+                        .OrganizationExclusion.privateOnly
+                )
+            ]
+        )
+        #expect(population.subjects.map(\.repository) == ["swift-primitives/example"])
+        // Positive control: with every organization subject-bearing,
+        // the exclusion list is empty and matrix == organizations.
+        let full = try await Repository.Policy.Caller.Wave.enumerate(
+            client: RepositoryPolicyCallerWaveMockClient(ruleset: canonical),
+            fleet: try fleet(organizations: ["swift-primitives", "swift-riscv"])
+        )
+        #expect(full.subjectOrganizations == full.organizations)
+        #expect(full.organizationExclusions.isEmpty)
+    }
+
+    /// A zero-subject organization that does have public repositories is
+    /// excluded as `no-subjects`, keeping the two reasons distinct.
+    @Test
+    func publicButSubjectlessOrganizationIsExcludedAsNoSubjects() {
+        let subject = Repository.Policy.Caller.Wave.Subject(
+            repository: "swift-primitives/example",
+            repositoryID: 1,
+            head: "head",
+            manifest: .init(kind: "file", blob: "manifest"),
+            caller: .init(blob: "blob", bytes: Data("caller\n".utf8))
+        )
+        let population = Repository.Policy.Caller.Wave.Population(
+            organizations: ["swift-empty", "swift-primitives"],
+            examined: 2,
+            repositoryCounts: ["swift-empty": 1, "swift-primitives": 1],
+            repositories: ["swift-empty/archived", "swift-primitives/example"],
+            excluded: ["archived": 1],
+            subjects: [subject]
+        )
+        #expect(population.subjectOrganizations == ["swift-primitives"])
+        #expect(
+            population.organizationExclusions == [
+                .init(
+                    organization: "swift-empty",
+                    reason: Repository.Policy.Caller.Wave.Population
+                        .OrganizationExclusion.noSubjects
+                )
+            ]
+        )
+    }
+
+    /// The capacity requirement is the Swift owner's arithmetic, priced
+    /// from measurement: 8 requests per preflighted subject (counted
+    /// through an instrumented endpoint), audited apply/close paths,
+    /// and the retry budget. The largest current organization (206
+    /// subjects) must fit GitHub's hard 12,500/h installation cap — the
+    /// former host-side 64/subject estimate did not — while the gate
+    /// still refuses a genuinely short pool.
+    @Test
+    func capacityRequirementIsOwnedPricedAndStillRefusesShortPools() {
+        let largest = Repository.Policy.Caller.Wave.Capacity.requirement(subjects: 206)
+        #expect(largest == 206 * 48 + 160)
+        #expect(largest <= 12_500)
+        #expect(Repository.Policy.Caller.Wave.Capacity.requirement(subjects: 1) == 208)
+
+        // Negative control: the acceptance predicate is untouched — a
+        // pool one request short still refuses.
+        let short = Repository.Policy.Caller.Wave.Capacity(
+            remaining: largest - 1,
+            required: largest,
+            resetAt: 1_787_000_000
+        )
+        #expect(!short.accepted)
+        let exact = Repository.Policy.Caller.Wave.Capacity(
+            remaining: largest,
+            required: largest,
+            resetAt: 1_787_000_000
+        )
+        #expect(exact.accepted)
+    }
+
     @Test
     func emptyOrganizationEnumerationRefusesThePopulation() async throws {
         let canonical = try ruleset()

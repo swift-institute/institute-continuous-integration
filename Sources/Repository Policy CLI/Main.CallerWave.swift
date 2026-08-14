@@ -101,15 +101,34 @@ extension Main {
         _ values: [String: String],
         client: RepositoryPolicy.GitHubClient
     ) async throws(Error) {
-        guard values.count == 2,
-            let requiredValue = values["--required"],
-            let required = Int(requiredValue),
-            required > 0,
-            let output = values["--output"]
-        else {
+        // Exactly one requirement source: an explicit fixed budget
+        // (census/recensus enumeration), or a subject count the Swift
+        // owner prices itself — the host never carries the formula.
+        let required: Int
+        switch (values["--required"], values["--subjects"]) {
+        case (let requiredValue?, nil):
+            guard values.count == 2, let value = Int(requiredValue), value > 0 else {
+                throw waveConfiguration(
+                    "caller-wave capacity requires --required <positive integer> --output <path>"
+                )
+            }
+            required = value
+
+        case (nil, let subjectsValue?):
+            guard values.count == 2, let subjects = Int(subjectsValue), subjects > 0 else {
+                throw waveConfiguration(
+                    "caller-wave capacity requires --subjects <positive integer> --output <path>"
+                )
+            }
+            required = Repository.Policy.Caller.Wave.Capacity.requirement(subjects: subjects)
+
+        default:
             throw waveConfiguration(
-                "caller-wave capacity requires --required <positive integer> --output <path>"
+                "caller-wave capacity requires exactly one of --required or --subjects"
             )
+        }
+        guard let output = values["--output"] else {
+            throw waveConfiguration("caller-wave capacity requires --output <path>")
         }
         let capacity: Repository.Policy.Caller.Wave.Capacity
         do throws(RepositoryPolicy.GitHubClient.Error) {

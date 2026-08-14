@@ -1,6 +1,14 @@
 extension Repository.Policy.Caller.Wave {
     public struct Population: Codable, Sendable, Equatable {
         public let organizations: [String]
+        /// The organizations with at least one subject — the exact
+        /// preflight/apply/closure matrix. Derived, never supplied: a
+        /// zero-subject organization must not become a matrix row.
+        public let subjectOrganizations: [String]
+        /// The zero-subject organizations, each with its typed reason.
+        /// Together with ``subjectOrganizations`` this partitions
+        /// ``organizations`` exactly.
+        public let organizationExclusions: [OrganizationExclusion]
         public let examined: Int
         public let repositoryCounts: [String: Int]
         public let repositories: [String]
@@ -14,12 +22,27 @@ extension Repository.Policy.Caller.Wave {
             repositoryCounts: [String: Int] = [:],
             repositories: [String]? = nil,
             excluded: [String: Int],
-            subjects: [Subject]
+            subjects: [Subject],
+            organizationExclusionReasons: [String: String] = [:]
         ) {
             let organizations = organizations.sorted()
             let repositories = (repositories ?? subjects.map(\.repository)).sorted()
             let subjects = subjects.sorted(by: { $0.repository < $1.repository })
             self.organizations = organizations
+            let subjectOrganizations = Set(
+                subjects.map { String($0.repository.prefix(while: { $0 != "/" })) }
+            )
+            self.subjectOrganizations = organizations.filter(subjectOrganizations.contains)
+            self.organizationExclusions =
+                organizations
+                .filter { !subjectOrganizations.contains($0) }
+                .map {
+                    OrganizationExclusion(
+                        organization: $0,
+                        reason: organizationExclusionReasons[$0]
+                            ?? OrganizationExclusion.noSubjects
+                    )
+                }
             self.examined = examined
             self.repositoryCounts = repositoryCounts
             self.repositories = repositories
@@ -70,6 +93,23 @@ extension Repository.Policy.Caller.Wave {
             let expected = Self.commitment(repositories: repositories, subjects: subjects)
             guard commitment == expected else {
                 throw .population("population commitment digest does not match its subjects")
+            }
+            let derived = Set(subjects.map { String($0.repository.prefix(while: { $0 != "/" })) })
+            guard subjectOrganizations == organizations.filter(derived.contains) else {
+                throw .population(
+                    "population matrix organizations do not equal the subject-bearing set"
+                )
+            }
+            guard
+                organizationExclusions.map(\.organization)
+                    == organizations.filter({ !derived.contains($0) })
+            else {
+                throw .population(
+                    "population organization exclusions do not cover the zero-subject set"
+                )
+            }
+            guard organizationExclusions.allSatisfy({ !$0.reason.isEmpty }) else {
+                throw .population("population organization exclusion carries an empty reason")
             }
         }
 

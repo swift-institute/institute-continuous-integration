@@ -32,17 +32,20 @@ actor RepositoryPolicyCallerWaveMockClient: Repository.Policy.Caller.Wave.Client
     var moveHeadAfterManifestRead = false
     let emptyRepositories: Bool
     let callerAbsent: Bool
+    let privateOrganizations: Set<String>
 
     init(
         ruleset: Data,
         emptyRepositories: Bool = false,
         callerAbsent: Bool = false,
-        rulesetAbsent: Bool = false
+        rulesetAbsent: Bool = false,
+        privateOrganizations: Set<String> = []
     ) {
         rulesetData = ruleset
         rulesetID = rulesetAbsent ? nil : 7
         self.emptyRepositories = emptyRepositories
         self.callerAbsent = callerAbsent
+        self.privateOrganizations = privateOrganizations
     }
 
     func capacity(
@@ -65,7 +68,8 @@ actor RepositoryPolicyCallerWaveMockClient: Repository.Policy.Caller.Wave.Client
                     id: 1,
                     name: "example",
                     fullName: "\(organization)/example",
-                    visibility: "public",
+                    visibility: privateOrganizations.contains(organization)
+                        ? "private" : "public",
                     archived: false,
                     disabled: false,
                     fork: false,
