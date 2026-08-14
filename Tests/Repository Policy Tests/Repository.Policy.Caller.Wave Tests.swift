@@ -444,16 +444,83 @@ struct RepositoryPolicyCallerWaveTests {
     }
 
     @Test
-    func preflightRefusesMissingAppPermissionsBeforeMutation() async throws {
+    func preflightAcceptsTheExactTokenIssuanceAttestation() async throws {
         let canonical = try ruleset()
         let client = RepositoryPolicyCallerWaveMockClient(ruleset: canonical)
         let request = request(canonical: canonical)
-        await client.setPermissions(push: true, administration: false)
+        let evidence = try attestation(fixture: "attestation-positive")
+
+        let result = try await Repository.Policy.Caller.Wave.preflight(
+            client: client,
+            request: request,
+            attestation: evidence.attestation,
+            attestationDigest: evidence.digest
+        )
+
+        #expect(result.receipt.accepted)
+        #expect(result.receipt.attestationDigest == evidence.digest)
+        #expect(result.receipt.organization == "swift-institute")
+        #expect(
+            result.receipt.recoveryDigest
+                == Repository.Policy.Caller.Wave.digest(
+                    try Repository.Policy.Caller.Wave.evidenceData(result.recovery)
+                )
+        )
+    }
+
+    @Test
+    func preflightRefusesAMissingAttestationBeforeMeasurement() async throws {
+        #expect(throws: Repository.Policy.Caller.Wave.Error.self) {
+            _ = try Repository.Policy.Caller.Wave.Attestation.read(
+                at: "/nonexistent/attestation.json"
+            )
+        }
+    }
+
+    @Test
+    func preflightRefusesAMalformedAttestationBeforeMeasurement() async throws {
+        let url = try #require(
+            Bundle.module.url(forResource: "attestation-malformed", withExtension: "json")
+        )
+
+        #expect(throws: Repository.Policy.Caller.Wave.Error.self) {
+            _ = try Repository.Policy.Caller.Wave.Attestation.read(at: url.path)
+        }
+    }
+
+    @Test(arguments: ["attestation-missing-contents", "attestation-missing-administration"])
+    func preflightRefusesAnAttestationWithoutTheRequiredWriteGrant(
+        fixture: String
+    ) async throws {
+        let canonical = try ruleset()
+        let client = RepositoryPolicyCallerWaveMockClient(ruleset: canonical)
+        let request = request(canonical: canonical)
+        let evidence = try attestation(fixture: fixture)
 
         await #expect(throws: Repository.Policy.Caller.Wave.Error.self) {
             try await Repository.Policy.Caller.Wave.preflight(
                 client: client,
-                request: request
+                request: request,
+                attestation: evidence.attestation,
+                attestationDigest: evidence.digest
+            )
+        }
+        #expect(await client.replacements() == 0)
+    }
+
+    @Test
+    func preflightRefusesAnAttestationScopeThatDoesNotCoverTheSubject() async throws {
+        let canonical = try ruleset()
+        let client = RepositoryPolicyCallerWaveMockClient(ruleset: canonical)
+        let request = request(canonical: canonical)
+        let evidence = try attestation(fixture: "attestation-foreign-scope")
+
+        await #expect(throws: Repository.Policy.Caller.Wave.Error.self) {
+            try await Repository.Policy.Caller.Wave.preflight(
+                client: client,
+                request: request,
+                attestation: evidence.attestation,
+                attestationDigest: evidence.digest
             )
         }
         #expect(await client.replacements() == 0)
@@ -686,10 +753,21 @@ struct RepositoryPolicyCallerWaveTests {
         client: RepositoryPolicyCallerWaveMockClient,
         request: Repository.Policy.Caller.Wave.Request
     ) async throws -> Repository.Policy.Caller.Wave.Recovery {
-        (try await Repository.Policy.Caller.Wave.preflight(
+        let evidence = try attestation(fixture: "attestation-positive")
+        let result = try await Repository.Policy.Caller.Wave.preflight(
             client: client,
-            request: request
-        )).recovery
+            request: request,
+            attestation: evidence.attestation,
+            attestationDigest: evidence.digest
+        )
+        return result.recovery
+    }
+
+    private func attestation(
+        fixture: String
+    ) throws -> (attestation: Repository.Policy.Caller.Wave.Attestation, digest: String) {
+        let url = try #require(Bundle.module.url(forResource: fixture, withExtension: "json"))
+        return try Repository.Policy.Caller.Wave.Attestation.read(at: url.path)
     }
 
     private func recensusEvidence() throws -> (

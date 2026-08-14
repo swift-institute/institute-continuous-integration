@@ -1,5 +1,6 @@
 extension Repository.Policy.Caller.Wave {
     public enum Error: Swift.Error, CustomStringConvertible, Sendable {
+        case attestation(String)
         case client(RepositoryPolicy.GitHubClient.Error)
         case invalidRepository(String)
         case population(String)
@@ -12,6 +13,8 @@ extension Repository.Policy.Caller.Wave {
 
         public var description: String {
             switch self {
+            case .attestation(let message): return message
+
             case .client(let error): return error.description
 
             case .invalidRepository(let message): return message

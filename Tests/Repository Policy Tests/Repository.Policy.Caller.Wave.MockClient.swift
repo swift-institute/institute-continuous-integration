@@ -8,9 +8,7 @@ actor RepositoryPolicyCallerWaveMockClient: Repository.Policy.Caller.Wave.Client
         visibility: "public",
         archived: false,
         disabled: false,
-        defaultBranch: "main",
-        canPush: true,
-        canAdminister: true
+        defaultBranch: "main"
     )
     var currentHead = "old-head"
     var oldCaller = Data("old\n".utf8)
@@ -229,18 +227,6 @@ actor RepositoryPolicyCallerWaveMockClient: Repository.Policy.Caller.Wave.Client
 
     func setMoveHeadAfterManifestRead() {
         moveHeadAfterManifestRead = true
-    }
-
-    func setPermissions(push: Bool, administration: Bool) {
-        repository = .init(
-            id: repository.id,
-            visibility: repository.visibility,
-            archived: repository.archived,
-            disabled: repository.disabled,
-            defaultBranch: repository.defaultBranch,
-            canPush: push,
-            canAdminister: administration
-        )
     }
 
     func setBlob(_ value: String) {
