@@ -20,6 +20,7 @@ enum Main {
         case census(Repository.Policy.Census.Generator.Error)
         case metadata(Repository.Policy.Metadata.Error)
         case caller(Repository.Policy.Caller.Error)
+        case wave(Repository.Policy.Caller.Wave.Error)
         case io(String)
 
         var description: String {
@@ -31,6 +32,7 @@ enum Main {
             case .census(let error): return String(describing: error)
             case .metadata(let error): return String(describing: error)
             case .caller(let error): return String(describing: error)
+            case .wave(let error): return error.description
             case .io(let message): return message
             }
         }
@@ -58,6 +60,8 @@ enum Main {
                 try rulesetConvergence(
                     RulesetConvergenceArguments(Array(CommandLine.arguments.dropFirst(2)))
                 )
+            } else if CommandLine.arguments.dropFirst().first == "caller-wave" {
+                try await callerWave(Array(CommandLine.arguments.dropFirst(2)))
             } else {
                 try await reconcile(ReconcileArguments(CommandLine.arguments))
             }

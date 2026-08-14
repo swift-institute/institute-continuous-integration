@@ -1,0 +1,227 @@
+# Publish the Swift owner of repository-policy effects independently from the
+# universal CI executable. Consumers resolve CURRENT, then download and verify
+# the immutable digest-named bundle before invoking it.
+
+name: publish-repository-policy-binary
+
+permissions: {}
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'Sources/Repository Policy/**'
+      - 'Sources/Repository Policy CLI/**'
+      - 'Tests/Repository Policy Tests/**'
+      - '.github/workflows/publish-repository-policy-binary.yml'
+  schedule:
+    - cron: '11 */6 * * *'
+  workflow_dispatch:
+    inputs:
+      failure_control:
+        description: Pointer-safety negative control (protected main only)
+        required: true
+        default: none
+        type: choice
+        options:
+          - none
+          - existing-mismatch
+          - failed-readback
+
+concurrency:
+  group: publish-repository-policy-binary
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment: repository-policy-publisher
+    container: swift:6.3@sha256:69bf1f0281e13d82c9e49d67c2dd1dcc8c00bad738c860f4323d7078787ec8ea # 6.3.3
+    timeout-minutes: 45
+    permissions:
+      contents: write
+    steps:
+      - uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Require the exact protected-main source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          [ "$GITHUB_REF" = 'refs/heads/main' ] || {
+            echo "::error::publication is restricted to refs/heads/main"
+            exit 1
+          }
+          protected_main="$(git ls-remote origin refs/heads/main | cut -f1)"
+          [ -n "$protected_main" ]
+          [ "$GITHUB_SHA" = "$protected_main" ]
+          [ "$(git rev-parse HEAD)" = "$protected_main" ]
+
+      - name: Provision publisher dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          apt-get update -qq
+          apt-get install -qq -y curl ca-certificates gnupg git uuid-dev
+          install -d -m 0755 /etc/apt/keyrings
+          curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg -o /tmp/gh-keyring.gpg
+          echo "6084d5d7bd8e288441e0e94fc6275570895da18e6751f70f057485dc2d1a811b  /tmp/gh-keyring.gpg" | sha256sum -c -
+          mv /tmp/gh-keyring.gpg /etc/apt/keyrings/githubcli-archive-keyring.gpg
+          chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg
+          echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" > /etc/apt/sources.list.d/github-cli.list
+          apt-get update -qq
+          apt-get install -qq -y gh
+
+      - name: Resolve the complete dependency graph once
+        id: identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          swift package resolve
+          test -s Package.resolved
+          cp Package.resolved /tmp/repository-policy.resolution.json
+          resolution_sha="$(sha256sum /tmp/repository-policy.resolution.json | cut -d' ' -f1)"
+          {
+            echo "source-revision=$GITHUB_SHA"
+            echo "resolution-sha256=$resolution_sha"
+            echo 'toolchain=swift-6.3'
+            echo 'container=swift:6.3@sha256:69bf1f0281e13d82c9e49d67c2dd1dcc8c00bad738c860f4323d7078787ec8ea'
+            echo 'os=linux'
+            echo 'arch=x86_64'
+            echo 'provisioning=static-swift-stdlib,uuid-dev'
+          } > /tmp/IDENTITY
+          digest="$(sha256sum /tmp/IDENTITY | cut -d' ' -f1)"
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+          {
+            echo "digest=$digest"
+            cat /tmp/IDENTITY
+            echo "resolution-asset=repository-policy-${digest}.resolution.json"
+          } > /tmp/MANIFEST
+          cat /tmp/MANIFEST
+
+      - name: Build repository-policy
+        shell: bash
+        run: |
+          set -euo pipefail
+          swift build \
+            --disable-automatic-resolution \
+            -c release \
+            --product repository-policy \
+            --static-swift-stdlib
+          install -m 0755 .build/release/repository-policy /tmp/repository-policy
+
+      - name: Prove repository-policy executable
+        shell: bash
+        run: |
+          set -euo pipefail
+          /tmp/repository-policy render-caller --form terminal > /tmp/terminal-caller.yml
+          test -s /tmp/terminal-caller.yml
+          grep -F 'name: ci / matrix' /tmp/terminal-caller.yml
+          grep -F 'uses: swift-institute/.github/.github/workflows/swift-ci.yml@main' /tmp/terminal-caller.yml
+          grep -F 'github.event.repository.private' /tmp/terminal-caller.yml
+
+      - name: Publish immutable bundle and advance CURRENT last
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DIGEST: ${{ steps.identity.outputs.digest }}
+          FAILURE_CONTROL: ${{ inputs.failure_control || 'none' }}
+        run: |
+          set -euo pipefail
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          stage="$(mktemp -d)"
+          binary="repository-policy-${DIGEST}"
+          manifest="repository-policy-${DIGEST}.manifest"
+          resolution="repository-policy-${DIGEST}.resolution.json"
+          checksums="repository-policy-${DIGEST}.sha256"
+          install -m 0755 /tmp/repository-policy "$stage/$binary"
+          cp /tmp/MANIFEST "$stage/$manifest"
+          cp /tmp/repository-policy.resolution.json "$stage/$resolution"
+          (cd "$stage" && sha256sum "$binary" "$manifest" "$resolution" > "$checksums")
+          (cd "$stage" && sha256sum -c "$checksums")
+
+          prior_current="$(gh release download repository-policy-binaries \
+            --pattern CURRENT --output - 2>/dev/null || true)"
+          verify_control_pointer() {
+            status=$?
+            if [ "$FAILURE_CONTROL" != 'none' ]; then
+              current="$(gh release download repository-policy-binaries \
+                --pattern CURRENT --output - 2>/dev/null || true)"
+              if [ "$current" != "$prior_current" ]; then
+                echo '::error::failure control changed CURRENT'
+                exit 97
+              fi
+            fi
+            exit "$status"
+          }
+          trap verify_control_pointer EXIT
+
+          if ! gh release view repository-policy-binaries >/dev/null 2>&1; then
+            gh release create repository-policy-binaries \
+              --prerelease --latest=false \
+              --title 'Repository Policy binaries (rolling pointer)' \
+              --notes 'Immutable digest-named repository-policy bundles. CURRENT is advanced only after all bundle assets verify.' \
+              --target "$GITHUB_SHA"
+          fi
+
+          gh release view repository-policy-binaries \
+            --json assets --jq '.assets[].name' > "$stage/assets"
+          if [ "$FAILURE_CONTROL" != 'none' ]; then
+            [ -n "$prior_current" ] || {
+              echo '::error::failure controls require an existing CURRENT pointer'
+              exit 1
+            }
+            for asset in "$binary" "$manifest" "$resolution" "$checksums"; do
+              grep -Fxq "$asset" "$stage/assets" || {
+                echo "::error::failure control requires existing asset $asset"
+                exit 1
+              }
+            done
+          fi
+          if [ "$FAILURE_CONTROL" = 'existing-mismatch' ]; then
+            printf '\nINJECTED-MISMATCH\n' >> "$stage/$manifest"
+          fi
+          mkdir "$stage/existing"
+          for asset in "$binary" "$manifest" "$resolution" "$checksums"; do
+            if grep -Fxq "$asset" "$stage/assets"; then
+              gh release download repository-policy-binaries \
+                --pattern "$asset" --dir "$stage/existing"
+              cmp "$stage/$asset" "$stage/existing/$asset"
+            fi
+          done
+
+          for asset in "$binary" "$manifest" "$resolution" "$checksums"; do
+            if ! grep -Fxq "$asset" "$stage/assets"; then
+              gh release upload repository-policy-binaries "$stage/$asset"
+            fi
+          done
+
+          readback="$(mktemp -d)"
+          gh release download repository-policy-binaries \
+            --pattern "$binary" --pattern "$manifest" --pattern "$resolution" \
+            --pattern "$checksums" \
+            --dir "$readback"
+          if [ "$FAILURE_CONTROL" = 'failed-readback' ]; then
+            printf '\nINJECTED-READBACK-FAILURE\n' >> "$readback/$manifest"
+          fi
+          (cd "$readback" && sha256sum -c "$checksums")
+          for asset in "$binary" "$manifest" "$resolution" "$checksums"; do
+            cmp "$stage/$asset" "$readback/$asset"
+          done
+
+          [ "$FAILURE_CONTROL" = 'none' ] || {
+            echo '::error::requested pointer-safety control did not fail'
+            exit 96
+          }
+
+          printf '%s\n' "$DIGEST" > "$stage/CURRENT"
+          gh release upload repository-policy-binaries "$stage/CURRENT" --clobber
+          resolved="$(gh release download repository-policy-binaries --pattern CURRENT --output -)"
+          [ "$resolved" = "$DIGEST" ]
+          echo "Published repository-policy source=$GITHUB_SHA digest=$DIGEST"
