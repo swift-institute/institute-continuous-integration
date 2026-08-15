@@ -456,7 +456,7 @@ extension Main {
         """
     }
 
-    private static func fleet(at path: String) throws(Error) -> RepositoryPolicy.Fleet {
+    static func fleet(at path: String) throws(Error) -> RepositoryPolicy.Fleet {
         do {
             return try RepositoryPolicy.Fleet.read(at: path)
         } catch {
@@ -464,7 +464,7 @@ extension Main {
         }
     }
 
-    private static func require(
+    static func require(
         _ values: [String: String],
         keys: [String],
         operation: String
@@ -476,11 +476,11 @@ extension Main {
         }
     }
 
-    private static func waveConfiguration(_ message: String) -> Main.Error {
+    static func waveConfiguration(_ message: String) -> Main.Error {
         .configuration(RepositoryPolicy.ConfigurationError(message))
     }
 
-    private static func callerWaveClient() throws(Error) -> RepositoryPolicy.GitHubClient {
+    static func callerWaveClient() throws(Error) -> RepositoryPolicy.GitHubClient {
         guard let token = ProcessInfo.processInfo.environment["GH_TOKEN"], !token.isEmpty else {
             throw waveConfiguration("GH_TOKEN is required")
         }
@@ -491,7 +491,7 @@ extension Main {
         return RepositoryPolicy.GitHubClient(token: token, baseURL: baseURL)
     }
 
-    private static func callerWaveValues(_ arguments: [String]) throws(Error) -> [String: String] {
+    static func callerWaveValues(_ arguments: [String]) throws(Error) -> [String: String] {
         guard arguments.count.isMultiple(of: 2) else {
             throw waveConfiguration("caller-wave arguments require values")
         }
@@ -505,7 +505,7 @@ extension Main {
         return values
     }
 
-    private static func data(at path: String, label: String) throws(Error) -> Data {
+    static func data(at path: String, label: String) throws(Error) -> Data {
         do {
             return try Data(contentsOf: URL(filePath: path))
         } catch {
@@ -513,7 +513,7 @@ extension Main {
         }
     }
 
-    private static func decode<T: Decodable>(at path: String, label: String) throws(Error) -> T {
+    static func decode<T: Decodable>(at path: String, label: String) throws(Error) -> T {
         do {
             return try JSONDecoder().decode(T.self, from: Data(contentsOf: URL(filePath: path)))
         } catch {
@@ -521,7 +521,7 @@ extension Main {
         }
     }
 
-    private static func decodeDirectory<T: Decodable>(
+    static func decodeDirectory<T: Decodable>(
         at path: String,
         label: String
     ) throws(Error) -> [T] {
@@ -533,7 +533,7 @@ extension Main {
         return result
     }
 
-    private static func decodeLinesDirectory<T: Decodable>(
+    static func decodeLinesDirectory<T: Decodable>(
         at path: String,
         label: String
     ) throws(Error) -> [T] {
@@ -568,7 +568,7 @@ extension Main {
         }
     }
 
-    private static func encode<T: Encodable>(_ value: T, to url: URL) throws(Error) {
+    static func encode<T: Encodable>(_ value: T, to url: URL) throws(Error) {
         // Evidence files must carry the exact canonical bytes the library
         // digests, so recorded digests equal an independent file checksum.
         let data: Data
@@ -588,7 +588,7 @@ extension Main {
         }
     }
 
-    private static func append<T: Encodable>(_ value: T, to url: URL) throws(Error) {
+    static func append<T: Encodable>(_ value: T, to url: URL) throws(Error) {
         do {
             let encoder = JSONEncoder()
             encoder.outputFormatting = [.sortedKeys]

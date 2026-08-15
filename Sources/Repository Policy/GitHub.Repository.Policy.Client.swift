@@ -562,6 +562,104 @@ extension RepositoryPolicy {
             }
         }
 
+        public func uniformityWaveFileIfPresent(
+            _ fullName: String,
+            path filePath: String,
+            head: String
+        ) async throws(Error)
+            -> Repository_Policy.Repository.Policy.Uniformity.Wave.File?
+        {
+            let path = "/repos/\(fullName)/contents/\(filePath)?ref=\(head)"
+            let response = try await request(method: "GET", path: path)
+            if response.status == 404 { return nil }
+            guard response.status == 200 else {
+                throw error(method: "GET", path: path, response: response)
+            }
+            let content = try decode(WaveContent.self, from: response.data, path: path)
+            guard content.type == "file", content.encoding == "base64",
+                let bytes = Data(
+                    base64Encoded: content.content,
+                    options: .ignoreUnknownCharacters
+                )
+            else {
+                throw Error.precondition(
+                    "\(fullName): \(filePath) content is not a base64 regular file"
+                )
+            }
+            return .init(blob: content.sha, bytes: bytes)
+        }
+
+        public func uniformityWaveCreateCommit(
+            _ fullName: String,
+            parent: String,
+            gitignoreBlob: String,
+            deletions: [String],
+            message: String
+        ) async throws(Error) -> String {
+            let commitPath = "/repos/\(fullName)/git/commits/\(parent)"
+            let commitResponse = try await request(method: "GET", path: commitPath)
+            guard commitResponse.status == 200 else {
+                throw error(method: "GET", path: commitPath, response: commitResponse)
+            }
+            let baseTree = try decode(
+                WaveCommit.self,
+                from: commitResponse.data,
+                path: commitPath
+            ).tree.sha
+
+            var entries: [[String: Any]] = [
+                [
+                    "path": Repository_Policy.Repository.Policy.Uniformity.Wave.Shape
+                        .gitignorePath,
+                    "mode": "100644",
+                    "type": "blob",
+                    "sha": gitignoreBlob,
+                ]
+            ]
+            for deletion in deletions {
+                // A null sha in a tree entry deletes the path from the
+                // base tree; this is the API's exact deletion form.
+                entries.append(
+                    [
+                        "path": deletion,
+                        "mode": "100644",
+                        "type": "blob",
+                        "sha": NSNull(),
+                    ]
+                )
+            }
+            let treePath = "/repos/\(fullName)/git/trees"
+            let treeBody = encodeObject(
+                [
+                    "base_tree": baseTree,
+                    "tree": entries,
+                ]
+            )
+            let treeResponse = try await request(method: "POST", path: treePath, body: treeBody)
+            guard treeResponse.status == 201 else {
+                throw error(method: "POST", path: treePath, response: treeResponse)
+            }
+            let tree = try decode(WaveSHA.self, from: treeResponse.data, path: treePath).sha
+
+            let createPath = "/repos/\(fullName)/git/commits"
+            let createBody = encodeObject(
+                [
+                    "message": message,
+                    "tree": tree,
+                    "parents": [parent],
+                ]
+            )
+            let createResponse = try await request(
+                method: "POST",
+                path: createPath,
+                body: createBody
+            )
+            guard createResponse.status == 201 else {
+                throw error(method: "POST", path: createPath, response: createResponse)
+            }
+            return try decode(WaveSHA.self, from: createResponse.data, path: createPath).sha
+        }
+
         public func callerWavePause(attempt: Int) async {
             await pause(seconds: delaySeconds << max(0, attempt - 1))
         }
