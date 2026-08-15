@@ -1,6 +1,7 @@
 import Foundation
 
-extension RepositoryPolicy.GitHubClient: Repository_Policy.Repository.Policy.Uniformity.Wave.Client {
+extension RepositoryPolicy.GitHubClient: Repository_Policy.Repository.Policy.Uniformity.Wave.Client
+{
     public func shapeFile(
         _ repository: String,
         path: String,
