@@ -64,10 +64,10 @@ struct RepositoryPolicyTests {
             rules.first(where: { $0["type"] as? String == "required_status_checks" })?["parameters"]
                 as? [String: Any]
         )
-        // A bot's existing approval counts, but a pusher (including coenttb)
-        // cannot approve its own last push; stale approvals are dismissed.
-        #expect(review["required_approving_review_count"] as? Int == 1)
-        #expect(review["require_last_push_approval"] as? Bool == true)
+        // Pre-release posture (ICI#35 adjudication 2026-08-14): no approval
+        // gate; the release re-arm restores 1/true.
+        #expect(review["required_approving_review_count"] as? Int == 0)
+        #expect(review["require_last_push_approval"] as? Bool == false)
         #expect(review["dismiss_stale_reviews_on_push"] as? Bool == true)
         // GitHub's PR gate rejects unresolved conversations and a non-current
         // check; the caller-path-prefixed `ci / matrix / ci-ok` aggregate is
@@ -407,8 +407,8 @@ struct RepositoryPolicyTests {
             rules.first(where: { $0["type"] as? String == "pull_request" })?["parameters"]
                 as? [String: Any]
         )
-        #expect(review["required_approving_review_count"] as? Int == 1)
-        #expect(review["require_last_push_approval"] as? Bool == true)
+        #expect(review["required_approving_review_count"] as? Int == 0)
+        #expect(review["require_last_push_approval"] as? Bool == false)
         #expect(review["dismiss_stale_reviews_on_push"] as? Bool == true)
         #expect(review["required_review_thread_resolution"] as? Bool == true)
         #expect(review["allowed_merge_methods"] as? [String] == ["squash"])

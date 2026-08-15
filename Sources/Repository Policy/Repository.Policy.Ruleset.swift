@@ -229,9 +229,13 @@ extension RepositoryPolicy {
             guard
                 let review = rules.first(where: { $0["type"] as? String == "pull_request" })?[
                     "parameters"
-                ] as? [String: Any], review["required_approving_review_count"] as? Int == 1,
+                // Pre-release posture (ICI#35 adjudication 2026-08-14): no
+                // approval gate — one principal, zero external consumers.
+                // The release re-arm restores 1/true here and in both
+                // contract JSONs together.
+                ] as? [String: Any], review["required_approving_review_count"] as? Int == 0,
                 review["dismiss_stale_reviews_on_push"] as? Bool == true,
-                review["require_last_push_approval"] as? Bool == true,
+                review["require_last_push_approval"] as? Bool == false,
                 review["required_review_thread_resolution"] as? Bool == true,
                 review["require_code_owner_review"] as? Bool == false,
                 // GitHub server-canonicalizes these three fields onto every
