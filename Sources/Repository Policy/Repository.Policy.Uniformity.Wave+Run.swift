@@ -1,6 +1,6 @@
 import Foundation
 
-extension Repository.Policy.Caller.Wave {
+extension Repository.Policy.Uniformity.Wave {
     public static func run<C: Client>(
         client: C,
         request: Request,
@@ -17,10 +17,9 @@ extension Repository.Policy.Caller.Wave {
         guard manifest == request.expectedManifest else {
             throw .population("\(request.repository): root manifest moved after preflight")
         }
-        let oldCaller = try await guardedCaller(client: client, request: request, head: oldHead)
-        let oldBlob = oldCaller.blob
+        let oldShape = try await guardedShape(client: client, request: request, head: oldHead)
         let newBlob = try await calling {
-            try await client.createBlob(request.repository, content: request.caller)
+            try await client.createBlob(request.repository, content: request.payload)
         }
         let prepared = try await prepareRuleset(
             client: client,
@@ -33,15 +32,15 @@ extension Repository.Policy.Caller.Wave {
                     phase: "ruleset-converged",
                     request: request,
                     oldHead: oldHead,
-                    oldBlob: oldBlob,
+                    oldGitignore: oldShape.gitignore?.blob,
                     ruleset: prepared.snapshot.id,
                     bypassClosed: true
                 ),
                 through: record
             )
         }
-        if oldBlob == newBlob {
-            try await closeBypass(
+        if oldShape.terminal(payload: request.payload) {
+            try await Repository.Policy.Caller.Wave.closeBypass(
                 client: client,
                 repository: request.repository,
                 rulesetID: prepared.snapshot.id,
@@ -51,10 +50,11 @@ extension Repository.Policy.Caller.Wave {
                 repository: request.repository,
                 oldHead: oldHead,
                 newHead: oldHead,
-                oldBlob: oldBlob,
-                newBlob: oldBlob,
+                oldGitignore: oldShape.gitignore?.blob,
+                newGitignore: newBlob,
+                deleted: [],
                 ruleset: prepared.snapshot.id,
-                callerChanged: false,
+                shapeChanged: false,
                 rulesetChanged: prepared.changed,
                 bypassClosed: true,
                 population: request.population,
@@ -67,8 +67,9 @@ extension Repository.Policy.Caller.Wave {
                     request: request,
                     oldHead: oldHead,
                     newHead: oldHead,
-                    oldBlob: oldBlob,
-                    newBlob: oldBlob,
+                    oldGitignore: oldShape.gitignore?.blob,
+                    newGitignore: oldShape.gitignore?.blob,
+                    deletions: [],
                     ruleset: prepared.snapshot.id,
                     bypassClosed: true
                 ),
@@ -77,6 +78,7 @@ extension Repository.Policy.Caller.Wave {
             return receipt
         }
 
+        let deletions = oldShape.presentDeletions
         let snapshot = prepared.snapshot
         do throws(Error) {
             try recording(
@@ -84,13 +86,14 @@ extension Repository.Policy.Caller.Wave {
                     phase: "window-opening",
                     request: request,
                     oldHead: oldHead,
-                    oldBlob: oldBlob,
+                    oldGitignore: oldShape.gitignore?.blob,
+                    deletions: deletions,
                     ruleset: snapshot.id,
                     bypassClosed: false
                 ),
                 through: record
             )
-            try await transitionRuleset(
+            try await Repository.Policy.Caller.Wave.transitionRuleset(
                 client: client,
                 snapshot: snapshot,
                 from: snapshot.restore,
@@ -98,12 +101,13 @@ extension Repository.Policy.Caller.Wave {
                 phase: "opening"
             )
             _ = try await guardedHead(client: client, request: request)
-            _ = try await guardedCaller(client: client, request: request, head: oldHead)
+            _ = try await guardedShape(client: client, request: request, head: oldHead)
             let candidateHead = try await calling {
-                try await client.createCommit(
+                try await client.createShapeCommit(
                     request.repository,
                     parent: oldHead,
-                    blob: newBlob,
+                    gitignoreBlob: newBlob,
+                    deletions: deletions,
                     message: request.commitMessage
                 )
             }
@@ -111,20 +115,32 @@ extension Repository.Policy.Caller.Wave {
             try await calling {
                 try await client.moveMain(request.repository, to: candidateHead)
             }
-            let verifiedHead = try await convergedHead(
+            let verifiedHead = try await Repository.Policy.Caller.Wave.convergedHead(
                 client: client,
                 repository: request.repository,
                 expected: candidateHead
             )
-            let verifiedCaller = try await calling {
-                try await client.callerSource(request.repository, head: verifiedHead)
-            }
-            guard verifiedCaller.blob == newBlob, verifiedCaller.bytes == request.caller else {
+            let verifiedShape = try await shape(
+                client: client,
+                repository: request.repository,
+                head: verifiedHead
+            )
+            guard let verified = verifiedShape.gitignore,
+                verified.blob == newBlob,
+                verified.bytes == request.payload,
+                Repository.Policy.Caller.Wave.digest(verified.bytes) == request.payloadDigest
+            else {
                 throw .verification(
-                    "\(request.repository): terminal caller bytes did not verify after commit"
+                    "\(request.repository): shape policy bytes did not verify after commit"
                 )
             }
-            try await closeBypass(
+            guard verifiedShape.presentDeletions.isEmpty else {
+                throw .verification(
+                    "\(request.repository): retired files still present after commit: "
+                        + verifiedShape.presentDeletions.joined(separator: ", ")
+                )
+            }
+            try await Repository.Policy.Caller.Wave.closeBypass(
                 client: client,
                 repository: request.repository,
                 rulesetID: snapshot.id,
@@ -144,8 +160,9 @@ extension Repository.Policy.Caller.Wave {
                     request: request,
                     oldHead: oldHead,
                     newHead: verifiedHead,
-                    oldBlob: oldBlob,
-                    newBlob: verifiedCaller.blob,
+                    oldGitignore: oldShape.gitignore?.blob,
+                    newGitignore: verified.blob,
+                    deletions: deletions,
                     ruleset: snapshot.id,
                     bypassClosed: true
                 ),
@@ -155,10 +172,11 @@ extension Repository.Policy.Caller.Wave {
                 repository: request.repository,
                 oldHead: oldHead,
                 newHead: verifiedHead,
-                oldBlob: oldBlob,
-                newBlob: verifiedCaller.blob,
+                oldGitignore: oldShape.gitignore?.blob,
+                newGitignore: verified.blob,
+                deleted: deletions,
                 ruleset: snapshot.id,
-                callerChanged: true,
+                shapeChanged: true,
                 rulesetChanged: prepared.changed,
                 bypassClosed: true,
                 population: request.population,
@@ -167,7 +185,7 @@ extension Repository.Policy.Caller.Wave {
             )
         } catch let primary {
             do throws(Error) {
-                try await closeBypass(
+                try await Repository.Policy.Caller.Wave.closeBypass(
                     client: client,
                     repository: request.repository,
                     rulesetID: snapshot.id,
@@ -184,134 +202,7 @@ extension Repository.Policy.Caller.Wave {
         client: C,
         snapshot: RulesetSnapshot
     ) async throws(Error) {
-        let live = try await calling {
-            try await client.ruleset(snapshot.repository, id: snapshot.id)
-        }
-        try await transitionRuleset(
-            client: client,
-            snapshot: snapshot,
-            from: live,
-            to: snapshot.restore,
-            phase: "restoration"
-        )
-    }
-
-    static func closeBypass<C: Client>(
-        client: C,
-        repository: String,
-        rulesetID: Int64,
-        integrationID: Int64
-    ) async throws(Error) {
-        var live = try await calling { try await client.ruleset(repository, id: rulesetID) }
-        for attempt in 1...4 {
-            guard RulesetSnapshot.containsIntegration(live, integrationID: integrationID) else {
-                return
-            }
-            let closed = try RulesetSnapshot.removingIntegration(
-                live,
-                integrationID: integrationID
-            )
-            do throws(Error) {
-                try await calling {
-                    try await client.replaceRuleset(repository, id: rulesetID, payload: closed)
-                }
-            } catch let mutation {
-                do throws(Error) {
-                    live = try await calling { try await client.ruleset(repository, id: rulesetID) }
-                } catch {
-                    if attempt == 4 { throw mutation }
-                    await client.pause(attempt: attempt)
-                    continue
-                }
-                if !RulesetSnapshot.containsIntegration(live, integrationID: integrationID) {
-                    return
-                }
-                if attempt == 4 { throw mutation }
-                await client.pause(attempt: attempt)
-                continue
-            }
-            live = try await calling { try await client.ruleset(repository, id: rulesetID) }
-            if !RulesetSnapshot.containsIntegration(live, integrationID: integrationID) {
-                return
-            }
-            if attempt < 4 { await client.pause(attempt: attempt) }
-        }
-        throw .ruleset("\(repository): integration bypass could not be verified closed")
-    }
-
-    /// The post-move head verification, tolerant of GitHub's
-    /// read-after-write lag: a successful ref move may be followed by a
-    /// stale read for several seconds (wave run 31830484954: eleven
-    /// organizations aborted at their second subject on the immediate
-    /// read-back while every sampled repository already sat at its
-    /// created commit). The head is re-read with the client's bounded
-    /// backoff — 2+4+8+16 seconds, ~30 seconds total — and a head that
-    /// never converges still refuses with the same typed verification
-    /// error. This is the only read-after-write in the apply path that
-    /// keys on a MOVING ref: the subsequent caller-bytes check reads
-    /// content at the verified immutable commit, and the ruleset loops
-    /// already re-read with backoff.
-    static func convergedHead<C: Client>(
-        client: C,
-        repository: String,
-        expected: String
-    ) async throws(Error) -> String {
-        var head = try await calling { try await client.head(repository) }
-        for attempt in 1...4 where head != expected {
-            await client.pause(attempt: attempt)
-            head = try await calling { try await client.head(repository) }
-        }
-        guard head == expected else {
-            throw .verification(
-                "\(repository): main did not move to created commit \(expected)"
-            )
-        }
-        return head
-    }
-
-    static func guardedHead<C: Client>(
-        client: C,
-        request: Request
-    ) async throws(Error) -> String {
-        let actual = try await calling { try await client.head(request.repository) }
-        guard actual == request.expectedHead else {
-            throw .movedHead(
-                repository: request.repository,
-                expected: request.expectedHead,
-                actual: actual
-            )
-        }
-        return actual
-    }
-
-    static func guardedCaller<C: Client>(
-        client: C,
-        request: Request,
-        head: String
-    ) async throws(Error) -> CallerSource {
-        let actual = try await calling {
-            try await client.callerSource(request.repository, head: head)
-        }
-        guard actual.blob == request.expectedBlob else {
-            throw .movedBlob(
-                repository: request.repository,
-                expected: request.expectedBlob,
-                actual: actual.blob
-            )
-        }
-        return actual
-    }
-
-    static func calling<T>(
-        _ body: () async throws -> T
-    ) async throws(Error) -> T {
-        do {
-            return try await body()
-        } catch let error as RepositoryPolicy.GitHubClient.Error {
-            throw .client(error)
-        } catch {
-            throw .verification("unexpected client refusal: \(error)")
-        }
+        try await Repository.Policy.Caller.Wave.restore(client: client, snapshot: snapshot)
     }
 
     private static func validate(
@@ -323,8 +214,8 @@ extension Repository.Policy.Caller.Wave {
             recovery.repositoryID == request.expectedRepositoryID,
             recovery.rollbackHead == request.expectedHead,
             recovery.manifest == request.expectedManifest,
-            recovery.caller.blob == request.expectedBlob,
-            recovery.callerDigest == request.callerDigest,
+            recovery.shape == request.expectedShape,
+            recovery.payloadDigest == request.payloadDigest,
             recovery.population == request.population,
             recovery.canonicalRuleset == canonical,
             recovery.integrationID == request.integrationID,
@@ -339,8 +230,11 @@ extension Repository.Policy.Caller.Wave {
         client: C,
         request: Request,
         recovery: Recovery
-    ) async throws(Error) -> PreparedRuleset {
-        let references = try await protectedMainReferences(client: client, request.repository)
+    ) async throws(Error) -> Repository.Policy.Caller.Wave.PreparedRuleset {
+        let references = try await Repository.Policy.Caller.Wave.protectedMainReferences(
+            client: client,
+            request.repository
+        )
         guard let reference = references.first else {
             guard recovery.priorRuleset == nil else {
                 throw .ruleset("\(request.repository): preflight ruleset disappeared")
@@ -354,7 +248,7 @@ extension Repository.Policy.Caller.Wave {
             try await client.ruleset(request.repository, id: reference.id)
         }
         if RulesetSnapshot.containsIntegration(live, integrationID: request.integrationID) {
-            try await closeBypass(
+            try await Repository.Policy.Caller.Wave.closeBypass(
                 client: client,
                 repository: request.repository,
                 rulesetID: reference.id,
@@ -373,7 +267,7 @@ extension Repository.Policy.Caller.Wave {
                 canonical: canonical,
                 integrationID: request.integrationID
             )
-            return PreparedRuleset(
+            return .init(
                 snapshot: snapshot,
                 changed: recovery.priorRuleset?.restore != canonical
             )
@@ -391,7 +285,7 @@ extension Repository.Policy.Caller.Wave {
             integrationID: request.integrationID
         )
         do throws(Error) {
-            try await transitionRuleset(
+            try await Repository.Policy.Caller.Wave.transitionRuleset(
                 client: client,
                 snapshot: intended,
                 from: live,
@@ -403,7 +297,7 @@ extension Repository.Policy.Caller.Wave {
                 let current = try await calling {
                     try await client.ruleset(request.repository, id: reference.id)
                 }
-                try await transitionRuleset(
+                try await Repository.Policy.Caller.Wave.transitionRuleset(
                     client: client,
                     snapshot: prior,
                     from: current,
@@ -418,13 +312,13 @@ extension Repository.Policy.Caller.Wave {
             }
             throw primary
         }
-        return PreparedRuleset(snapshot: intended, changed: true)
+        return .init(snapshot: intended, changed: true)
     }
 
     private static func createCanonicalRuleset<C: Client>(
         client: C,
         request: Request
-    ) async throws(Error) -> PreparedRuleset {
+    ) async throws(Error) -> Repository.Policy.Caller.Wave.PreparedRuleset {
         let id: Int64
         do throws(Error) {
             id = try await calling {
@@ -434,7 +328,10 @@ extension Repository.Policy.Caller.Wave {
                 )
             }
         } catch let mutation {
-            let references = try await protectedMainReferences(client: client, request.repository)
+            let references = try await Repository.Policy.Caller.Wave.protectedMainReferences(
+                client: client,
+                request.repository
+            )
             guard let reconciled = references.first else { throw mutation }
             id = reconciled.id
         }
@@ -450,56 +347,7 @@ extension Repository.Policy.Caller.Wave {
             canonical: canonical,
             integrationID: request.integrationID
         )
-        return PreparedRuleset(snapshot: snapshot, changed: true)
-    }
-
-    // Internal, not private: the uniformity wave family reuses this exact
-    // debugged bounded transition rather than growing a second copy.
-    static func transitionRuleset<C: Client>(
-        client: C,
-        snapshot: RulesetSnapshot,
-        from previous: Data,
-        to intended: Data,
-        phase: String
-    ) async throws(Error) {
-        var last: Repository_Policy.Repository.Policy.Caller.Wave.Error?
-        for attempt in 1...4 {
-            do throws(Error) {
-                try await calling {
-                    try await client.replaceRuleset(
-                        snapshot.repository,
-                        id: snapshot.id,
-                        payload: intended
-                    )
-                }
-            } catch let mutation {
-                last = mutation
-            }
-            let live: Data
-            do throws(Error) {
-                live = try await calling {
-                    try await client.ruleset(snapshot.repository, id: snapshot.id)
-                }
-            } catch let readback {
-                last = readback
-                if attempt < 4 {
-                    await client.pause(attempt: attempt)
-                    continue
-                }
-                throw readback
-            }
-            if RulesetSnapshot.matches(live, expected: intended) { return }
-            guard RulesetSnapshot.matches(live, expected: previous) else {
-                throw .ruleset(
-                    "\(snapshot.repository): ruleset entered unexpected state during \(phase)"
-                )
-            }
-            if attempt < 4 {
-                await client.pause(attempt: attempt)
-            }
-        }
-        if let last { throw last }
-        throw .ruleset("\(snapshot.repository): \(phase) did not reach its intended state")
+        return .init(snapshot: snapshot, changed: true)
     }
 
     private static func event(
@@ -507,8 +355,9 @@ extension Repository.Policy.Caller.Wave {
         request: Request,
         oldHead: String? = nil,
         newHead: String? = nil,
-        oldBlob: String? = nil,
-        newBlob: String? = nil,
+        oldGitignore: String? = nil,
+        newGitignore: String? = nil,
+        deletions: [String]? = nil,
         ruleset: Int64? = nil,
         bypassClosed: Bool? = nil
     ) -> Event {
@@ -517,8 +366,9 @@ extension Repository.Policy.Caller.Wave {
             repository: request.repository,
             oldHead: oldHead,
             newHead: newHead,
-            oldBlob: oldBlob,
-            newBlob: newBlob,
+            oldGitignore: oldGitignore,
+            newGitignore: newGitignore,
+            deletions: deletions,
             ruleset: ruleset,
             bypassClosed: bypassClosed,
             populationDigest: request.population.stateDigest,

@@ -62,6 +62,8 @@ enum Main {
                 )
             } else if CommandLine.arguments.dropFirst().first == "caller-wave" {
                 try await callerWave(Array(CommandLine.arguments.dropFirst(2)))
+            } else if CommandLine.arguments.dropFirst().first == "uniformity-wave" {
+                try await uniformityWave(Array(CommandLine.arguments.dropFirst(2)))
             } else {
                 try await reconcile(ReconcileArguments(CommandLine.arguments))
             }
