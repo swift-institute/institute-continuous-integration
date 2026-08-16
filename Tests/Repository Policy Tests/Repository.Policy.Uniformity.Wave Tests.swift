@@ -9,20 +9,25 @@ import Testing
 @Suite
 struct RepositoryPolicyUniformityWaveTests {
     /// The embedded payload is the ratification: exactly the bytes the
-    /// principal ratified on swift-institute/.github#600 (439 UTF-8
-    /// bytes), and `canonical()` refuses drift by digest.
+    /// principal ratified on swift-institute/.github#600 — shape policy 5,
+    /// 522 UTF-8 bytes — and `canonical()` refuses drift by digest.
     @Test
     func embeddedPayloadCarriesTheExactRatifiedBytes() throws {
         let payload = try Repository.Policy.Uniformity.Wave.Payload.canonical()
 
-        #expect(payload.count == 439)
+        #expect(payload.count == 522)
         #expect(
             Repository.Policy.Caller.Wave.digest(payload)
-                == "b6857f3d3eb7e78bb154e7b9155e26441d805b5a38bc212339489e30ccad161c"
+                == "8e37977a3b8f0a0d9e028e6089172d811eea21e6868a878ab43a1d4875df02f7"
         )
         #expect(
             Repository.Policy.Uniformity.Wave.Payload.digest
-                == "b6857f3d3eb7e78bb154e7b9155e26441d805b5a38bc212339489e30ccad161c"
+                == "8e37977a3b8f0a0d9e028e6089172d811eea21e6868a878ab43a1d4875df02f7"
+        )
+        #expect(
+            String(decoding: payload, as: UTF8.self).contains(
+                "# Canonical Swift package shape policy: 5 (absolute allowlist)"
+            )
         )
     }
 
