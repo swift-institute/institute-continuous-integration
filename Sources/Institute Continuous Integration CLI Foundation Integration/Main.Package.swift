@@ -1,4 +1,5 @@
 import Foundation
+import Institute_Continuous_Integration_Validation
 import Package_Manager
 import Repository_Policy
 
@@ -37,8 +38,46 @@ extension Main {
             refuse("package validate requires fleet policy schemaVersion 1")
         }
 
-        let dependencies = dependencyFacts(root: root)
         var refused = false
+        let gitignore = FileManager.default.contents(atPath: root + "/.gitignore")
+        if gitignore != Repository.Policy.Uniformity.Wave.Payload.bytes {
+            refused = true
+            print(
+                "\(repository)\tPACKAGE-SHAPE-002\t.gitignore: bytes differ from "
+                    + "ratified shape policy 4"
+            )
+        } else {
+            let indexedPaths: [String]
+            let ignoredIndexedPaths: [String]
+            do {
+                indexedPaths = try Institute.ContinuousIntegration.Validation.Gitignore
+                    .indexedPaths(in: root)
+                ignoredIndexedPaths = try Institute.ContinuousIntegration.Validation.Gitignore
+                    .ignoredIndexedPaths(indexedPaths, in: root)
+            } catch {
+                refuse("package validate could not read the tracked tree: \(error)")
+            }
+            for path in ignoredIndexedPaths {
+                refused = true
+                print(
+                    "\(repository)\tPACKAGE-SHAPE-001\t\(path): tracked path is outside "
+                        + "shape policy 4"
+                )
+            }
+        }
+
+        let caller = FileManager.default.contents(
+            atPath: root + "/.github/workflows/ci.yml"
+        )
+        if caller != Data(Repository.Policy.Caller.Render.terminal.utf8) {
+            refused = true
+            print(
+                "\(repository)\tPACKAGE-SHAPE-003\t.github/workflows/ci.yml: bytes differ "
+                    + "from the generated terminal caller"
+            )
+        }
+
+        let dependencies = dependencyFacts(root: root)
         for finding in RepositoryPolicy.BranchPin.findings(
             in: dependencies,
             organizations: fleet.activeOrganizationNames
