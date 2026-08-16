@@ -1,4 +1,5 @@
 import Foundation
+import Institute_Continuous_Integration
 import Institute_Continuous_Integration_Validation
 import Package_Manager
 import Repository_Policy
