@@ -268,7 +268,10 @@ let package = Package(
             dependencies: [
                 .target(name: "Institute Continuous Integration"),
                 .target(name: "Institute Continuous Integration Command"),
+                .target(
+                    name: "Institute Continuous Integration CLI Foundation Integration"),
                 .target(name: "Institute Continuous Integration Validation"),
+                .target(name: "Repository Policy"),
             ]
         ),
     ],

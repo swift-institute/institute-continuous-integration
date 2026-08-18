@@ -1,4 +1,6 @@
 import Foundation
+import Institute_Continuous_Integration
+import Institute_Continuous_Integration_Validation
 import Package_Manager
 import Repository_Policy
 
@@ -37,8 +39,36 @@ extension Main {
             refuse("package validate requires fleet policy schemaVersion 1")
         }
 
+        let gitignore = FileManager.default.contents(atPath: root + "/.gitignore")
+        let ignoredIndexedPaths: [String]
+        if gitignore == Repository.Policy.Uniformity.Wave.Payload.bytes {
+            do {
+                let indexedPaths = try Institute.ContinuousIntegration.Validation.Gitignore
+                    .indexedPaths(in: root)
+                ignoredIndexedPaths = try Institute.ContinuousIntegration.Validation.Gitignore
+                    .ignoredIndexedPaths(indexedPaths, in: root)
+            } catch {
+                refuse("package validate could not read the tracked tree: \(error)")
+            }
+        } else {
+            ignoredIndexedPaths = []
+        }
+
+        let caller = FileManager.default.contents(
+            atPath: root + "/.github/workflows/ci.yml"
+        )
+        let shapeFindings = Main.Shape.findings(
+            repository: repository,
+            gitignore: gitignore,
+            ignoredIndexedPaths: ignoredIndexedPaths,
+            caller: caller
+        )
+        for finding in shapeFindings {
+            print(finding)
+        }
+        var refused = !shapeFindings.isEmpty
+
         let dependencies = dependencyFacts(root: root)
-        var refused = false
         for finding in RepositoryPolicy.BranchPin.findings(
             in: dependencies,
             organizations: fleet.activeOrganizationNames

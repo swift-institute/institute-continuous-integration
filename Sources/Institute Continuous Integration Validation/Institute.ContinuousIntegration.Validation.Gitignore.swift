@@ -545,7 +545,7 @@ extension Institute.ContinuousIntegration.Validation.Gitignore {
 
     /// Stage-0 pathnames from the real index. Records of any other shape are
     /// refused rather than treated as an empty index.
-    static func indexedPaths(
+    public static func indexedPaths(
         in root: String,
         environment: [String: String] = ProcessInfo.processInfo.environment
     ) throws(GitHub.ContinuousIntegration.Validation.EnvironmentDefect) -> [String] {
@@ -617,7 +617,7 @@ extension Institute.ContinuousIntegration.Validation.Gitignore {
     /// Tracked paths ignored by the repository-controlled hierarchy. The
     /// `--no-index` flag is load-bearing: without it Git suppresses exactly
     /// the force-added path this rule exists to detect.
-    static func ignoredIndexedPaths(
+    public static func ignoredIndexedPaths(
         _ paths: [String],
         in root: String,
         noIndex: Bool = true
