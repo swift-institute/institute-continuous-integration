@@ -6,9 +6,9 @@ import Institute_Continuous_Integration_Validation
 
 extension Main {
     enum Error: Swift.Error {
-        case command(Institute.ContinuousIntegration.Command.Gitignore.Error)
+        case command(ContinuousIntegration.Command.Gitignore.Error)
         case unreadable(String)
-        case environment(Institute.ContinuousIntegration.Validation.EnvironmentDefect)
+        case environment(ContinuousIntegration.Validation.EnvironmentDefect)
         case unowned([String])
     }
 }

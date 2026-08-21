@@ -80,12 +80,17 @@ let package = Package(
         ),
     ],
     targets: [
-        // The Institute-policy namespace shell: `Institute` and
-        // `Institute.ContinuousIntegration`, the owner of the relation
-        // between continuous-integration semantics and Institute
-        // doctrine.
+        // Institute policy extends the vendor-neutral continuous-
+        // integration namespace. The `Institute` namespace is declared
+        // only by the institute package.
         .target(
-            name: "Institute Continuous Integration"
+            name: "Institute Continuous Integration",
+            dependencies: [
+                .product(
+                    name: "Continuous Integration",
+                    package: "swift-continuous-integration"
+                )
+            ]
         ),
         .target(
             name: "Institute Continuous Integration Source",

@@ -105,7 +105,7 @@ extension Main {
                 // Class-aware expiry: malformed fields refuse everywhere; a
                 // well-formed expired exception refuses only on the owner
                 // repository and deschedules its classified leg elsewhere.
-                let nightly = Institute.ContinuousIntegration.NightlyException(
+                let nightly = ContinuousIntegration.NightlyException(
                     image: nightlyImage,
                     upstreamIssue: value("--nightly-main-upstream-issue", in: rest),
                     recheck: value("--nightly-main-recheck", in: rest)
@@ -115,7 +115,7 @@ extension Main {
                     subjectRepository: value("--subject-repository", in: rest)
                 ) {
                     deschedule[
-                        Institute.ContinuousIntegration.NightlyException
+                        ContinuousIntegration.NightlyException
                             .classifiedLeg.id
                     ] = "nightly-exception-expired"
                 }
@@ -130,11 +130,11 @@ extension Main {
         do {
             // Optional by construction: an absent image is the terminal
             // state, resolving to the official `swift:<floor>`.
-            linuxImage = try Institute.ContinuousIntegration.ReleaseFloorException.resolve(
+            linuxImage = try ContinuousIntegration.ReleaseFloorException.resolve(
                 swiftVersion: swiftVersion,
                 exception: floorImage.isEmpty
                     ? nil
-                    : Institute.ContinuousIntegration.ReleaseFloorException(
+                    : ContinuousIntegration.ReleaseFloorException(
                         swiftVersion: swiftVersion,
                         image: floorImage,
                         upstreamRelease: value("--release-floor-upstream-release", in: rest),
@@ -158,7 +158,7 @@ extension Main {
                     ?? value("--platform-support", in: rest),
                 lintBundle: configuration?.lintBundle
                     ?? value("--lint-bundle", in: rest),
-                packageContentChanged: Institute.ContinuousIntegration.PackageDiff
+                packageContentChanged: ContinuousIntegration.PackageDiff
                     .packageContentChanged(
                         event: event,
                         eventPath: value("--event-path", in: rest),
@@ -227,7 +227,7 @@ extension Main {
     // MARK: - bootstrap
 
     static func identityJSON(
-        _ identity: Institute.ContinuousIntegration.Bootstrap.Identity
+        _ identity: ContinuousIntegration.Bootstrap.Identity
     ) -> [String: Any] {
         [
             "workspaceRevision": identity.workspaceRevision,
@@ -240,7 +240,7 @@ extension Main {
     }
 
     static func bootstrap(_ verb: Verb, _ rest: [String]) {
-        let identity = Institute.ContinuousIntegration.Bootstrap.Identity(
+        let identity = ContinuousIntegration.Bootstrap.Identity(
             workspaceRevision: value("--workspace-revision", in: rest),
             sourcesRevision: value("--sources-revision", in: rest),
             toolchain: value("--toolchain", in: rest),
@@ -267,7 +267,7 @@ extension Main {
             for path in value("--executables", in: rest).split(separator: ",").map(String.init) {
                 guard let data = FileManager.default.contents(atPath: root + "/" + path)
                 else { refuse("bootstrap-manifest: unreadable executable \(path)") }
-                let executable = Institute.ContinuousIntegration.Bootstrap.Manifest.Executable(
+                let executable = ContinuousIntegration.Bootstrap.Manifest.Executable(
                     path: path,
                     bytes: [UInt8](data).map(Byte.init)
                 )
@@ -296,7 +296,7 @@ extension Main {
                 let producerRun = object["producerRun"] as? String
             else { refuse("bootstrap-verify: malformed manifest") }
 
-            let recorded = Institute.ContinuousIntegration.Bootstrap.Identity(
+            let recorded = ContinuousIntegration.Bootstrap.Identity(
                 workspaceRevision: identityObject["workspaceRevision"] as? String ?? "",
                 sourcesRevision: identityObject["sourcesRevision"] as? String ?? "",
                 toolchain: identityObject["toolchain"] as? String ?? "",
@@ -304,7 +304,7 @@ extension Main {
                 architecture: identityObject["architecture"] as? String ?? "",
                 provisioning: identityObject["provisioning"] as? [String] ?? []
             )
-            let manifest = Institute.ContinuousIntegration.Bootstrap.Manifest(
+            let manifest = ContinuousIntegration.Bootstrap.Manifest(
                 identity: recorded,
                 key: key,
                 executables: executableObjects.map {

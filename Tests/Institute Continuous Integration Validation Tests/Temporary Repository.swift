@@ -43,13 +43,13 @@ struct TemporaryRepository: ~Copyable {
         // `Void` and this fixture's callers already assume success, so
         // a still-losing retry fails the same way it always has
         // (silently) rather than gaining new behavior.
-        try? Institute.ContinuousIntegration.Validation.Gitignore.retryingTransientWindowsFailures {
+        try? ContinuousIntegration.Validation.Gitignore.retryingTransientWindowsFailures {
             try FileManager.default.createDirectory(
                 atPath: (path as NSString).deletingLastPathComponent,
                 withIntermediateDirectories: true
             )
         }
-        try? Institute.ContinuousIntegration.Validation.Gitignore.retryingTransientWindowsFailures {
+        try? ContinuousIntegration.Validation.Gitignore.retryingTransientWindowsFailures {
             try Data(contents.utf8).write(to: URL(fileURLWithPath: path))
         }
     }
@@ -62,7 +62,7 @@ struct TemporaryRepository: ~Copyable {
     @discardableResult
     func git(_ arguments: [String], environment: [String: String]? = nil) throws -> Int32 {
         guard
-            let executable = Institute.ContinuousIntegration.Validation.Gitignore.gitExecutable(
+            let executable = ContinuousIntegration.Validation.Gitignore.gitExecutable(
                 in: ProcessInfo.processInfo.environment
             )
         else {

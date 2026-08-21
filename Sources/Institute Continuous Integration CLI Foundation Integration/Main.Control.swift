@@ -15,7 +15,7 @@ extension Main {
             )
         }
 
-        let run = Institute.ContinuousIntegration.Control.Validation.run(
+        let run = ContinuousIntegration.Control.Validation.run(
             repository: repository,
             root: root
         )

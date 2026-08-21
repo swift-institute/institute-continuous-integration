@@ -36,9 +36,9 @@ extension Main {
             run(verb, Array(arguments.dropFirst()))
             return
         }
-        let action: Institute.ContinuousIntegration.Command.Gitignore.Action
-        do throws(Institute.ContinuousIntegration.Command.Gitignore.Error) {
-            action = try Institute.ContinuousIntegration.Command.Gitignore.parse(
+        let action: ContinuousIntegration.Command.Gitignore.Action
+        do throws(ContinuousIntegration.Command.Gitignore.Error) {
+            action = try ContinuousIntegration.Command.Gitignore.parse(
                 Array(CommandLine.arguments.dropFirst())
             )
         } catch {
@@ -49,8 +49,8 @@ extension Main {
             guard let canon = read(canon) else { throw .unreadable(canon) }
             let existing = target.flatMap(read)
             let rendered: String
-            do throws(Institute.ContinuousIntegration.Command.Gitignore.Error) {
-                rendered = try Institute.ContinuousIntegration.Command.Gitignore.render(
+            do throws(ContinuousIntegration.Command.Gitignore.Error) {
+                rendered = try ContinuousIntegration.Command.Gitignore.render(
                     canon: canon,
                     target: existing
                 )
@@ -60,9 +60,9 @@ extension Main {
             print(rendered, terminator: "")
 
         case .validate(let repository, let root, let canon):
-            let findings: [Institute.ContinuousIntegration.Validation.Finding]
-            do throws(Institute.ContinuousIntegration.Validation.EnvironmentDefect) {
-                findings = try Institute.ContinuousIntegration.Command.Gitignore.findings(
+            let findings: [ContinuousIntegration.Validation.Finding]
+            do throws(ContinuousIntegration.Validation.EnvironmentDefect) {
+                findings = try ContinuousIntegration.Command.Gitignore.findings(
                     repository: repository,
                     root: root,
                     canon: canon
@@ -71,14 +71,14 @@ extension Main {
                 throw .environment(error)
             }
             print(
-                Institute.ContinuousIntegration.Command.Gitignore.encoded(findings: findings),
+                ContinuousIntegration.Command.Gitignore.encoded(findings: findings),
                 terminator: ""
             )
 
         case .fixtures(let corpus):
             let report: GitHub.ContinuousIntegration.Validation.Harness.Report
-            do throws(Institute.ContinuousIntegration.Validation.EnvironmentDefect) {
-                report = try Institute.ContinuousIntegration.Command.Gitignore.fixtures(
+            do throws(ContinuousIntegration.Validation.EnvironmentDefect) {
+                report = try ContinuousIntegration.Command.Gitignore.fixtures(
                     corpus: corpus
                 )
             } catch {
