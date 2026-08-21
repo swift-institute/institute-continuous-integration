@@ -1,11 +1,12 @@
-internal import Institute_Continuous_Integration
+public import Institute_Continuous_Integration
+public import Source_Profile
 
 extension Institute.ContinuousIntegration.Source {
     public struct Policy: Sendable {
         public static let current = Self(revision: "source-enforcement-v3")
 
         public let revision: Swift.String
-        public let requiredEngines: [SourceDomain.Engine.ID]
+        public let requiredEngines: [Source_Profile.Source.Engine.ID]
         public let swiftFormat: Artifact
         public let bundles: [Bundle]
 
@@ -21,7 +22,7 @@ extension Institute.ContinuousIntegration.Source {
 
         public func linter(
             bundle: Bundle,
-            rules: [SourceDomain.Rule.ID]
+            rules: [Source_Profile.Source.Rule.ID]
         ) -> Artifact {
             let document = JSON.object([
                 ("revision", JSON(stringLiteral: revision)),
@@ -33,17 +34,17 @@ extension Institute.ContinuousIntegration.Source {
 
         public func profile(
             swiftFormatExecutable: Swift.String,
-            swiftFormatTool: SourceDomain.Profile.Digest,
+            swiftFormatTool: Source_Profile.Source.Profile.Digest,
             swiftFormatConfigurationPath: Swift.String,
             linterExecutable: Swift.String,
-            linterTool: SourceDomain.Profile.Digest,
+            linterTool: Source_Profile.Source.Profile.Digest,
             linterConfigurationPath: Swift.String,
             bundle: Bundle,
-            linterRules: [SourceDomain.Rule.ID]
-        ) -> SourceDomain.Profile {
-            let swiftFormatID = SourceDomain.Engine.ID("swift-format")
-            let linterID = SourceDomain.Engine.ID("swift-linter")
-            return SourceDomain.Profile(
+            linterRules: [Source_Profile.Source.Rule.ID]
+        ) -> Source_Profile.Source.Profile {
+            let swiftFormatID = Source_Profile.Source.Engine.ID("swift-format")
+            let linterID = Source_Profile.Source.Engine.ID("swift-linter")
+            return Source_Profile.Source.Profile(
                 revision: revision,
                 engines: [
                     .init(

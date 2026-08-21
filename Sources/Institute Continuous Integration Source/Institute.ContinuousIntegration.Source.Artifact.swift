@@ -1,12 +1,13 @@
 internal import Byte_Primitives
 internal import FIPS_180_4
-internal import Institute_Continuous_Integration
+public import Institute_Continuous_Integration
+public import Source_Profile
 
 extension Institute.ContinuousIntegration.Source {
     public struct Artifact: Equatable, Sendable {
         public let path: Swift.String
         public let contents: Swift.String
-        public let digest: SourceDomain.Profile.Digest
+        public let digest: Source_Profile.Source.Profile.Digest
 
         public init(path: Swift.String, contents: Swift.String) {
             self.path = path
