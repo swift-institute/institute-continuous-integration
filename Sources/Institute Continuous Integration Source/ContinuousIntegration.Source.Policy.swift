@@ -25,6 +25,7 @@ extension ContinuousIntegration.Source {
             rules: [Source_Profile.Source.Rule.ID]
         ) -> Artifact {
             let document = JSON.object([
+                ("schema", 1),
                 ("revision", JSON(stringLiteral: revision)),
                 ("bundle", JSON(stringLiteral: bundle.rawValue)),
                 ("rules", rules.sorted(by: { $0.token < $1.token }).json),
