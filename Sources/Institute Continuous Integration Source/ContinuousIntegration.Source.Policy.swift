@@ -9,6 +9,7 @@ extension ContinuousIntegration.Source {
         public let requiredEngines: [Source_Profile.Source.Engine.ID]
         public let swiftFormat: Artifact
         public let bundles: [Bundle]
+        public let commitment: Commitment
 
         public init(revision: Swift.String) {
             self.revision = revision
@@ -18,6 +19,20 @@ extension ContinuousIntegration.Source {
                 contents: Self.swiftFormatConfiguration
             )
             self.bundles = Bundle.allCases
+            self.commitment = .init(
+                repositories: [
+                    "swift-foundations/swift-linter",
+                    "swift-foundations/swift-linter-rules",
+                    "swift-foundations/swift-institute-linter-rules",
+                    "swift-foundations/swift-source",
+                    "swift-primitives/swift-linter-primitives",
+                    "swift-primitives/swift-primitives-linter-rules",
+                    "swift-primitives/swift-source-primitives",
+                    "swift-standards/swift-standards-linter-rules",
+                ],
+                controls: ["application", "institute", "continuous-integration"],
+                rule: .init(suffix: "-linter-rules")
+            )
         }
 
         public func linter(
@@ -30,7 +45,10 @@ extension ContinuousIntegration.Source {
                 ("bundle", JSON(stringLiteral: bundle.rawValue)),
                 ("rules", rules.sorted(by: { $0.token < $1.token }).json),
             ])
-            return .init(path: "source-linter-profile.json", contents: document.serialize(pretty: false) + "\n")
+            return .init(
+                path: "source-linter-profile.json",
+                contents: document.serialize(pretty: false) + "\n"
+            )
         }
 
         public func profile(
