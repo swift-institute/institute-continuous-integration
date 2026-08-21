@@ -32,8 +32,10 @@ extension Institute.ContinuousIntegration.Source {
         public func profile(
             swiftFormatExecutable: Swift.String,
             swiftFormatTool: SourceDomain.Profile.Digest,
+            swiftFormatConfigurationPath: Swift.String,
             linterExecutable: Swift.String,
             linterTool: SourceDomain.Profile.Digest,
+            linterConfigurationPath: Swift.String,
             bundle: Bundle,
             linterRules: [SourceDomain.Rule.ID]
         ) -> SourceDomain.Profile {
@@ -47,6 +49,7 @@ extension Institute.ContinuousIntegration.Source {
                         executable: swiftFormatExecutable,
                         tool: swiftFormatTool,
                         configuration: swiftFormat.digest,
+                        configurationPath: swiftFormatConfigurationPath,
                         rules: [.init(engine: swiftFormatID, token: "format")]
                     ),
                     .init(
@@ -54,6 +57,8 @@ extension Institute.ContinuousIntegration.Source {
                         executable: linterExecutable,
                         tool: linterTool,
                         configuration: linter(bundle: bundle, rules: linterRules).digest,
+                        configurationPath: linterConfigurationPath,
+                        environment: ["SWIFT_LINTER_BUNDLE": bundle.rawValue],
                         rules: linterRules
                     ),
                 ]

@@ -20,8 +20,10 @@ struct `Institute source policy` {
         let profile = policy.profile(
             swiftFormatExecutable: "/swift-format",
             swiftFormatTool: .init("format-tool"),
+            swiftFormatConfigurationPath: "/.swift-format",
             linterExecutable: "/swift-linter",
             linterTool: .init("linter-tool"),
+            linterConfigurationPath: "/source-linter-profile.json",
             bundle: .institute,
             linterRules: rules
         )
@@ -33,8 +35,10 @@ struct `Institute source policy` {
                 == policy.profile(
                     swiftFormatExecutable: "/swift-format",
                     swiftFormatTool: .init("format-tool"),
+                    swiftFormatConfigurationPath: "/.swift-format",
                     linterExecutable: "/swift-linter",
                     linterTool: .init("linter-tool"),
+                    linterConfigurationPath: "/source-linter-profile.json",
                     bundle: .institute,
                     linterRules: rules
                 ).digest
