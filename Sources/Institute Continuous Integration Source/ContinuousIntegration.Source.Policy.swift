@@ -53,6 +53,7 @@ extension ContinuousIntegration.Source {
                         tool: swiftFormatTool,
                         configuration: swiftFormat.digest,
                         configurationPath: swiftFormatConfigurationPath,
+                        artifactKinds: [.swift],
                         rules: [.init(engine: swiftFormatID, token: "format")]
                     ),
                     .init(
@@ -62,6 +63,7 @@ extension ContinuousIntegration.Source {
                         configuration: linter(bundle: bundle, rules: linterRules).digest,
                         configurationPath: linterConfigurationPath,
                         environment: ["SWIFT_LINTER_BUNDLE": bundle.rawValue],
+                        artifactKinds: [.swift],
                         rules: linterRules
                     ),
                 ]
