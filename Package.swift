@@ -25,6 +25,10 @@ let package = Package(
             targets: ["Institute Continuous Integration Inventory"]
         ),
         .library(
+            name: "Institute Continuous Integration Source",
+            targets: ["Institute Continuous Integration Source"]
+        ),
+        .library(
             name: "Repository Policy",
             targets: ["Repository Policy"]
         ),
@@ -70,6 +74,10 @@ let package = Package(
             url: "https://github.com/swift-standards/swift-fips-180-4",
             branch: "main"
         ),
+        .package(
+            url: "https://github.com/swift-foundations/swift-source",
+            branch: "main"
+        ),
     ],
     targets: [
         // The Institute-policy namespace shell: `Institute` and
@@ -78,6 +86,13 @@ let package = Package(
         // doctrine.
         .target(
             name: "Institute Continuous Integration"
+        ),
+        .target(
+            name: "Institute Continuous Integration Source",
+            dependencies: [
+                "Institute Continuous Integration",
+                .product(name: "Source Profile", package: "swift-source"),
+            ]
         ),
         // The documents this control plane distributes into every
         // package, and how they are spliced. One owner for the renderer
@@ -262,6 +277,10 @@ let package = Package(
             // recorded run and regenerated expectation are evidence, not
             // resources.
             exclude: ["Fixtures"]
+        ),
+        .testTarget(
+            name: "Institute Continuous Integration Source Tests",
+            dependencies: ["Institute Continuous Integration Source"]
         ),
         .testTarget(
             name: "Institute Continuous Integration Command Tests",
