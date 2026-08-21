@@ -1,3 +1,7 @@
+internal import Byte_Primitives
+internal import FIPS_180_4
+internal import Institute_Continuous_Integration
+
 extension Institute.ContinuousIntegration.Source {
     public struct Artifact: Equatable, Sendable {
         public let path: Swift.String

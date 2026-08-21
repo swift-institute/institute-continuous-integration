@@ -91,6 +91,8 @@ let package = Package(
             name: "Institute Continuous Integration Source",
             dependencies: [
                 "Institute Continuous Integration",
+                .product(name: "Byte Primitives", package: "swift-byte-primitives"),
+                .product(name: "FIPS 180-4", package: "swift-fips-180-4"),
                 .product(name: "Source Profile", package: "swift-source"),
             ]
         ),

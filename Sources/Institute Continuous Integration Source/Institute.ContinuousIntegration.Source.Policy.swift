@@ -1,3 +1,5 @@
+internal import Institute_Continuous_Integration
+
 extension Institute.ContinuousIntegration.Source {
     public struct Policy: Sendable {
         public static let current = Self(revision: "source-enforcement-v3")
