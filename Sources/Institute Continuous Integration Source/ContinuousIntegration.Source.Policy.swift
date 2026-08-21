@@ -10,13 +10,15 @@ extension ContinuousIntegration.Source {
         public let swiftFormat: Artifact
         public let bundles: [Bundle]
         public let commitment: Commitment
+        public let configuration: Configuration
 
         public init(revision: Swift.String) {
             self.revision = revision
             self.requiredEngines = [.init("swift-format"), .init("swift-linter")]
             self.swiftFormat = .init(
                 path: ".swift-format",
-                contents: Self.swiftFormatConfiguration
+                contents: Self.swiftFormatConfiguration,
+                schema: "swift-format:1"
             )
             self.bundles = Bundle.allCases
             self.commitment = .init(
@@ -33,6 +35,11 @@ extension ContinuousIntegration.Source {
                 controls: ["application", "institute", "continuous-integration"],
                 rule: .init(suffix: "-linter-rules")
             )
+            let engine = Source_Profile.Source.Engine.ID("source-policy")
+            self.configuration = .init(
+                engine: engine,
+                predicate: .init(engine: engine, token: "exact-configuration")
+            )
         }
 
         public func linter(
@@ -42,12 +49,13 @@ extension ContinuousIntegration.Source {
             let document = JSON.object([
                 ("schema", 1),
                 ("revision", JSON(stringLiteral: revision)),
-                ("bundle", JSON(stringLiteral: bundle.rawValue)),
+                ("bundle", JSON(stringLiteral: bundle.token)),
                 ("rules", rules.sorted(by: { $0.token < $1.token }).json),
             ])
             return .init(
                 path: "source-linter-profile.json",
-                contents: document.serialize(pretty: false) + "\n"
+                contents: document.serialize(pretty: false) + "\n",
+                schema: "swift-linter-profile:1"
             )
         }
 
@@ -81,7 +89,7 @@ extension ContinuousIntegration.Source {
                         tool: linterTool,
                         configuration: linter(bundle: bundle, rules: linterRules).digest,
                         configurationPath: linterConfigurationPath,
-                        environment: ["SWIFT_LINTER_BUNDLE": bundle.rawValue],
+                        environment: ["SWIFT_LINTER_BUNDLE": bundle.token],
                         artifactKinds: [.swift],
                         rules: linterRules
                     ),

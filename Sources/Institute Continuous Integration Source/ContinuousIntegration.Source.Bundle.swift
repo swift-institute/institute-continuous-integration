@@ -7,3 +7,7 @@ extension ContinuousIntegration.Source {
         case institute
     }
 }
+
+extension ContinuousIntegration.Source.Bundle {
+    public var token: Swift.String { rawValue }
+}
