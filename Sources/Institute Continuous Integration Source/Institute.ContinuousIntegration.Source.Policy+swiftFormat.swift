@@ -2,7 +2,7 @@ internal import Institute_Continuous_Integration
 internal import Source_Profile
 
 extension Institute.ContinuousIntegration.Source.Policy {
-    fileprivate static let swiftFormatConfiguration: Swift.String = {
+    internal static let swiftFormatConfiguration: Swift.String = {
         let rules: [(Swift.String, JSON)] = [
             ("AllPublicDeclarationsHaveDocumentation", true),
             ("AlwaysUseLowerCamelCase", false),
